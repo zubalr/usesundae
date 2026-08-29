@@ -43,6 +43,7 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.equal(workspace.searchParams.get("goal"), "Review signup clarity");
     assert.equal(workspace.hash, "#workbench");
     assert.match(String(output.site_tools_next_step), /Site Tools/i);
+    assert.match(String(output.site_tools_next_step), /host browser/i);
   } finally {
     await client.close();
     await server.close();

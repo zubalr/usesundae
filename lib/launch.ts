@@ -1,4 +1,5 @@
 export const CHATGPT_HOME_URL = "https://chatgpt.com/";
+export const PUBLIC_DEMO_URL = "https://usesundae.vercel.app/demo";
 export const MAX_AUDIT_GOAL_LENGTH = 240;
 export const MAX_PUBLIC_URL_LENGTH = 2048;
 
@@ -77,6 +78,12 @@ export function buildWorkspaceUrl(appOrigin: string, launch: AuditLaunch) {
   workspace.searchParams.set("goal", launch.goal);
   workspace.hash = "workbench";
   return workspace.toString();
+}
+
+export function resolvePublicDemoUrl(appOrigin: string) {
+  const current = new URL(appOrigin);
+  const local = ["localhost", "127.0.0.1", "::1"].includes(current.hostname);
+  return local ? PUBLIC_DEMO_URL : new URL("/demo", current.origin).toString();
 }
 
 export function buildChatGptHandoffPrompt(launch: AuditLaunch, workspaceUrl: string) {

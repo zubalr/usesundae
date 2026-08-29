@@ -21,7 +21,7 @@
   --c-coral: #e45737;
   --c-coral-deep: #a82f1e;
   --c-teal: #236b5f;
-  --c-amber: #b77a14;
+  --c-amber: #8a5700;
   --c-focus: #176fc1;
 
   /* dark counterparts: warm neutrals biased toward the coral accent, so the
@@ -45,10 +45,27 @@
   --border: light-dark(var(--c-line), var(--c-line-dark));
   --accent: light-dark(var(--c-coral), var(--c-coral-dark));
   --accent-strong: light-dark(var(--c-coral-deep), var(--c-coral-deep-dark));
-  --accent-on: light-dark(#ffffff, #16150f);
+  --accent-on: light-dark(var(--c-ink), #16150f);
   --success: light-dark(var(--c-teal), var(--c-teal-dark));
+  --success-on: light-dark(var(--c-paper-bright), var(--c-ink));
   --warning: light-dark(var(--c-amber), var(--c-amber-dark));
   --focus-ring: light-dark(var(--c-focus), var(--c-focus-dark));
+
+  /* The audit workbench is an evidence canvas: screenshots, severity markers,
+     and measurement overlays retain one stable colour interpretation in both
+     surrounding themes. */
+  --evidence-surface: var(--c-paper);
+  --evidence-surface-raised: var(--c-paper-bright);
+  --evidence-text-primary: var(--c-ink);
+  --evidence-text-secondary: var(--c-muted);
+  --evidence-border: var(--c-line);
+  --evidence-accent: var(--c-coral);
+  --evidence-accent-strong: var(--c-coral-deep);
+  --evidence-accent-on: var(--c-ink);
+  --evidence-success: var(--c-teal);
+  --evidence-success-on: var(--c-paper-bright);
+  --evidence-warning: var(--c-amber);
+  --evidence-focus-ring: var(--c-focus);
 
   /* -- semantic: space (pick a step, never invent px) --------------------- */
   --space-none: 0;

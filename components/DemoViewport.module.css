@@ -52,13 +52,13 @@
 }
 
 .pin {
-  --pin-color: #de4c31;
+  --pin-color: var(--accent);
   position: absolute;
   display: block;
   border: 0;
   padding: 0;
   background: transparent;
-  color: white;
+  color: var(--accent-on);
   cursor: pointer;
   pointer-events: auto;
 }
@@ -109,7 +109,8 @@
 }
 
 .pin[data-verified="true"] {
-  --pin-color: #287565;
+  --pin-color: var(--success);
+  color: var(--success-on);
 }
 
 .scanLine {

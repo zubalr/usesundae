@@ -169,11 +169,21 @@
 }
 
 .scopeLine code,
+.scopeLine a,
 .receiptLabel code,
 .measurement,
 .verificationLine strong {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+.scopeLine a {
+  min-block-size: var(--space-l);
+  display: inline-flex;
+  align-items: center;
+  color: var(--surface-raised);
+  font-family: var(--font-mono);
+  text-underline-offset: var(--space-2xs);
 }
 
 .sampleProduct {

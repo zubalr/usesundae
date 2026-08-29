@@ -2,6 +2,7 @@
 
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useAuditIntent } from "@/components/AuditIntent";
 import { captureBrowserFacts } from "@/lib/audit/dom";
 import { deriveFindings } from "@/lib/audit/derive-findings";
 import {
@@ -166,6 +167,10 @@ function resolveWaitForSelector(requested: string | undefined, fallback?: string
 }
 
 export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
+  const { goal: liveAuditGoal, sponsoredResult, setSponsoredResult } = useAuditIntent();
+  const currentAuditGoal = sponsoredResult
+    ? sponsoredResult.session.goal
+    : liveAuditGoal || auditGoal;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const activitySequence = useRef(0);
   const activityRef = useRef<Activity[]>([]);
@@ -195,6 +200,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   const latestOperationRef = useRef(new LatestOperation());
   const auditCountRef = useRef(0);
   const inspectorRef = useRef<HTMLElement>(null);
+  const importedSponsoredIdRef = useRef<string | null>(null);
 
   const [mode, setMode] = useState<TargetMode>("sample");
   const [viewport, setViewport] = useState<Viewport>("mobile");
@@ -393,6 +399,57 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
     return latestOperationRef.current.begin();
   }, []);
 
+  useEffect(() => {
+    if (!sponsoredResult || importedSponsoredIdRef.current === sponsoredResult.checkpoint.id)
+      return;
+    const nextCheckpoint = sponsoredResult.checkpoint;
+    const snapshot = sponsoredResult.snapshot;
+    const publicUrl = nextCheckpoint.target.displayUrl;
+    const captureUrl = sponsoredResult.session.captureUrl;
+
+    beginRemoteOperation();
+    resetEvidence();
+    modeRef.current = "remote";
+    viewportRef.current = nextCheckpoint.viewport;
+    demoStateRef.current = snapshot.demoState;
+    remoteUrlRef.current = captureUrl;
+    fullPageRef.current = nextCheckpoint.capture.fullPage;
+    waitForSelectorRef.current = nextCheckpoint.capture.waitForSelector;
+    checkpointRef.current = nextCheckpoint;
+    checkpointRecordsRef.current.set(nextCheckpoint.id, {
+      checkpoint: nextCheckpoint,
+      captureUrl,
+    });
+    approvedUrlsRef.current = new Set([captureUrl]);
+    baselineCheckpointRef.current = { [nextCheckpoint.viewport]: nextCheckpoint };
+    setMode("remote");
+    setViewport(nextCheckpoint.viewport);
+    setDemoState(snapshot.demoState);
+    setCheckpoint(nextCheckpoint);
+    setUrlDraft(publicUrl);
+    setWaitForSelectorDraft(nextCheckpoint.capture.waitForSelector ?? "");
+    setError(null);
+    setAuditing(false);
+    commitSnapshot(snapshot);
+
+    const firstStep: JourneyEntry = {
+      checkpointId: nextCheckpoint.id,
+      scopeId: nextCheckpoint.scopeId,
+      label: nextCheckpoint.title || "Sponsored review",
+      displayUrl: publicUrl,
+      capturedAt: nextCheckpoint.capturedAt,
+      findingCount: snapshot.findings.length,
+    };
+    journeyRef.current = [firstStep];
+    setJourney(journeyRef.current);
+    importedSponsoredIdRef.current = nextCheckpoint.id;
+    pushActivity(
+      "system",
+      "Imported sponsored review",
+      `${publicUrl} · ${nextCheckpoint.viewport} · ${snapshot.findings.length} evidence-linked findings`,
+    );
+  }, [beginRemoteOperation, commitSnapshot, pushActivity, resetEvidence, sponsoredResult]);
+
   const assertCurrentOperation = useCallback((epoch: number, signal?: AbortSignal) => {
     latestOperationRef.current.assertCurrent(epoch, signal);
   }, []);
@@ -416,6 +473,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       });
       assertCurrentOperation(operationEpoch, signal);
 
+      setSponsoredResult(null);
       resetEvidence();
       modeRef.current = "remote";
       viewportRef.current = nextViewport;
@@ -476,6 +534,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       fetchRemote,
       pushActivity,
       resetEvidence,
+      setSponsoredResult,
     ],
   );
 
@@ -989,7 +1048,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         viewportRef.current,
       );
       return buildAgentBoardContext({
-        auditGoal,
+        auditGoal: currentAuditGoal,
         target:
           modeRef.current === "remote"
             ? {
@@ -1014,7 +1073,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         trailStepCount: journeyRef.current.length,
       });
     },
-    [auditGoal, pushActivity],
+    [currentAuditGoal, pushActivity],
   );
 
   const focusFinding = useCallback(
@@ -1403,6 +1462,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
 
   const showSample = useCallback(() => {
     beginRemoteOperation();
+    setSponsoredResult(null);
     resetEvidence();
     modeRef.current = "sample";
     viewportRef.current = "mobile";
@@ -1418,7 +1478,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       "Opened included target",
       "Switched to the WebMCP-ready live sample; no remote browser required.",
     );
-  }, [beginRemoteOperation, pushActivity, resetEvidence]);
+  }, [beginRemoteOperation, pushActivity, resetEvidence, setSponsoredResult]);
 
   const changeViewport = useCallback(
     (next: Viewport) => {
@@ -1575,7 +1635,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   return (
     <WorkbenchView
       mode={mode}
-      auditGoal={auditGoal}
+      auditGoal={currentAuditGoal}
       viewport={viewport}
       demoState={demoState}
       urlDraft={urlDraft}

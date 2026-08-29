@@ -37,6 +37,7 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
     <main
       className={`${styles.product} ${stateClass}`}
       data-demo-state={improved ? "improved" : "baseline"}
+      aria-label="Sundae Lab demo product"
     >
       <DemoWebMcp />
       <header className={styles.topbar}>

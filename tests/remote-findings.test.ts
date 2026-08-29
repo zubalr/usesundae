@@ -139,6 +139,23 @@ test("visual judgments are bounded, attributed to a screenshot, and remain judgm
   assert.match(finding.id, /^desktop:visual-judgment:/);
 });
 
+test("visual evidence regions cannot extend beyond the captured screenshot", () => {
+  const finding = createJudgedFinding(
+    checkpoint({ viewportSize: { width: 1440, height: 900 } }),
+    {
+      title: "The action is crowded against the edge",
+      observation: "The action sits at the lower-right edge of the screenshot.",
+      whyItMatters: "The boundary makes the control harder to distinguish.",
+      recommendation: "Restore deliberate space around the action.",
+      severity: "medium",
+      rect: { x: 1400, y: 880, width: 300, height: 100 },
+    },
+    1,
+  );
+
+  assert.deepEqual(finding.rect, { x: 1400, y: 880, width: 40, height: 20 });
+});
+
 test("redacted URL states remain distinct verification scopes", () => {
   const free = checkpoint({
     id: "checkpoint_free",

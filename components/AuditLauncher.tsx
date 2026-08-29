@@ -1,7 +1,8 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 
+import { useAuditIntent } from "@/components/AuditIntent";
 import { Icon } from "@/components/Icons";
 import {
   buildChatGptHandoffPrompt,
@@ -14,8 +15,7 @@ import {
 import styles from "./AuditLauncher.module.css";
 
 type AuditLauncherProps = {
-  initialTarget?: string;
-  initialGoal?: string;
+  sponsoredAvailable: boolean;
 };
 
 type HandoffReceipt = {
@@ -28,11 +28,16 @@ function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : "Sundae could not prepare this audit.";
 }
 
-export function AuditLauncher({ initialTarget = "", initialGoal = "" }: AuditLauncherProps) {
-  const [targetUrl, setTargetUrl] = useState(initialTarget);
-  const [goal, setGoal] = useState(initialGoal);
+function revealFeedback(target: { current: HTMLElement | null }) {
+  requestAnimationFrame(() => target.current?.focus());
+}
+
+export function AuditLauncher({ sponsoredAvailable }: AuditLauncherProps) {
+  const { targetUrl, setTargetUrl, goal, setGoal } = useAuditIntent();
   const [error, setError] = useState("");
   const [handoff, setHandoff] = useState<HandoffReceipt | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  const handoffRef = useRef<HTMLElement>(null);
 
   function prepareLaunch() {
     const launch = createAuditLaunch(targetUrl, goal);
@@ -42,14 +47,48 @@ export function AuditLauncher({ initialTarget = "", initialGoal = "" }: AuditLau
     };
   }
 
-  function startInSundae(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function openWorkbench() {
     setError("");
     setHandoff(null);
     try {
       window.location.assign(prepareLaunch().workspaceUrl);
     } catch (cause) {
       setError(errorMessage(cause));
+      revealFeedback(errorRef);
+    }
+  }
+
+  function openSponsoredAudit() {
+    setError("");
+    setHandoff(null);
+    try {
+      prepareLaunch();
+      document.getElementById("sponsored-audit")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    } catch (cause) {
+      setError(errorMessage(cause));
+      revealFeedback(errorRef);
+    }
+  }
+
+  function continueInChatGpt(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setHandoff(null);
+    try {
+      const { launch, workspaceUrl } = prepareLaunch();
+      const prompt = buildChatGptHandoffPrompt(launch, workspaceUrl);
+      const receipt = { prompt, workspaceUrl, copied: false };
+      setHandoff(receipt);
+      revealFeedback(handoffRef);
+      window.open(CHATGPT_HOME_URL, "_blank", "noopener,noreferrer");
+      copyHandoff(receipt);
+    } catch (cause) {
+      setError(errorMessage(cause));
+      setHandoff(null);
+      revealFeedback(errorRef);
     }
   }
 
@@ -64,27 +103,12 @@ export function AuditLauncher({ initialTarget = "", initialGoal = "" }: AuditLau
       .catch(() => setHandoff(receipt));
   }
 
-  function continueInChatGpt() {
-    setError("");
-    try {
-      const { launch, workspaceUrl } = prepareLaunch();
-      const prompt = buildChatGptHandoffPrompt(launch, workspaceUrl);
-      const receipt = { prompt, workspaceUrl, copied: false };
-      setHandoff(receipt);
-      window.open(CHATGPT_HOME_URL, "_blank", "noopener,noreferrer");
-      copyHandoff(receipt);
-    } catch (cause) {
-      setError(errorMessage(cause));
-      setHandoff(null);
-    }
-  }
-
   return (
     <form
       className={styles.launcher}
       id="launch"
       aria-label="Start a Sundae audit"
-      onSubmit={startInSundae}
+      onSubmit={continueInChatGpt}
       noValidate
     >
       <div className={styles.fields}>
@@ -111,32 +135,47 @@ export function AuditLauncher({ initialTarget = "", initialGoal = "" }: AuditLau
             value={goal}
             maxLength={MAX_AUDIT_GOAL_LENGTH}
             onChange={(event) => setGoal(event.target.value)}
-            placeholder="Activation, visual polish, signup clarity…"
+            placeholder="Activation, signup clarity, visual polish…"
           />
         </label>
       </div>
 
-      <div className={styles.actions}>
-        <button className={styles.primaryAction} type="submit">
-          <Icon name="focus" /> Start audit
-        </button>
-        <button className={styles.chatGptAction} type="button" onClick={continueInChatGpt}>
-          <Icon name="agent" /> Continue in ChatGPT
-        </button>
-      </div>
-
-      <p className={styles.controlNote}>
-        Starting here prefills the workbench without spending capture time. Continuing copies a
-        ready request and opens ChatGPT.
-      </p>
-
       {error ? (
-        <p className={styles.error} role="alert">
+        <p className={styles.error} role="alert" tabIndex={-1} ref={errorRef}>
           {error}
         </p>
       ) : null}
+
+      <div className={styles.actions}>
+        <button className={styles.chatGptAction} type="submit">
+          <Icon name="agent" /> Continue with ChatGPT
+        </button>
+        <button className={styles.workbenchAction} type="button" onClick={openWorkbench}>
+          <Icon name="focus" /> Open evidence workbench
+        </button>
+        {sponsoredAvailable ? (
+          <button className={styles.sponsoredAction} type="button" onClick={openSponsoredAudit}>
+            <Icon name="spark" /> Use one complimentary review
+          </button>
+        ) : null}
+      </div>
+
+      <p className={styles.controlNote}>
+        ChatGPT uses your connected plan. The workbench is the transparent fallback: capture,
+        findings, decisions, and fresh verification stay visibly separate.
+      </p>
+      {!sponsoredAvailable ? (
+        <p className={styles.comingSoon}>Complimentary full-page review · coming soon</p>
+      ) : null}
+
       {handoff ? (
-        <section className={styles.receipt} aria-live="polite" aria-label="ChatGPT handoff ready">
+        <section
+          className={styles.receipt}
+          aria-live="polite"
+          aria-label="ChatGPT handoff ready"
+          tabIndex={-1}
+          ref={handoffRef}
+        >
           <div className={styles.receiptStatus}>
             <span>
               <i data-copied={handoff.copied} /> ChatGPT handoff

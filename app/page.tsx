@@ -1,6 +1,9 @@
+import { AuditIntentProvider } from "@/components/AuditIntent";
 import { AuditLauncher } from "@/components/AuditLauncher";
+import { SponsoredAudit } from "@/components/SponsoredAudit";
 import { Workbench } from "@/components/Workbench";
 import { MAX_AUDIT_GOAL_LENGTH, MAX_PUBLIC_URL_LENGTH } from "@/lib/launch";
+import { sponsoredAuditPublicConfigFromEnv } from "@/lib/sponsored/config";
 import styles from "./page.module.css";
 
 type HomePageProps = {
@@ -16,16 +19,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
   const initialTarget = firstBoundedParam(params.url, MAX_PUBLIC_URL_LENGTH);
   const initialGoal = firstBoundedParam(params.goal, MAX_AUDIT_GOAL_LENGTH);
+  const sponsoredConfig = sponsoredAuditPublicConfigFromEnv();
 
   return (
-    <>
+    <AuditIntentProvider initialTarget={initialTarget} initialGoal={initialGoal}>
       <div className={styles.landing} id="top">
         <header className={styles.masthead}>
           <a className={styles.wordmark} href="#top">
             sundae
           </a>
           <nav aria-label="Landing page navigation">
-            <a href="#method">Method</a>
+            <a href="#method">Evidence model</a>
             <a href="#availability">What ships</a>
             <a className={styles.navAction} href="#workbench">
               Open workbench
@@ -33,25 +37,28 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </nav>
         </header>
 
-        <main>
+        <main aria-label="Sundae product review landing">
           <section className={styles.hero} aria-labelledby="landing-title">
             <div className={styles.heroCopy}>
-              <h1 id="landing-title">See what keeps a good product from feeling great.</h1>
+              <h1 id="landing-title">Find what keeps your product from feeling world class.</h1>
               <p>
-                Paste a public URL. Sundae and ChatGPT review the same UI and UX evidence,
-                prioritize the strongest problems, preview a bounded improvement, and verify what
-                changed.
+                Sundae captures the page your users see, separates measurable UI problems from
+                design judgment, and gives you a prioritized visual review you can act on.
               </p>
-              <AuditLauncher initialTarget={initialTarget} initialGoal={initialGoal} />
+              <AuditLauncher sponsoredAvailable={sponsoredConfig.available} />
             </div>
 
-            <div className={styles.proofShell} aria-label="Illustrative Sundae audit receipt">
+            <div
+              className={styles.proofShell}
+              role="group"
+              aria-label="Illustrative Sundae audit receipt"
+            >
               <section className={styles.productStage} aria-label="Included live target example">
                 <div className={styles.scopeLine}>
                   <span>
                     <i /> Included live target
                   </span>
-                  <code>/demo · mobile · baseline</code>
+                  <a href="/demo">Open /demo</a>
                 </div>
                 <div className={styles.sampleProduct}>
                   <div className={styles.sampleNav}>
@@ -121,6 +128,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
           </section>
 
+          <SponsoredAudit config={sponsoredConfig} />
+
           <section className={styles.method} id="method" aria-labelledby="method-title">
             <div className={styles.methodIntro}>
               <h2 id="method-title">A polished opinion is not proof.</h2>
@@ -179,10 +188,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </div>
                 <ul>
                   <li>Public URL and optional review goal</li>
-                  <li>ChatGPT handoff with an exact workspace fallback</li>
+                  <li>ChatGPT app handoff with an exact workspace fallback</li>
                   <li>Evidence-linked measured and judged findings</li>
                   <li>Reversible preview and scoped recapture</li>
                   <li>Visible WebMCP tools in supported Site Tools hosts</li>
+                  {sponsoredConfig.available ? (
+                    <li>One guarded full-page Gemini review per browser/network</li>
+                  ) : null}
                 </ul>
               </article>
               <article className={styles.capabilityBand}>
@@ -191,11 +203,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <h3>The broader product workspace</h3>
                 </div>
                 <ul>
-                  <li>Public Sundae plugin directory listing</li>
-                  <li>Automatic multi-route audit planning</li>
+                  <li>Claude and Grok connector parity</li>
+                  <li>Supervised multi-route audit planning</li>
                   <li>Figma proposal handoff</li>
                   <li>Supervised logged-in product capture</li>
-                  <li>Saved, shareable audit workspaces</li>
+                  <li>Private saved and shareable audit workspaces</li>
                 </ul>
               </article>
             </div>
@@ -215,6 +227,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </main>
       </div>
       <Workbench initialUrl={initialTarget} auditGoal={initialGoal} />
-    </>
+    </AuditIntentProvider>
   );
 }
