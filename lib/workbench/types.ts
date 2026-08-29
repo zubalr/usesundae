@@ -5,6 +5,10 @@ import type { Decision } from "./decisions";
 
 export type Actor = "human" | "agent" | "system";
 
+export function activityActorLabel(actor: Actor) {
+  return `${actor[0].toUpperCase()}${actor.slice(1)} action`;
+}
+
 export type Activity = {
   id: string;
   actor: Actor;

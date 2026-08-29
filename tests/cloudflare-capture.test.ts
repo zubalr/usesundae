@@ -195,6 +195,65 @@ test("maps provider errors without leaking provider response internals", async (
   );
 });
 
+test("honors a bounded Retry-After once when the free quick-action limit is hit", async () => {
+  let calls = 0;
+  const waits: number[] = [];
+  const fetchImpl: typeof fetch = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return new Response("Too many requests", {
+        status: 429,
+        headers: { "Retry-After": "10", "content-type": "text/plain" },
+      });
+    }
+    return Response.json({
+      success: true,
+      result: {
+        screenshot: "aGVsbG8=",
+        markdown: "# Example",
+        accessibilityTree: { role: "RootWebArea", name: "Example" },
+      },
+      meta: { status: 200, title: "Example" },
+    });
+  };
+
+  const checkpoint = await captureWithCloudflare(
+    { accountId: "account-123", apiToken: "secret-token" },
+    { url: "https://example.com", viewport: "desktop" },
+    fetchImpl,
+    {
+      waitForRetry: async (delayMs) => {
+        waits.push(delayMs);
+      },
+    },
+  );
+
+  assert.equal(calls, 2);
+  assert.deepEqual(waits, [10_000]);
+  assert.equal(checkpoint.title, "Example");
+});
+
+test("does not retry a daily-quota response with a long Retry-After", async () => {
+  let calls = 0;
+  const fetchImpl: typeof fetch = async () => {
+    calls += 1;
+    return Response.json(
+      { success: false, errors: [{ message: "Browser time limit exceeded for today" }] },
+      { status: 429, headers: { "Retry-After": "3600" } },
+    );
+  };
+
+  await assert.rejects(() =>
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://example.com", viewport: "desktop" },
+      fetchImpl,
+      { waitForRetry: async () => assert.fail("Long waits must not be retried in-process.") },
+    ),
+  );
+  assert.equal(calls, 1);
+});
+
 test("rejects an oversized chunked provider response before parsing it", async () => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

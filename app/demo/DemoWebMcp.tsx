@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-import { DEMO_TOOL_CONTRACTS, DEMO_WORKFLOW_NAMES } from "@/lib/demo/tools";
+import {
+  demoWebMcpReadyMessage,
+  DEMO_TOOL_CONTRACTS,
+  DEMO_WEBMCP_STATUS_MESSAGES,
+  DEMO_WORKFLOW_NAMES,
+} from "@/lib/demo/tools";
 import styles from "./demo.module.css";
 
 type FixtureStatus = "checking" | "ready" | "unavailable" | "error";
@@ -34,7 +39,7 @@ function setReceipt(message: string) {
 
 export function DemoWebMcp() {
   const [status, setStatus] = useState<FixtureStatus>("checking");
-  const [statusMessage, setStatusMessage] = useState("Registering target tools…");
+  const [statusMessage, setStatusMessage] = useState<string>(DEMO_WEBMCP_STATUS_MESSAGES.checking);
 
   useEffect(() => {
     document.documentElement.dataset.sundaeWebmcpFixture = status;
@@ -47,7 +52,7 @@ export function DemoWebMcp() {
     const context = document.modelContext;
     if (!context?.registerTool) {
       setStatus("unavailable");
-      setStatusMessage("Site Tools unavailable; human controls remain usable.");
+      setStatusMessage(DEMO_WEBMCP_STATUS_MESSAGES.unavailable);
       return;
     }
 
@@ -118,13 +123,13 @@ export function DemoWebMcp() {
         }
         if (active) {
           setStatus("ready");
-          setStatusMessage(`${tools.length} target tools registered.`);
+          setStatusMessage(demoWebMcpReadyMessage(tools.length));
         }
       } catch (error) {
         if (!controller.signal.aborted) controller.abort(error);
         if (active) {
           setStatus("error");
-          setStatusMessage("Target tool registration failed; human controls remain usable.");
+          setStatusMessage(DEMO_WEBMCP_STATUS_MESSAGES.error);
           setReceipt("WebMCP registration did not complete; no hidden fixture action was taken.");
         }
       }
@@ -142,11 +147,11 @@ export function DemoWebMcp() {
       className={styles.fixtureStatus}
       data-status={status}
       aria-live="polite"
-      aria-label={`WebMCP target status: ${statusMessage}`}
+      aria-label={`Embedded WebMCP target status: ${statusMessage}`}
     >
       <span className={styles.fixtureStatusDot} aria-hidden="true" />
       <span>
-        <strong>WebMCP target</strong>
+        <strong>Embedded target</strong>
         <small>{statusMessage}</small>
       </span>
       <span id="fixture-receipt" className={styles.fixtureReceipt}>

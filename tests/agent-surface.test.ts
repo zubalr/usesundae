@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { auditWebMcpTools } from "../lib/audit/tools";
-import { DEMO_TOOL_CONTRACTS } from "../lib/demo/tools";
+import {
+  demoWebMcpReadyMessage,
+  DEMO_TOOL_CONTRACTS,
+  DEMO_WEBMCP_STATUS_MESSAGES,
+} from "../lib/demo/tools";
 
 test("agent-surface audit reports underspecified and misannotated tools", () => {
   const findings = auditWebMcpTools(
@@ -44,4 +48,11 @@ test("the included target keeps an inspectable read-only contract defect", () =>
       "sundae_lab_archive_workflow-closed-schema",
     ],
   );
+});
+
+test("the nested fixture status does not imply the workbench lost Site Tools", () => {
+  assert.match(DEMO_WEBMCP_STATUS_MESSAGES.unavailable, /Nested Site Tools/);
+  assert.match(DEMO_WEBMCP_STATUS_MESSAGES.unavailable, /declared contracts/);
+  assert.doesNotMatch(DEMO_WEBMCP_STATUS_MESSAGES.unavailable, /^Site Tools unavailable/);
+  assert.equal(demoWebMcpReadyMessage(2), "2 nested target tools registered.");
 });

@@ -3,11 +3,14 @@ import test from "node:test";
 
 import type { AuditSnapshot, Finding } from "../lib/audit/types";
 import {
+  buildAgentBoardContext,
   buildVerificationReceipts,
   describeEvidenceBoard,
   invalidateVerificationForFindings,
   verificationLabel,
 } from "../lib/workbench/evidence";
+import { createToolResult, MAX_TOOL_TEXT_BYTES } from "../lib/webmcp/result";
+import { activityActorLabel } from "../lib/workbench/types";
 
 function finding(index: number): Finding {
   return {
@@ -131,4 +134,96 @@ test("a generated DOM identity cannot be called fixed when continuity is uncerta
   );
 
   assert.deepEqual(comparison.summary, { fixed: 0, still_open: 0, unverified: 1 });
+});
+
+test("agent board context stays useful inside the WebMCP output budget", () => {
+  const hostileCopy = `${'"\\\n\t'.repeat(80)}${"🙂".repeat(80)}`;
+  const findings = Array.from({ length: 14 }, (_, index) => ({
+    ...finding(index),
+    id: `mobile:contrast:${"selected-or-measured-identity-".repeat(4)}${index}`,
+    title: `${hostileCopy}${index}`,
+    checkpointId: `checkpoint_${index}_${"a".repeat(80)}`,
+  }));
+  const selected = findings[9]!;
+  const context = buildAgentBoardContext({
+    auditGoal: hostileCopy,
+    target: {
+      kind: "public_checkpoint",
+      displayUrl: `https://example.com/${"long-path/".repeat(30)}`,
+      checkpointId: `checkpoint_${"b".repeat(120)}`,
+      screenshotVisible: true,
+      captureExtent: "viewport",
+    },
+    viewport: "mobile",
+    state: "baseline",
+    currentFindingCount: findings.length,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: selected.id,
+    retainsBaseline: true,
+    findings,
+    decisions: Object.fromEntries(findings.map(({ id }) => [id, { decision: "accepted" }])),
+    verifications: Object.fromEntries(findings.map(({ id }) => [id, { status: "still_open" }])),
+    coverageGaps: Array.from({ length: 12 }, (_, index) => ({
+      id: `gap-${index}`,
+      label: `${hostileCopy}${index}`,
+      detail: "This state was not observed. ".repeat(20),
+    })),
+    trailStepCount: 12,
+  });
+  const result = createToolResult(context);
+  const text = result.content[0]!.text;
+  const payload = JSON.parse(text) as {
+    truncated?: boolean;
+    target: { checkpoint_id: string };
+    findings: Array<{ id: string; checkpoint_id: string; evidence_role: string }>;
+    coverage_gaps: string[];
+  };
+
+  assert.ok(Buffer.byteLength(text, "utf8") <= MAX_TOOL_TEXT_BYTES);
+  assert.notEqual(payload.truncated, true);
+  assert.equal(payload.findings[0]?.id, selected.id.slice(0, 120));
+  assert.equal(payload.findings[0]?.checkpoint_id.startsWith("checkpoint_9_"), true);
+  assert.equal(payload.findings[0]?.evidence_role, "retained_baseline");
+  assert.equal(payload.target.checkpoint_id.startsWith("checkpoint_"), true);
+  assert.equal(payload.findings.length, 2);
+  assert.equal(payload.coverage_gaps.length, 3);
+});
+
+test("agent context keeps route provenance distinct from the active checkpoint", () => {
+  const routeA = { ...finding(1), checkpointId: "checkpoint-route-a", scopeKey: "scope-a" };
+  const routeB = { ...finding(2), checkpointId: "checkpoint-route-b", scopeKey: "scope-b" };
+  const context = buildAgentBoardContext({
+    auditGoal: "Review signup clarity",
+    target: {
+      kind: "public_checkpoint",
+      displayUrl: "https://example.com/checkout",
+      checkpointId: "checkpoint-route-b",
+      screenshotVisible: true,
+      captureExtent: "viewport",
+    },
+    viewport: "mobile",
+    state: "improved",
+    currentFindingCount: 2,
+    retainedBaselineFindingCount: 2,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: routeA.id,
+    retainsBaseline: true,
+    findings: [routeA, routeB],
+    decisions: {},
+    verifications: {},
+    coverageGaps: [],
+    trailStepCount: 2,
+  });
+
+  assert.equal(context.target.checkpoint_id, "checkpoint-route-b");
+  assert.equal(context.findings[0]?.checkpoint_id, "checkpoint-route-a");
+  assert.equal(context.findings[0]?.evidence_role, "retained_baseline");
+  assert.equal(context.scope.trail_steps, 2);
+});
+
+test("activity actors have explicit accessible labels", () => {
+  assert.equal(activityActorLabel("human"), "Human action");
+  assert.equal(activityActorLabel("agent"), "Agent action");
+  assert.equal(activityActorLabel("system"), "System action");
 });

@@ -6,6 +6,17 @@ export const DEMO_WORKFLOW_NAMES = [
   "Customer follow-up",
 ] as const;
 
+export const DEMO_WEBMCP_STATUS_MESSAGES = {
+  checking: "Registering nested target tools…",
+  unavailable:
+    "Nested Site Tools are not exposed by this host; Sundae can still inspect the declared contracts.",
+  error: "Nested target registration failed; Sundae can still inspect the declared contracts.",
+} as const;
+
+export function demoWebMcpReadyMessage(count: number) {
+  return `${count} nested target tools registered.`;
+}
+
 export const DEMO_TOOL_CONTRACTS: AuditedToolContract[] = [
   {
     name: "sundae_lab_get_workflow_summary",

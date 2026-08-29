@@ -26,6 +26,7 @@ type CloudflareSnapshotResponse = {
 const MAX_PROVIDER_RESPONSE_BYTES = 16 * 1024 * 1024;
 const MAX_SCREENSHOT_CHARS = 12_000_000;
 const DEFAULT_PROVIDER_TIMEOUT_MS = 35_000;
+const MAX_RATE_LIMIT_RETRY_MS = 10_000;
 
 const viewportSizes = {
   mobile: { width: 390, height: 844, deviceScaleFactor: 2 },
@@ -41,6 +42,7 @@ export class CaptureProviderError extends Error {
 
 export type CloudflareCaptureOptions = {
   timeoutMs?: number;
+  waitForRetry?: (delayMs: number, signal: AbortSignal) => Promise<void>;
 };
 
 function cleanText(value: unknown, maximum: number) {
@@ -109,6 +111,28 @@ function providerTimeoutMs(input: CloudflareCaptureOptions | undefined) {
   return Number.isFinite(timeout) && timeout > 0
     ? Math.min(timeout, DEFAULT_PROVIDER_TIMEOUT_MS)
     : DEFAULT_PROVIDER_TIMEOUT_MS;
+}
+
+function retryAfterMs(response: Response) {
+  const raw = response.headers.get("retry-after")?.trim() ?? "";
+  if (response.status !== 429 || !/^\d+$/.test(raw)) return null;
+  const delayMs = Number(raw) * 1000;
+  return delayMs <= MAX_RATE_LIMIT_RETRY_MS ? delayMs : null;
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    signal.throwIfAborted();
+    const onAbort = () => {
+      clearTimeout(handle);
+      reject(new DOMException("The capture was cancelled.", "AbortError"));
+    };
+    const handle = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delayMs);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 async function runWithProviderTimeout<T>(
@@ -205,16 +229,24 @@ export async function captureWithCloudflare(
 
   const captured = await runWithProviderTimeout(
     async (signal) => {
-      const response = await fetchImpl(endpoint, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${config.apiToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(body),
-        signal,
-        cache: "no-store",
-      });
+      const requestSnapshot = () =>
+        fetchImpl(endpoint, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${config.apiToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal,
+          cache: "no-store",
+        });
+      let response = await requestSnapshot();
+      const delayMs = retryAfterMs(response);
+      if (delayMs !== null) {
+        await (options?.waitForRetry ?? waitForRetry)(delayMs, signal);
+        signal.throwIfAborted();
+        response = await requestSnapshot();
+      }
       return { response, payload: await parseProviderResponse(response) };
     },
     input.signal,

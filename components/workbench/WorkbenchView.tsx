@@ -14,7 +14,12 @@ import type { AuditSnapshot, CoverageGap, DemoState, Viewport } from "@/lib/audi
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { DECISION_OPTIONS, DECISION_VALUES, type Decision } from "@/lib/workbench/decisions";
 import { type EvidenceBoardDescription, verificationLabel } from "@/lib/workbench/evidence";
-import type { Activity, VisibleFinding, WorkbenchCommands } from "@/lib/workbench/types";
+import {
+  activityActorLabel,
+  type Activity,
+  type VisibleFinding,
+  type WorkbenchCommands,
+} from "@/lib/workbench/types";
 import {
   registerWorkbenchTools,
   WEBMCP_TOOL_COUNTS,
@@ -827,7 +832,7 @@ function ActivityReceipts({ activity, activityLimit }: WorkbenchViewProps) {
       <ol>
         {activity.slice(0, 20).map((entry) => (
           <li key={entry.id}>
-            <span data-actor={entry.actor}>
+            <span data-actor={entry.actor} aria-label={activityActorLabel(entry.actor)}>
               {entry.actor === "agent" ? (
                 <Icon name="agent" />
               ) : (

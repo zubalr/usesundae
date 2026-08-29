@@ -83,7 +83,9 @@ Sundae uses Cloudflare Browser Run only when server-side credentials are configu
 
 Without those credentials, the included audit and both handoff layers still work; public capture reports an honest configuration error and keeps the prior board intact.
 
-The capture route rejects credentials in URLs, localhost and private-network targets, nonstandard ports, non-web schemes, oversized requests, and unsafe preview CSS. It uses a short-lived same-origin capture gate, in-process concurrency and rate limits, bounded provider responses, and cancellation. Before exposing paid capture publicly, add durable per-user budgets, trusted-edge authentication, and a WAF or equivalent edge rate limit.
+The capture route rejects credentials in URLs, localhost and private-network targets, nonstandard ports, non-web schemes, oversized requests, and unsafe preview CSS. It uses a short-lived same-origin capture gate, in-process concurrency and rate limits, bounded provider responses, and cancellation. On [Workers Free](https://developers.cloudflare.com/browser-run/limits/), Quick Actions are limited to one request every 10 seconds and 10 browser minutes per day; Sundae honors one bounded `Retry-After` response instead of retrying without limit. When Cloudflare returns billed browser milliseconds, Sundae includes them in the capture receipt.
+
+Before exposing paid capture publicly, add durable per-user budgets and trusted-edge authentication. Also configure an edge rule that rate-limits only `POST /api/capture`; the in-process limiter is a backstop, not a durable global budget.
 
 ## Evidence contract
 
