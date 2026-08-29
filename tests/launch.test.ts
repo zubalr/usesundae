@@ -6,6 +6,7 @@ import {
   buildWorkspaceUrl,
   createAuditLaunch,
   MAX_AUDIT_GOAL_LENGTH,
+  resolvePublicDemoUrl,
 } from "../lib/launch";
 
 test("keeps the exact target for capture while removing private state from display", () => {
@@ -32,6 +33,11 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /Open this exact Sundae workspace/);
   assert.ok(prompt.includes(workspaceUrl));
   assert.match(prompt, /do not claim that an audit or capture completed/i);
+});
+
+test("the included capture preset always resolves to a public Sundae demo", () => {
+  assert.equal(resolvePublicDemoUrl("http://localhost:3000"), "https://usesundae.vercel.app/demo");
+  assert.equal(resolvePublicDemoUrl("https://sundae.example"), "https://sundae.example/demo");
 });
 
 test("rejects unsafe or unsupported launch targets", () => {

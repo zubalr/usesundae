@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sundae — product design reviews with evidence",
+  title: "Sundae — evidence-backed product design review",
   description:
-    "Audit a public product with ChatGPT, inspect evidence-linked UI and UX findings, preview a bounded improvement, and verify what changed.",
+    "Turn a public product page into a prioritized visual review with measured UI evidence, high-taste design judgment, honest coverage gaps, and a transparent ChatGPT handoff.",
   robots: { index: true, follow: true },
 };
 

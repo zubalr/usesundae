@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "sundae-redemption-gate",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-08-29",
+  "vars": {
+    // Global across all visitors. In-flight means complete sponsored audit jobs,
+    // not Cloudflare Browser Rendering concurrency.
+    "SPONSORED_MAX_DAILY_ATTEMPTS": "50",
+    "SPONSORED_MAX_IN_FLIGHT": "3",
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REDEMPTION_GATE",
+        "class_name": "RedemptionGate",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RedemptionGate"],
+    },
+  ],
+}

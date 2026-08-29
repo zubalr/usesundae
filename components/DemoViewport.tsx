@@ -87,12 +87,14 @@ export function DemoViewport({
               width={size.width}
               height={size.height}
               allow="tools"
+              aria-hidden="true"
+              tabIndex={-1}
               sandbox="allow-same-origin allow-scripts"
               onLoad={onLoad}
             />
           )}
 
-          <div className={styles.overlay} aria-label="Measured finding pins">
+          <div className={styles.overlay} role="group" aria-label="Measured finding pins">
             {findings.map((finding, index) => {
               if (!finding.rect) return null;
               const { x, y, width, height } = finding.rect;

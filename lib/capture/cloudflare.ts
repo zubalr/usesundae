@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { summarizeAccessibilityTree } from "./accessibility";
+import { assertPublicDnsTarget, type ResolveTarget } from "./dns-policy";
+import { MAX_CAPTURE_PROVIDER_RESPONSE_BYTES, MAX_CAPTURE_SCREENSHOT_BASE64_CHARS } from "./limits";
 import { readTextUpTo } from "./stream";
 import type { RemoteCaptureInput, RemoteCheckpoint } from "./types";
 import { normalizePublicTarget, sanitizePreviewCss, sanitizeWaitForSelector } from "./url-policy";
@@ -18,15 +20,23 @@ type CloudflareSnapshotResponse = {
     accessibilityTree?: unknown;
   };
   meta?: {
+    finalUrl?: unknown;
+    redirectChain?: unknown;
     status?: unknown;
     title?: unknown;
   };
 };
 
-const MAX_PROVIDER_RESPONSE_BYTES = 16 * 1024 * 1024;
-const MAX_SCREENSHOT_CHARS = 12_000_000;
 const DEFAULT_PROVIDER_TIMEOUT_MS = 35_000;
 const MAX_RATE_LIMIT_RETRY_MS = 10_000;
+const PRIVATE_REQUEST_PATTERNS = [
+  "/^https?:\\/\\/[^/]*@/i",
+  "/^https?:\\/\\/(?:localhost|[^/]+\\.(?:local|localhost|localdomain|internal|lan|test|invalid))\\.?(?::\\d+)?(?:[/?#]|$)/i",
+  "/^https?:\\/\\/(?:0|10|127)(?:\\.\\d{1,3}){3}\\.?(?::\\d+)?(?:[/?#]|$)/i",
+  "/^https?:\\/\\/(?:100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])|169\\.254|172\\.(?:1[6-9]|2\\d|3[01])|192\\.168)(?:\\.\\d{1,3}){2}\\.?(?::\\d+)?(?:[/?#]|$)/i",
+  "/^https?:\\/\\/(?:192\\.0|198\\.(?:1[89]|51)|203\\.0|(?:22[4-9]|2[3-5]\\d))(?:\\.\\d{1,3}){2}\\.?(?::\\d+)?(?:[/?#]|$)/i",
+  "/^https?:\\/\\/\\[/i",
+] as const;
 
 const viewportSizes = {
   mobile: { width: 390, height: 844, deviceScaleFactor: 2 },
@@ -43,6 +53,7 @@ export class CaptureProviderError extends Error {
 export type CloudflareCaptureOptions = {
   timeoutMs?: number;
   waitForRetry?: (delayMs: number, signal: AbortSignal) => Promise<void>;
+  resolveTarget?: ResolveTarget;
 };
 
 function cleanText(value: unknown, maximum: number) {
@@ -84,7 +95,7 @@ function previewScript(css: string) {
 
 async function parseProviderResponse(response: Response): Promise<CloudflareSnapshotResponse> {
   try {
-    const text = await readTextUpTo(response.body, MAX_PROVIDER_RESPONSE_BYTES);
+    const text = await readTextUpTo(response.body, MAX_CAPTURE_PROVIDER_RESPONSE_BYTES);
     if (text === null) {
       throw new CaptureProviderError(
         "The remote browser returned a response that was too large to inspect safely.",
@@ -118,6 +129,59 @@ function retryAfterMs(response: Response) {
   if (response.status !== 429 || !/^\d+$/.test(raw)) return null;
   const delayMs = Number(raw) * 1000;
   return delayMs <= MAX_RATE_LIMIT_RETRY_MS ? delayMs : null;
+}
+
+function navigationHost(hostname: string) {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
+function sameNavigationHost(left: string, right: string) {
+  return navigationHost(left) === navigationHost(right);
+}
+
+async function assertSafeProviderNavigation(
+  meta: CloudflareSnapshotResponse["meta"],
+  requestedUrl: string,
+  resolveTarget?: ResolveTarget,
+) {
+  const requested = new URL(requestedUrl);
+  if (typeof meta?.finalUrl !== "string" || !meta.finalUrl.trim()) {
+    throw new CaptureProviderError(
+      "The remote browser did not confirm the final public destination.",
+    );
+  }
+  const urls = [meta.finalUrl];
+  if (meta.redirectChain !== undefined && !Array.isArray(meta.redirectChain)) {
+    throw new CaptureProviderError("The remote browser returned an invalid redirect record.");
+  }
+  // Cloudflare also omits this field for direct navigation, so omission cannot
+  // safely distinguish a direct load from an unreported client-side redirect.
+  if (Array.isArray(meta.redirectChain)) {
+    if (meta.redirectChain.length === 0) {
+      throw new CaptureProviderError(
+        "The remote browser could not prove a complete redirect history.",
+      );
+    }
+    for (const entry of meta.redirectChain) {
+      const url = entry && typeof entry === "object" ? (entry as { url?: unknown }).url : undefined;
+      if (typeof url !== "string" || !url.trim()) {
+        throw new CaptureProviderError("The remote browser returned an invalid redirect record.");
+      }
+      urls.push(url);
+    }
+  }
+  for (const value of urls) {
+    try {
+      const navigation = normalizePublicTarget(value);
+      const hostname = new URL(navigation.captureUrl).hostname;
+      if (!sameNavigationHost(requested.hostname, hostname)) throw new Error("cross-host redirect");
+      await assertPublicDnsTarget(hostname, resolveTarget);
+    } catch {
+      throw new CaptureProviderError(
+        "The remote page navigated to a private or unsupported destination.",
+      );
+    }
+  }
 }
 
 function waitForRetry(delayMs: number, signal: AbortSignal) {
@@ -211,6 +275,7 @@ export async function captureWithCloudflare(
   }
 
   const target = normalizePublicTarget(input.url);
+  await assertPublicDnsTarget(new URL(target.captureUrl).hostname, options?.resolveTarget);
   const viewport = viewportSizes[input.viewport];
   const previewCss = input.previewCss ? sanitizePreviewCss(input.previewCss) : undefined;
   const waitForSelector = input.waitForSelector
@@ -223,6 +288,8 @@ export async function captureWithCloudflare(
     viewport,
     screenshotOptions: { fullPage: input.fullPage === true },
     gotoOptions: { waitUntil: "networkidle2", timeout: 30_000 },
+    allowRequestPattern: ["/^https?:\\/\\//i"],
+    rejectRequestPattern: PRIVATE_REQUEST_PATTERNS,
   };
   if (previewCss) body.addScriptTag = [{ content: previewScript(previewCss) }];
   if (waitForSelector) body.waitForSelector = { selector: waitForSelector, timeout: 8_000 };
@@ -258,16 +325,17 @@ export async function captureWithCloudflare(
       `The remote browser could not capture this page (${response.status}).`,
     );
   }
+  await assertSafeProviderNavigation(payload.meta, target.captureUrl, options?.resolveTarget);
 
   if (
     typeof payload.result.screenshot === "string" &&
-    payload.result.screenshot.length > MAX_SCREENSHOT_CHARS
+    payload.result.screenshot.length > MAX_CAPTURE_SCREENSHOT_BASE64_CHARS
   ) {
     throw new CaptureProviderError(
       "The remote browser returned a screenshot that was too large to inspect safely.",
     );
   }
-  const screenshot = cleanText(payload.result.screenshot, MAX_SCREENSHOT_CHARS);
+  const screenshot = cleanText(payload.result.screenshot, MAX_CAPTURE_SCREENSHOT_BASE64_CHARS);
   if (!screenshot || !/^[A-Za-z0-9+/=]+$/.test(screenshot)) {
     throw new CaptureProviderError("The remote browser did not return a usable screenshot.");
   }

@@ -1,7 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { captureWithCloudflare } from "../lib/capture/cloudflare";
+import { captureWithCloudflare as captureCloudflare } from "../lib/capture/cloudflare";
+import {
+  MAX_CAPTURE_PROVIDER_RESPONSE_BYTES,
+  MAX_CAPTURE_SCREENSHOT_BASE64_CHARS,
+} from "../lib/capture/limits";
+
+const publicResolver = async () => ["93.184.216.34"];
+
+function captureWithCloudflare(
+  config: Parameters<typeof captureCloudflare>[0],
+  input: Parameters<typeof captureCloudflare>[1],
+  fetchImpl: Parameters<typeof captureCloudflare>[2] = fetch,
+  options: Parameters<typeof captureCloudflare>[3] = {},
+) {
+  return captureCloudflare(config, input, fetchImpl, {
+    resolveTarget: publicResolver,
+    ...options,
+  });
+}
 
 function pngHeader(width: number, height: number) {
   const bytes = Buffer.alloc(24);
@@ -37,20 +55,37 @@ const truncatedAccessibilityFetch: typeof fetch = async () =>
         })),
       },
     },
-    meta: { status: 200, title: "Example" },
+    meta: { status: 200, title: "Example", finalUrl: "https://example.com/" },
   });
 
 const oversizedScreenshotFetch: typeof fetch = async () =>
   Response.json({
     success: true,
     result: {
-      screenshot: "A".repeat(12_000_001),
+      screenshot: "A".repeat(MAX_CAPTURE_SCREENSHOT_BASE64_CHARS + 1),
       markdown: "# Example",
       accessibilityTree: { role: "RootWebArea", name: "Example" },
     },
+    meta: { finalUrl: "https://example.com/" },
   });
 
 const pendingProviderFetch: typeof fetch = async () => new Promise<Response>(() => undefined);
+
+const privateNavigationFetch: typeof fetch = async () =>
+  Response.json({
+    success: true,
+    result: {
+      screenshot: "aGVsbG8=",
+      markdown: "# Internal",
+      accessibilityTree: { role: "RootWebArea", name: "Internal" },
+    },
+    meta: {
+      status: 200,
+      title: "Internal",
+      finalUrl: "http://127.0.0.1/admin",
+      redirectChain: [{ status: 302, url: "https://example.com/redirect", headers: {} }],
+    },
+  });
 
 test("requests a bounded multi-format snapshot and returns a redacted checkpoint", async () => {
   let requestUrl = "";
@@ -69,7 +104,11 @@ test("requests a bounded multi-format snapshot and returns a redacted checkpoint
           children: [{ role: "button", name: "" }],
         },
       },
-      meta: { status: 200, title: "Product" },
+      meta: {
+        status: 200,
+        title: "Product",
+        finalUrl: "https://example.com/onboarding?invite=secret#step",
+      },
     });
   };
 
@@ -92,6 +131,28 @@ test("requests a bounded multi-format snapshot and returns a redacted checkpoint
   assert.equal(body.url, "https://example.com/onboarding?invite=secret#step");
   assert.deepEqual(body.formats, ["screenshot", "markdown", "accessibilityTree"]);
   assert.deepEqual(body.viewport, { width: 390, height: 844, deviceScaleFactor: 2 });
+  assert.equal(Array.isArray(body.rejectRequestPattern), true);
+  assert.match(JSON.stringify(body.rejectRequestPattern), /localhost/);
+  assert.deepEqual(body.allowRequestPattern, ["/^https?:\\/\\//i"]);
+  const rejected = (body.rejectRequestPattern as string[]).map((pattern) => {
+    const delimiter = pattern.lastIndexOf("/");
+    return new RegExp(pattern.slice(1, delimiter), pattern.slice(delimiter + 1));
+  });
+  for (const privateUrl of [
+    "http://ignored@127.0.0.1/admin",
+    "http://localhost./admin",
+    "http://localhost.localdomain/admin",
+    "http://service.local./admin",
+    "http://service.test/admin",
+    "http://service.invalid/admin",
+    "http://127.0.0.1./admin",
+  ]) {
+    assert.equal(
+      rejected.some((pattern) => pattern.test(privateUrl)),
+      true,
+      privateUrl,
+    );
+  }
   assert.equal(Array.isArray(body.addScriptTag), true);
 
   assert.equal(checkpoint.target.displayUrl, "https://example.com/onboarding");
@@ -110,6 +171,160 @@ test("requests a bounded multi-format snapshot and returns a redacted checkpoint
   assert.equal(checkpoint.browserMsUsed, undefined);
 });
 
+test("rejects a provider navigation that ends on a private destination", async () => {
+  await assert.rejects(
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://example.com/redirect", viewport: "desktop" },
+      privateNavigationFetch,
+    ),
+    /private or unsupported destination/i,
+  );
+});
+
+test("rejects a successful provider response without a confirmed final URL", async () => {
+  await assert.rejects(
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://example.com/", viewport: "desktop" },
+      async () =>
+        Response.json({
+          success: true,
+          result: {
+            screenshot: "aGVsbG8=",
+            markdown: "# Example",
+            accessibilityTree: { role: "RootWebArea", name: "Example" },
+          },
+          meta: { status: 200, title: "Example" },
+        }),
+    ),
+    /did not confirm the final public destination/i,
+  );
+});
+
+test("rejects an opaque provider redirect history", async () => {
+  await assert.rejects(
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://example.com/", viewport: "desktop" },
+      async () =>
+        Response.json({
+          success: true,
+          result: {
+            screenshot: "aGVsbG8=",
+            markdown: "# Example",
+            accessibilityTree: { role: "RootWebArea", name: "Example" },
+          },
+          meta: { finalUrl: "https://example.com/", redirectChain: [] },
+        }),
+    ),
+    /complete redirect history/i,
+  );
+});
+
+test("rejects a hostname that resolves to a private address before provider work", async () => {
+  let providerCalled = false;
+  await assert.rejects(
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://public-name.example/", viewport: "desktop" },
+      async () => {
+        providerCalled = true;
+        return new Response();
+      },
+      { resolveTarget: async () => ["127.0.0.1"] },
+    ),
+    /private or reserved address/i,
+  );
+  assert.equal(providerCalled, false);
+});
+
+test("rejects IPv4-mapped private DNS answers before provider work", async () => {
+  await assert.rejects(
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://mapped-address.example/", viewport: "desktop" },
+      async () => assert.fail("Provider work must not start."),
+      { resolveTarget: async () => ["::ffff:127.0.0.1"] },
+    ),
+    /private or reserved address/i,
+  );
+});
+
+test("rejects non-global IPv6 DNS answers before provider work", async () => {
+  for (const address of [
+    "fec0::1",
+    "2001:10::1",
+    "2d00::1",
+    "2e00::1",
+    "2f00::1",
+    "3ffe::1",
+    "3fff::1",
+    "4000::1",
+  ]) {
+    await assert.rejects(
+      captureWithCloudflare(
+        { accountId: "account-123", apiToken: "secret-token" },
+        { url: "https://reserved-v6.example/", viewport: "desktop" },
+        async () => assert.fail("Provider work must not start."),
+        { resolveTarget: async () => [address] },
+      ),
+      /private or reserved address/i,
+    );
+  }
+});
+
+test("accepts an IANA-allocated global IPv6 answer", async () => {
+  const checkpoint = await captureWithCloudflare(
+    { accountId: "account-123", apiToken: "secret-token" },
+    { url: "https://example.com/", viewport: "desktop" },
+    async () =>
+      Response.json({
+        success: true,
+        result: {
+          screenshot: "aGVsbG8=",
+          markdown: "# Example",
+          accessibilityTree: { role: "RootWebArea", name: "Example" },
+        },
+        meta: { status: 200, title: "Example", finalUrl: "https://example.com/" },
+      }),
+    { resolveTarget: async () => ["2606:4700:4700::1111"] },
+  );
+
+  assert.equal(checkpoint.title, "Example");
+});
+
+test("rejects a reserved literal address before provider work", async () => {
+  await assert.rejects(
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://192.88.99.1/", viewport: "desktop" },
+      async () => assert.fail("Provider work must not start."),
+    ),
+    /private or reserved address/i,
+  );
+});
+
+test("rejects a cross-host provider redirect even when both names are public", async () => {
+  await assert.rejects(
+    captureWithCloudflare(
+      { accountId: "account-123", apiToken: "secret-token" },
+      { url: "https://example.com/", viewport: "desktop" },
+      async () =>
+        Response.json({
+          success: true,
+          result: {
+            screenshot: "aGVsbG8=",
+            markdown: "# Redirected",
+            accessibilityTree: { role: "RootWebArea", name: "Redirected" },
+          },
+          meta: { finalUrl: "https://attacker.example/" },
+        }),
+    ),
+    /private or unsupported destination/i,
+  );
+});
+
 test("supports an explicit full-page checkpoint after a bounded selector appears", async () => {
   let requestBody: Record<string, unknown> | undefined;
   const fetchImpl: typeof fetch = async (_input, init) => {
@@ -125,7 +340,7 @@ test("supports an explicit full-page checkpoint after a bounded selector appears
           children: [{ role: "main", name: "Product" }],
         },
       },
-      meta: { status: 200, title: "Product" },
+      meta: { status: 200, title: "Product", finalUrl: "https://example.com/product" },
     });
   };
 
@@ -213,7 +428,7 @@ test("honors a bounded Retry-After once when the free quick-action limit is hit"
         markdown: "# Example",
         accessibilityTree: { role: "RootWebArea", name: "Example" },
       },
-      meta: { status: 200, title: "Example" },
+      meta: { status: 200, title: "Example", finalUrl: "https://example.com/" },
     });
   };
 
@@ -259,7 +474,7 @@ test("rejects an oversized chunked provider response before parsing it", async (
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(encoder.encode('{"success":true,"result":{"screenshot":"'));
-      controller.enqueue(new Uint8Array(16 * 1024 * 1024));
+      controller.enqueue(new Uint8Array(MAX_CAPTURE_PROVIDER_RESPONSE_BYTES));
     },
   });
 
@@ -364,7 +579,7 @@ test("records billed browser milliseconds from the provider response header", as
           markdown: "# Example",
           accessibilityTree: { role: "RootWebArea", name: "Example" },
         },
-        meta: { status: 200, title: "Example" },
+        meta: { status: 200, title: "Example", finalUrl: "https://example.com/" },
       }),
       {
         status: 200,
@@ -401,7 +616,7 @@ test("omits billed browser milliseconds when the provider header is invalid", as
             markdown: "# Example",
             accessibilityTree: { role: "RootWebArea", name: "Example" },
           },
-          meta: { status: 200, title: "Example" },
+          meta: { status: 200, title: "Example", finalUrl: "https://example.com/" },
         }),
         {
           status: 200,

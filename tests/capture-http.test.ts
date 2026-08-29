@@ -34,8 +34,9 @@ const successfulCaptureFetch: typeof fetch = async () =>
       markdown: "# Example",
       accessibilityTree: { role: "RootWebArea", name: "Example" },
     },
-    meta: { status: 200, title: "Example" },
+    meta: { status: 200, title: "Example", finalUrl: "https://example.com/" },
   });
+const publicResolver = async () => ["93.184.216.34"];
 
 test("rejects a configured capture gate secret shorter than 32 characters", () => {
   assert.throws(() => createCaptureGate({ secret: "too-short" }), /at least 32 characters/i);
@@ -204,6 +205,7 @@ test("capture endpoint returns a provider checkpoint without exposing configurat
     captureRequest(),
     { accountId: "account-secret", apiToken: "token-secret" },
     successfulCaptureFetch,
+    { resolveTarget: publicResolver },
   );
 
   assert.equal(response.status, 200);
@@ -235,9 +237,10 @@ test("capture endpoint forwards explicit full-page and wait-selector options", a
           markdown: "# Example",
           accessibilityTree: { role: "RootWebArea", name: "Example" },
         },
-        meta: { status: 200, title: "Example" },
+        meta: { status: 200, title: "Example", finalUrl: "https://example.com/product" },
       });
     },
+    { resolveTarget: publicResolver },
   );
 
   assert.equal(response.status, 200);
@@ -348,6 +351,7 @@ test("rate limits a client in deterministic injected state", async () => {
 
 test("rejects a capture when the injected concurrency budget is occupied", async () => {
   const limiter = createCaptureLimiterState({ maxConcurrent: 1, rateLimit: 10 });
+  const requestBody = { url: "https://93.184.216.34", viewport: "desktop" };
   let resolveProvider!: (response: Response) => void;
   const fetchImpl: typeof fetch = async () =>
     new Promise<Response>((resolve) => {
@@ -355,14 +359,14 @@ test("rejects a capture when the injected concurrency budget is occupied", async
     });
 
   const firstPromise = handleCapturePost(
-    captureRequest(),
+    captureRequest(requestBody),
     { accountId: "account", apiToken: "token" },
     fetchImpl,
     { limiter },
   );
   await new Promise((resolve) => setTimeout(resolve, 0));
   const second = await handleCapturePost(
-    captureRequest(),
+    captureRequest(requestBody),
     { accountId: "account", apiToken: "token" },
     fetchImpl,
     { limiter },
@@ -378,7 +382,7 @@ test("rejects a capture when the injected concurrency budget is occupied", async
         markdown: "# Example",
         accessibilityTree: { role: "RootWebArea", name: "Example" },
       },
-      meta: { status: 200, title: "Example" },
+      meta: { status: 200, title: "Example", finalUrl: "https://93.184.216.34/" },
     }),
   );
   const first = await firstPromise;

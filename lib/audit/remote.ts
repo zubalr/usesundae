@@ -1,6 +1,6 @@
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { boundedText } from "@/lib/text";
-import type { AuditSnapshot, Finding, Severity } from "./types";
+import type { AuditSnapshot, Finding, Region, Severity } from "./types";
 
 export type JudgedFindingInput = {
   title: string;
@@ -8,7 +8,29 @@ export type JudgedFindingInput = {
   whyItMatters: string;
   recommendation: string;
   severity: Severity;
+  rect?: Region | null;
 };
+
+function normalizeRegion(
+  rect: Region | null | undefined,
+  bounds?: { width: number; height: number },
+) {
+  if (!rect) return null;
+  const values = [rect.x, rect.y, rect.width, rect.height];
+  if (values.some((value) => !Number.isFinite(value)) || rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
+  const maximumX = Math.max(0, Math.round(bounds?.width ?? 50_000) - 1);
+  const maximumY = Math.max(0, Math.round(bounds?.height ?? 50_000) - 1);
+  const x = Math.min(maximumX, Math.max(0, Math.round(rect.x)));
+  const y = Math.min(maximumY, Math.max(0, Math.round(rect.y)));
+  return {
+    x,
+    y,
+    width: Math.min(maximumX + 1 - x, 50_000, Math.round(rect.width)),
+    height: Math.min(maximumY + 1 - y, 50_000, Math.round(rect.height)),
+  };
+}
 
 function slug(value: string) {
   return (
@@ -167,7 +189,7 @@ export function createJudgedFinding(
   input: JudgedFindingInput,
   sequence: number,
 ): Finding {
-  const { title, observation, whyItMatters, recommendation, severity } =
+  const { title, observation, whyItMatters, recommendation, severity, rect } =
     normalizeJudgedFindingInput(input);
 
   return {
@@ -181,7 +203,7 @@ export function createJudgedFinding(
     whyItMatters,
     recommendation,
     viewport: checkpoint.viewport,
-    rect: null,
+    rect: normalizeRegion(rect, checkpoint.viewportSize),
     measurement: null,
     checkpointId: checkpoint.id,
     scopeKey: checkpoint.scopeId,
@@ -196,6 +218,7 @@ export function normalizeJudgedFindingInput(input: JudgedFindingInput): JudgedFi
     whyItMatters: boundedText(input.whyItMatters, 300),
     recommendation: boundedText(input.recommendation, 300),
     severity: input.severity,
+    rect: normalizeRegion(input.rect),
   };
   if (
     !normalized.title ||

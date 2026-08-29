@@ -94,15 +94,6 @@
   block-size: var(--space-l);
 }
 
-.primaryAction {
-  background: var(--accent);
-  color: var(--accent-on);
-}
-
-.primaryAction:hover {
-  background: var(--accent-strong);
-}
-
 .chatGptAction {
   border-color: var(--text-primary) !important;
   background: var(--text-primary);
@@ -111,6 +102,27 @@
 
 .chatGptAction:hover {
   background: var(--text-secondary);
+}
+
+.workbenchAction {
+  border-color: var(--border) !important;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.workbenchAction:hover {
+  border-color: var(--text-secondary) !important;
+  background: var(--border);
+}
+
+.sponsoredAction {
+  border-color: var(--accent) !important;
+  background: transparent;
+  color: var(--accent-strong);
+}
+
+.sponsoredAction:hover {
+  background: var(--surface-raised);
 }
 
 .controlNote,
@@ -123,6 +135,17 @@
 .controlNote {
   max-width: var(--measure);
   color: var(--text-secondary);
+}
+
+.comingSoon {
+  width: fit-content;
+  margin: calc(var(--space-xs) * -1) var(--space-none) var(--space-none);
+  padding: var(--space-2xs) var(--space-xs);
+  border: thin solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--warning);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
 }
 
 .error {

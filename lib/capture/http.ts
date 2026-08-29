@@ -13,6 +13,7 @@ import {
   TargetPolicyError,
   WaitForSelectorPolicyError,
 } from "./url-policy";
+import type { ResolveTarget } from "./dns-policy";
 import { readTextUpTo } from "./stream";
 import { captureGateCookieHeader, type CaptureGate, readCaptureGateCookie } from "./gate";
 
@@ -85,6 +86,7 @@ export type CaptureHttpOptions = {
   allowedOrigin?: string;
   clientKey?: (request: Request) => string;
   gate?: CaptureGate;
+  resolveTarget?: ResolveTarget;
 };
 
 export function createCaptureLimiterState(
@@ -311,6 +313,7 @@ export async function handleCapturePost(
           signal: request.signal,
         },
         fetchImpl,
+        { resolveTarget: options.resolveTarget },
       );
     } finally {
       releaseCapture(limiter);

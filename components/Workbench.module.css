@@ -1,6 +1,20 @@
 .app {
+  color-scheme: light;
+  --surface: var(--evidence-surface);
+  --surface-raised: var(--evidence-surface-raised);
+  --text-primary: var(--evidence-text-primary);
+  --text-secondary: var(--evidence-text-secondary);
+  --border: var(--evidence-border);
+  --accent: var(--evidence-accent);
+  --accent-strong: var(--evidence-accent-strong);
+  --accent-on: var(--evidence-accent-on);
+  --success: var(--evidence-success);
+  --success-on: var(--evidence-success-on);
+  --warning: var(--evidence-warning);
+  --focus-ring: var(--evidence-focus-ring);
   min-height: 100dvh;
   background: var(--surface);
+  color: var(--text-primary);
 }
 
 .topbar {
@@ -185,7 +199,7 @@
 }
 .measuredAt {
   margin-left: auto;
-  color: #747a74;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 .contextBar button {
@@ -422,7 +436,7 @@
   text-overflow: ellipsis;
 }
 .journeyBar li small {
-  color: #737973;
+  color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 7px;
 }
@@ -496,7 +510,7 @@
   border-radius: 7px;
   padding: 0 10px;
   background: transparent;
-  color: #666b65;
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 10px;
   font-weight: 700;
@@ -630,7 +644,7 @@
 }
 .findingRow[data-selected="true"] .findingNumber {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--accent-on);
 }
 .findingRow > svg {
   width: 15px;
@@ -686,7 +700,7 @@
   font-size: 8px;
 }
 .findingMeta b[data-truth="judged"] {
-  color: #92620f;
+  color: var(--warning);
 }
 .findingMeta i {
   font-style: normal;
@@ -1157,7 +1171,7 @@
 }
 .previewButton {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--accent-on);
 }
 .previewButton:hover:not(:disabled) {
   background: #ca4328;
@@ -1245,7 +1259,7 @@
 }
 .receipts li > span[data-actor="system"] {
   background: #e7e5dd;
-  color: #696f69;
+  color: var(--text-primary);
 }
 .receipts li > span svg {
   width: 14px;

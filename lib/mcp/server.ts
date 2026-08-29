@@ -56,7 +56,7 @@ export function createSundaeMcpServer(appOrigin: string) {
       instructions: [
         "Use start_audit when a user asks to review, audit, critique, or improve a public website or product interface.",
         "The tool prepares an exact Sundae workspace; it does not itself capture or inspect the target.",
-        "Open the returned workspace in a supported built-in browser, wait for Sundae Site Tools, and use those page tools for evidence-backed review.",
+        "In a host that can open the returned workspace and expose page-scoped WebMCP tools, open it, wait for Sundae Site Tools, and use those tools for evidence-backed review.",
         "Never claim an audit or capture completed when the workspace or Site Tools were unavailable.",
       ].join(" "),
     },
@@ -106,7 +106,7 @@ export function createSundaeMcpServer(appOrigin: string) {
           goal: launch.goal,
           handoff_status: "workspace_ready" as const,
           site_tools_next_step:
-            "Open workspace_url in the built-in browser, wait for Sundae Site Tools, then capture only the user-approved public scope.",
+            "Open workspace_url in a host browser that exposes Sundae Site Tools, then capture only the user-approved public scope.",
         };
         return {
           content: [

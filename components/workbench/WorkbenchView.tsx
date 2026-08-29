@@ -27,6 +27,7 @@ import {
 } from "@/lib/webmcp/register";
 import { DemoViewport } from "@/components/DemoViewport";
 import { Icon } from "@/components/Icons";
+import { resolvePublicDemoUrl } from "@/lib/launch";
 import styles from "@/components/Workbench.module.css";
 
 export type TargetMode = "sample" | "remote";
@@ -71,7 +72,13 @@ function WebMcpIndicator({ commands, mode }: { commands: WorkbenchCommands; mode
   const label =
     status === "ready" ? `${WEBMCP_TOOL_COUNTS[mode]} page tools ready` : webMcpLabels[status];
   return (
-    <div className={styles.webmcpStatus} data-status={status} title={label} aria-label={label}>
+    <div
+      className={styles.webmcpStatus}
+      data-status={status}
+      title={label}
+      role="status"
+      aria-label={label}
+    >
       <span />
       <div>
         <b>WebMCP</b>
@@ -212,8 +219,6 @@ function ScopeBar({
   );
 }
 
-export const PRESET_PUBLIC_URL = "https://example.com/";
-
 function CaptureBar({
   mode,
   auditGoal,
@@ -270,10 +275,10 @@ function CaptureBar({
         <button
           type="button"
           className={styles.presetUrl}
-          onClick={() => onChangeUrlDraft(PRESET_PUBLIC_URL)}
-          aria-label="Fill https://example.com/ without capturing"
+          onClick={() => onChangeUrlDraft(resolvePublicDemoUrl(window.location.origin))}
+          aria-label="Fill the included Sundae demo target without capturing"
         >
-          example.com
+          included /demo
         </button>
       </div>
       <div className={styles.captureActions}>
@@ -356,7 +361,7 @@ function ProductPane({
               : "Measured directly from the rendered document in this browser."}
           </p>
         </div>
-        <div className={styles.viewportSwitch} aria-label="Audit viewport">
+        <div className={styles.viewportSwitch} role="group" aria-label="Audit viewport">
           <button
             type="button"
             data-active={viewport === "mobile"}
@@ -420,7 +425,7 @@ function FindingList({
   onFocusFinding,
 }: WorkbenchViewProps) {
   return (
-    <div className={styles.findingList} aria-label={evidenceBoard.listLabel}>
+    <section className={styles.findingList} aria-label={evidenceBoard.listLabel}>
       {visibleFindings.map((finding, index) => (
         <button
           id={`finding-${finding.id}`}
@@ -471,7 +476,7 @@ function FindingList({
           </p>
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -550,7 +555,7 @@ function FindingControls({
 
   return (
     <>
-      <div className={styles.decisionControls} aria-label="Finding decision">
+      <div className={styles.decisionControls} role="group" aria-label="Finding decision">
         {DECISION_VALUES.map((decision) => (
           <button
             type="button"
@@ -832,7 +837,7 @@ function ActivityReceipts({ activity, activityLimit }: WorkbenchViewProps) {
       <ol>
         {activity.slice(0, 20).map((entry) => (
           <li key={entry.id}>
-            <span data-actor={entry.actor} aria-label={activityActorLabel(entry.actor)}>
+            <span data-actor={entry.actor} role="img" aria-label={activityActorLabel(entry.actor)}>
               {entry.actor === "agent" ? (
                 <Icon name="agent" />
               ) : (
