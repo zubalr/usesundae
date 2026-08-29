@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.next-*/
+coverage/
+*.tsbuildinfo
+
+.env*
+!.env.example
+
+# Local tool and editor state live in root dot-directories. GitHub workflows
+# are the only public dot-directory.
+/.*/
+!/.github/
+
+**/.DS_Store
+.vercel

@@ -1,0 +1,162 @@
+/* ---------------------------------------------------------------------------
+   Tokens. Two layers, deliberately.
+
+   1. PRIMITIVES  raw values, never referenced outside this file
+   2. SEMANTIC    what a component may use, named by role not by colour
+
+   Every semantic colour carries both themes via light-dark(), so no component
+   writes a dark-mode variant. A raw hex or px anywhere else is a lint error:
+   npm run lint:tokens
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light dark;
+
+  /* -- primitives --------------------------------------------------------- */
+  --c-paper: #f1efe8;
+  --c-paper-bright: #fbfaf6;
+  --c-ink: #171b18;
+  --c-muted: #626861;
+  --c-line: #d8d7cf;
+  --c-coral: #e45737;
+  --c-coral-deep: #a82f1e;
+  --c-teal: #236b5f;
+  --c-amber: #b77a14;
+  --c-focus: #176fc1;
+
+  /* dark counterparts: warm neutrals biased toward the coral accent, so the
+     greys read as chosen rather than inherited */
+  --c-paper-dark: #16150f;
+  --c-paper-bright-dark: #201e17;
+  --c-ink-dark: #efece2;
+  --c-muted-dark: #a09a8a;
+  --c-line-dark: #34312a;
+  --c-coral-dark: #ff7d5e;
+  --c-coral-deep-dark: #ff9c82;
+  --c-teal-dark: #5fb8a6;
+  --c-amber-dark: #e0aa4d;
+  --c-focus-dark: #6aa9e8;
+
+  /* -- semantic: colour --------------------------------------------------- */
+  --surface: light-dark(var(--c-paper), var(--c-paper-dark));
+  --surface-raised: light-dark(var(--c-paper-bright), var(--c-paper-bright-dark));
+  --text-primary: light-dark(var(--c-ink), var(--c-ink-dark));
+  --text-secondary: light-dark(var(--c-muted), var(--c-muted-dark));
+  --border: light-dark(var(--c-line), var(--c-line-dark));
+  --accent: light-dark(var(--c-coral), var(--c-coral-dark));
+  --accent-strong: light-dark(var(--c-coral-deep), var(--c-coral-deep-dark));
+  --accent-on: light-dark(#ffffff, #16150f);
+  --success: light-dark(var(--c-teal), var(--c-teal-dark));
+  --warning: light-dark(var(--c-amber), var(--c-amber-dark));
+  --focus-ring: light-dark(var(--c-focus), var(--c-focus-dark));
+
+  /* -- semantic: space (pick a step, never invent px) --------------------- */
+  --space-none: 0;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-s: 0.75rem;
+  --space-m: 1rem;
+  --space-l: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+
+  /* -- semantic: type ----------------------------------------------------- */
+  --font-sans: "Avenir Next", Avenir, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-serif: "Iowan Old Style", Baskerville, "Times New Roman", serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-s: 0.875rem;
+  --text-m: 1rem;
+  --text-l: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+  --text-3xl: 3.5rem;
+
+  --leading-tight: 1.15;
+  --leading-normal: 1.55;
+  --leading-loose: 1.7;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  --measure: 66ch;
+
+  /* -- semantic: shape and depth ------------------------------------------ */
+  --radius-s: 3px;
+  --radius-m: 6px;
+  --radius-l: 12px;
+  --radius-full: 999px;
+
+  --shadow-s: 0 1px 2px light-dark(rgb(23 27 24 / 6%), rgb(0 0 0 / 40%));
+  --shadow-m: 0 4px 16px light-dark(rgb(23 27 24 / 8%), rgb(0 0 0 / 50%));
+
+  /* -- semantic: motion --------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-instant: 90ms;
+  --duration-fast: 150ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-m);
+  line-height: var(--leading-normal);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+::selection {
+  color: var(--accent-on);
+  background: var(--accent-strong);
+}
+
+* {
+  scrollbar-color: var(--text-secondary) transparent;
+  scrollbar-width: thin;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

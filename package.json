@@ -1,0 +1,35 @@
+{
+  "name": "sundae",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "test": "tsx --test tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:tokens": "node scripts/lint-tokens.mjs",
+    "check": "npm run typecheck && npm run lint && npm run lint:tokens && npm test",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "tokens:sync": "node scripts/sync-tokens-doc.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "next": "^16.3.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.17.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}

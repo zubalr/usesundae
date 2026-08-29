@@ -1,0 +1,397 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import type { WorkbenchCommands } from "../lib/workbench/types";
+import {
+  registerWorkbenchTools,
+  WEBMCP_INPUT_SCHEMAS,
+  WEBMCP_TOOL_COUNTS,
+} from "../lib/webmcp/register";
+
+const commandResult = (receipt: string) => Promise.resolve({ ok: true, receipt });
+
+function stringSchema(schema: WebMcpInputSchema, key: string) {
+  const property = schema.properties?.[key] as Record<string, unknown> | undefined;
+  assert.equal(property?.type, "string", `${key} must be a string schema`);
+  return property;
+}
+
+function assertToolContracts(registered: Array<{ tool: WebMcpTool; signal?: AbortSignal }>) {
+  for (const { tool } of registered) {
+    assert.ok(tool.title && tool.title.length >= 8, `${tool.name} needs a human-readable title`);
+    assert.ok(tool.description.length >= 80, `${tool.name} needs a decision-useful description`);
+    assert.ok(
+      tool.description.length <= 500,
+      `${tool.name} description exceeds Chrome's ~500 character budget`,
+    );
+    assert.equal(
+      tool.inputSchema?.additionalProperties,
+      false,
+      `${tool.name} needs a closed input schema`,
+    );
+    assert.ok(
+      Object.keys(tool.annotations ?? {}).every((key) =>
+        ["readOnlyHint", "untrustedContentHint"].includes(key),
+      ),
+    );
+  }
+}
+
+function assertSchemaContracts() {
+  for (const [schemaName, schema] of Object.entries(WEBMCP_INPUT_SCHEMAS)) {
+    for (const [key, property] of Object.entries(schema.properties ?? {})) {
+      const description = (property as { description?: string }).description;
+      if (!description) continue;
+      assert.ok(
+        description.length <= 150,
+        `${schemaName}.${key} description exceeds Chrome's ~150 character budget`,
+      );
+    }
+  }
+
+  const captureUrl = stringSchema(WEBMCP_INPUT_SCHEMAS.capturePublicPage, "url");
+  assert.equal(captureUrl?.format, "uri");
+  assert.equal(captureUrl?.pattern, "^https?:\\/\\/");
+  assert.equal(captureUrl?.minLength, 1);
+  assert.equal(captureUrl?.maxLength, 2048);
+  assert.deepEqual(WEBMCP_INPUT_SCHEMAS.capturePublicPage.required, ["url"]);
+  assert.equal(
+    (WEBMCP_INPUT_SCHEMAS.capturePublicPage.properties?.viewport as Record<string, unknown>)
+      ?.default,
+    "desktop",
+  );
+  assert.equal(
+    stringSchema(WEBMCP_INPUT_SCHEMAS.capturePublicPage, "wait_for_selector")?.maxLength,
+    160,
+  );
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.captureJourneyStep, "label")?.minLength, 1);
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.captureJourneyStep, "label")?.maxLength, 100);
+  assert.equal(
+    stringSchema(WEBMCP_INPUT_SCHEMAS.captureBelowFold, "wait_for_selector")?.maxLength,
+    160,
+  );
+  assert.equal(Object.hasOwn(WEBMCP_INPUT_SCHEMAS.captureBelowFold.properties, "url"), false);
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.finding, "finding_id")?.maxLength, 120);
+  for (const [key, maxLength] of [
+    ["title", 140],
+    ["observation", 360],
+    ["why_it_matters", 300],
+    ["recommendation", 300],
+  ] as const) {
+    assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.judgedFinding, key)?.minLength, 1);
+    assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.judgedFinding, key)?.maxLength, maxLength);
+  }
+  assert.deepEqual(
+    (WEBMCP_INPUT_SCHEMAS.judgedFinding.properties?.severity as Record<string, unknown>)?.enum,
+    ["high", "medium", "low"],
+  );
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.gap, "label")?.maxLength, 100);
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.gap, "detail")?.maxLength, 300);
+  assert.deepEqual(
+    (WEBMCP_INPUT_SCHEMAS.decision.properties?.decision as Record<string, unknown>)?.enum,
+    ["open", "accepted", "deferred", "dismissed"],
+  );
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.decision, "reason")?.maxLength, 240);
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.verification, "finding_id")?.maxLength, 120);
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.preview, "css")?.maxLength, 4000);
+}
+
+test("remote mode registers the full bounded, page-scoped tool set", async () => {
+  const registered: Array<{ tool: WebMcpTool; signal?: AbortSignal }> = [];
+  const calls: string[] = [];
+  const auditSignals: Array<AbortSignal | undefined> = [];
+  const auditWaits: Array<string | undefined> = [];
+  const verifySignals: Array<AbortSignal | undefined> = [];
+  const verifyWaits: Array<string | undefined> = [];
+  const boardActors: string[] = [];
+  let cancelAuditAfterHandler = false;
+  let auditCancellation: AbortController | undefined;
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {
+      modelContext: {
+        registerTool(tool: WebMcpTool, options?: { signal?: AbortSignal }) {
+          registered.push({ tool, signal: options?.signal });
+        },
+      },
+    },
+  });
+
+  const commands = {
+    capturePublicPage: async (url, viewport, actor, _signal, waitForSelector) => {
+      calls.push(`capture:${url}:${viewport}:${actor}:${waitForSelector ?? "none"}`);
+      return commandResult("capture");
+    },
+    captureJourneyStep: async (url, label, actor, _signal, waitForSelector) => {
+      calls.push(`step:${url}:${label}:${actor}:${waitForSelector ?? "none"}`);
+      return commandResult("step");
+    },
+    captureBelowFold: async (waitForSelector, actor) => {
+      calls.push(`below-fold:${waitForSelector ?? "none"}:${actor}`);
+      return commandResult("below-fold");
+    },
+    auditCurrentScope: async (_actor, signal, waitForSelector) => {
+      auditSignals.push(signal);
+      auditWaits.push(waitForSelector);
+      if (cancelAuditAfterHandler)
+        auditCancellation?.abort(new Error("Cancelled after audit handler."));
+      return commandResult("audit");
+    },
+    inspectAgentSurface: async () => commandResult("agent-surface"),
+    getBoardContext: (actor) => {
+      boardActors.push(actor);
+      return { ok: true, receipt: "context", findings: [] };
+    },
+    recordVisualFinding: async ({ title, severity }, actor) => {
+      calls.push(`finding:${title}:${severity}:${actor}`);
+      return commandResult("finding");
+    },
+    recordCoverageGap: async (label, detail, actor) => {
+      calls.push(`gap:${label}:${detail}:${actor}`);
+      return commandResult("gap");
+    },
+    focusFinding: async (id) => {
+      calls.push(`focus:${id}`);
+      return commandResult("focus");
+    },
+    setFindingDecision: async (id, decision) => {
+      calls.push(`decision:${id}:${decision}`);
+      return commandResult("decision");
+    },
+    previewFix: async (css, _actor, signal, waitForSelector) => {
+      calls.push(`preview:${css ?? "none"}:${waitForSelector ?? "none"}`);
+      if (!signal) return commandResult("preview");
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+      return commandResult("preview");
+    },
+    verifyRecapture: async (_findingId, _actor, signal, waitForSelector) => {
+      verifySignals.push(signal);
+      verifyWaits.push(waitForSelector);
+      return commandResult("verify");
+    },
+  } satisfies WorkbenchCommands;
+
+  try {
+    const controller = new AbortController();
+    assert.equal(await registerWorkbenchTools(commands, controller.signal, "remote"), true);
+    assert.deepEqual(
+      registered.map(({ tool }) => tool.name),
+      [
+        "capture_public_page",
+        "capture_journey_step",
+        "capture_below_fold",
+        "audit_current_scope",
+        "inspect_agent_surface",
+        "get_board_context",
+        "record_visual_finding",
+        "record_coverage_gap",
+        "focus_finding",
+        "set_finding_decision",
+        "preview_fix",
+        "verify_recapture",
+      ],
+    );
+    assert.equal(registered.length, WEBMCP_TOOL_COUNTS.remote);
+    assert.ok(registered.every(({ signal }) => signal));
+    assert.equal(new Set(registered.map(({ signal }) => signal)).size, 1);
+    assert.notEqual(registered[0]?.signal, controller.signal);
+    const boardTool = registered.find(({ tool }) => tool.name === "get_board_context")?.tool;
+    assert.equal(boardTool?.annotations?.readOnlyHint, false);
+    assert.equal(boardTool?.annotations?.untrustedContentHint, true);
+    assertToolContracts(registered);
+    assertSchemaContracts();
+
+    const capture = registered.find(({ tool }) => tool.name === "capture_public_page")!.tool;
+    const invalidCapture = await capture.execute({
+      url: "ftp://example.com/file",
+      viewport: "desktop",
+    });
+    assert.equal(JSON.parse(invalidCapture.content[0]!.text).ok, false);
+    await capture.execute({ url: "https://example.com/pricing", wait_for_selector: "#pricing" });
+    assert.deepEqual(calls, ["capture:https://example.com/pricing:desktop:agent:#pricing"]);
+
+    const journeyStep = registered.find(({ tool }) => tool.name === "capture_journey_step")!.tool;
+    await journeyStep.execute({
+      url: "https://example.com/checkout",
+      label: "Checkout entry",
+      wait_for_selector: "#checkout",
+    });
+    assert.equal(calls.at(-1), "step:https://example.com/checkout:Checkout entry:agent:#checkout");
+
+    const belowFold = registered.find(({ tool }) => tool.name === "capture_below_fold")!.tool;
+    await belowFold.execute({ wait_for_selector: "main" });
+    assert.equal(calls.at(-1), "below-fold:main:agent");
+
+    const audit = registered.find(({ tool }) => tool.name === "audit_current_scope")!.tool;
+    const auditInvocation = new AbortController();
+    await audit.execute({ wait_for_selector: "main" }, { signal: auditInvocation.signal });
+    assert.equal(auditSignals.length, 1);
+    assert.ok(auditSignals[0]);
+    assert.equal(auditWaits[0], "main");
+
+    const board = registered.find(({ tool }) => tool.name === "get_board_context")!.tool;
+    await board.execute({});
+    assert.deepEqual(boardActors, ["agent"]);
+
+    auditCancellation = new AbortController();
+    cancelAuditAfterHandler = true;
+    const cancelledAudit = JSON.parse(
+      (await audit.execute({}, { signal: auditCancellation.signal })).content[0]!.text,
+    );
+    assert.equal(cancelledAudit.ok, false);
+    assert.match(cancelledAudit.receipt, /cancelled/i);
+    cancelAuditAfterHandler = false;
+
+    const recordFinding = registered.find(
+      ({ tool }) => tool.name === "record_visual_finding",
+    )!.tool;
+    await recordFinding.execute({
+      title: "Primary action is visually buried",
+      observation: "The action uses the same treatment as tertiary links.",
+      why_it_matters: "A visitor may not know where to begin.",
+      recommendation: "Give the primary action a distinct treatment.",
+      severity: "high",
+    });
+    assert.equal(calls.at(-1), "finding:Primary action is visually buried:high:agent");
+
+    const recordGap = registered.find(({ tool }) => tool.name === "record_coverage_gap")!.tool;
+    await recordGap.execute({ label: "Checkout", detail: "The checkout flow was not opened." });
+    assert.equal(calls.at(-1), "gap:Checkout:The checkout flow was not opened.:agent");
+
+    const focus = registered.find(({ tool }) => tool.name === "focus_finding")!.tool;
+    const response = await focus.execute({ finding_id: "mobile:contrast:helper-copy" });
+    assert.equal(calls.at(-1), "focus:mobile:contrast:helper-copy");
+    assert.equal(JSON.parse(response.content[0]!.text).receipt, "focus");
+
+    const decision = registered.find(({ tool }) => tool.name === "set_finding_decision")!.tool;
+    const invalid = await decision.execute({ finding_id: "f1", decision: "accepted", reason: "" });
+    assert.equal(JSON.parse(invalid.content[0]!.text).ok, false);
+    assert.equal(calls.at(-1), "focus:mobile:contrast:helper-copy");
+
+    await decision.execute({
+      finding_id: "f1",
+      decision: "open",
+      reason: "Reconsider this evidence.",
+    });
+    assert.equal(calls.at(-1), "decision:f1:open");
+
+    const preview = registered.find(({ tool }) => tool.name === "preview_fix")!.tool;
+    const invocation = new AbortController();
+    const pendingPreview = preview.execute({}, { signal: invocation.signal });
+    invocation.abort(new Error("Cancelled for test."));
+    const cancelled = JSON.parse((await pendingPreview).content[0]!.text);
+    assert.equal(cancelled.ok, false);
+    assert.match(cancelled.receipt, /cancelled.*rolled back/i);
+    assert.equal(calls.at(-1), "preview:none:none");
+    await preview.execute({ css: "main { display: block; }", wait_for_selector: "main" });
+    assert.equal(calls.at(-1), "preview:main { display: block; }:main");
+
+    const verify = registered.find(({ tool }) => tool.name === "verify_recapture")!.tool;
+    const verifyInvocation = new AbortController();
+    await verify.execute(
+      { finding_id: "f1", wait_for_selector: "main" },
+      { signal: verifyInvocation.signal },
+    );
+    assert.equal(verifySignals.length, 1);
+    assert.ok(verifySignals[0]);
+    assert.equal(verifyWaits[0], "main");
+
+    controller.abort();
+    assert.equal(registered[0]?.signal?.aborted, true);
+  } finally {
+    if (originalDocument) Object.defineProperty(globalThis, "document", originalDocument);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
+});
+
+test("sample mode registers only tools that operate on the included target", async () => {
+  const tools: WebMcpTool[] = [];
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {
+      modelContext: {
+        registerTool(tool: WebMcpTool) {
+          tools.push(tool);
+        },
+      },
+    },
+  });
+
+  try {
+    assert.equal(
+      await registerWorkbenchTools({} as WorkbenchCommands, new AbortController().signal, "sample"),
+      true,
+    );
+    assert.deepEqual(
+      tools.map((tool) => tool.name),
+      [
+        "audit_current_scope",
+        "inspect_agent_surface",
+        "get_board_context",
+        "record_visual_finding",
+        "record_coverage_gap",
+        "focus_finding",
+        "set_finding_decision",
+        "preview_fix",
+        "verify_recapture",
+      ],
+    );
+    assert.equal(tools.length, WEBMCP_TOOL_COUNTS.sample);
+    const schemaKeys = (name: string) =>
+      Object.keys(tools.find((tool) => tool.name === name)?.inputSchema?.properties ?? {});
+    assert.deepEqual(schemaKeys("audit_current_scope"), []);
+    assert.deepEqual(schemaKeys("preview_fix"), []);
+    assert.deepEqual(schemaKeys("verify_recapture"), ["finding_id"]);
+  } finally {
+    if (originalDocument) Object.defineProperty(globalThis, "document", originalDocument);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
+});
+
+test("a partial top-level registration aborts the shared registration lifecycle", async () => {
+  const registeredSignals: AbortSignal[] = [];
+  const activeTools = new Set<string>();
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {
+      modelContext: {
+        async registerTool(tool: WebMcpTool, options?: { signal?: AbortSignal }) {
+          if (options?.signal) registeredSignals.push(options.signal);
+          activeTools.add(tool.name);
+          options?.signal?.addEventListener("abort", () => activeTools.delete(tool.name), {
+            once: true,
+          });
+          if (registeredSignals.length === 4) throw new Error("Simulated registration failure.");
+        },
+      },
+    },
+  });
+
+  try {
+    const caller = new AbortController();
+    await assert.rejects(
+      () => registerWorkbenchTools({} as WorkbenchCommands, caller.signal, "sample"),
+      /Simulated registration failure/,
+    );
+    assert.equal(caller.signal.aborted, false);
+    assert.equal(registeredSignals.length, 4);
+    assert.ok(
+      registeredSignals.slice(0, 3).every((signal) => signal.aborted),
+      "successful registrations must be cleaned up",
+    );
+    assert.equal(
+      registeredSignals[3]?.aborted,
+      true,
+      "the failed registration shares the aborted lifecycle",
+    );
+    assert.equal(activeTools.size, 0, "the registration transaction must leave no tool behind");
+  } finally {
+    if (originalDocument) Object.defineProperty(globalThis, "document", originalDocument);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
+});

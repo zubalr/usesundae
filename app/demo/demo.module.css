@@ -1,0 +1,411 @@
+.product {
+  min-height: 100dvh;
+  overflow-x: visible;
+  background: #f6f7f8;
+  color: #20242a;
+  font-family: "Avenir Next", Avenir, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.fixtureStatus {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 32px;
+  border-bottom: 1px solid #e5e7e9;
+  background: #fbfcfc;
+  color: #68707b;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.fixtureStatus > span:nth-child(2) {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.fixtureStatus strong {
+  color: #3d4650;
+  font-size: 10px;
+}
+.fixtureStatus small {
+  font-size: 10px;
+}
+.fixtureStatusDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #b77a14;
+}
+.fixtureStatus[data-status="ready"] .fixtureStatusDot {
+  background: #3c8978;
+}
+.fixtureStatus[data-status="error"] .fixtureStatusDot {
+  background: #dc634b;
+}
+.fixtureStatus[data-status="unavailable"] .fixtureStatusDot {
+  background: #8b8f96;
+}
+.fixtureReceipt {
+  margin-left: auto;
+  color: #48505c;
+  text-align: right;
+}
+
+.topbar {
+  height: 72px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 0 32px;
+  border-bottom: 1px solid #e5e7e9;
+  background: #ffffff;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  color: #20242a;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mark {
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #20242a;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.topbar nav {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  height: 100%;
+}
+.topbar nav a {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-bottom: 2px solid transparent;
+  color: #68707b;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.topbar nav .active {
+  border-color: #20242a;
+  color: #20242a;
+}
+.account {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #59616d;
+  cursor: pointer;
+}
+.iconButton:hover {
+  background: #f0f1f2;
+}
+.improved .iconButton {
+  width: 44px;
+  height: 44px;
+}
+.iconButton svg,
+.primaryAction svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.avatar {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #d8e6e1;
+  color: #245b50;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.content {
+  width: min(100% - 64px, 1040px);
+  margin: 0 auto;
+  padding: 40px 0 64px;
+}
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+}
+.date {
+  margin: 0 0 8px;
+  color: #747b85;
+  font-size: 12px;
+  font-weight: 600;
+}
+.hero h1 {
+  max-width: 700px;
+  margin: 0;
+  font-size: clamp(28px, 4.2vw, 48px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.07;
+  text-wrap: balance;
+}
+
+.primaryAction {
+  min-height: 44px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 16px;
+  background: #20242a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 34px 0 24px;
+  border: 1px solid #e1e3e6;
+  border-radius: 15px;
+  background: #ffffff;
+}
+.metrics > div {
+  min-height: 118px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 20px 24px;
+}
+.metrics > div + div {
+  border-left: 1px solid #e6e8ea;
+}
+.metrics span,
+.metrics small {
+  color: #707782;
+  font-size: 11px;
+  font-weight: 600;
+}
+.metrics strong {
+  margin: 2px 0;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.activity {
+  padding: 22px 0 0;
+  border: 1px solid #e1e3e6;
+  border-radius: 15px;
+  background: #ffffff;
+}
+.sectionHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 24px 18px;
+}
+.sectionHead h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  letter-spacing: -0.015em;
+}
+.sectionHead p {
+  margin: 0;
+  font-size: 12px;
+}
+.baseline .sectionHead p {
+  color: #8b8f96;
+}
+.improved .sectionHead p {
+  color: #48505c;
+}
+.sectionHead button {
+  border: 0;
+  background: transparent;
+  color: #4d5662;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.tableShell {
+  border-top: 1px solid #e6e8ea;
+}
+.table {
+  width: 100%;
+  font-size: 12px;
+}
+.tableHeader,
+.tableRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.8fr 1fr;
+  align-items: center;
+  min-height: 45px;
+  padding: 0 24px;
+}
+.tableHeader {
+  min-height: 37px;
+  background: #fafafa;
+  color: #7a818a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+.tableRow + .tableRow {
+  border-top: 1px solid #eff0f1;
+}
+.tableRow > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+}
+.tableRow i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.dotCoral {
+  background: #dc634b;
+}
+.dotTeal {
+  background: #3c8978;
+}
+.dotAmber {
+  background: #c58a2b;
+}
+.tableRow b {
+  display: inline-block;
+  width: fit-content;
+  border-radius: 99px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.needsReview {
+  background: #f9dfd9;
+  color: #8b3828;
+}
+.healthy {
+  background: #dfeee9;
+  color: #286657;
+}
+.watch {
+  background: #f7ebd2;
+  color: #805910;
+}
+
+@media (max-width: 620px) {
+  .fixtureStatus {
+    padding-inline: 18px;
+  }
+  .fixtureStatus > span:nth-child(2) {
+    display: grid;
+    gap: 1px;
+  }
+  .fixtureReceipt {
+    max-width: 45%;
+  }
+  .topbar {
+    height: 64px;
+    grid-template-columns: 1fr auto;
+    padding: 0 18px;
+  }
+  .topbar nav {
+    display: none;
+  }
+  .content {
+    width: calc(100% - 32px);
+    padding: 26px 0 40px;
+  }
+  .hero {
+    display: grid;
+    gap: 20px;
+  }
+  .hero h1 {
+    max-width: 360px;
+    font-size: 31px;
+  }
+  .primaryAction {
+    justify-self: start;
+  }
+  .baseline .primaryAction {
+    min-height: 36px;
+  }
+  .improved .primaryAction {
+    min-height: 48px;
+  }
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+    margin-top: 26px;
+  }
+  .metrics > div {
+    min-height: 96px;
+    padding: 16px;
+  }
+  .metrics > div + div {
+    border-left: 1px solid #e6e8ea;
+  }
+  .metrics > div:nth-child(3) {
+    grid-column: 1 / -1;
+    border-top: 1px solid #e6e8ea;
+    border-left: 0;
+  }
+  .sectionHead {
+    padding-inline: 18px;
+  }
+  .baseline .table {
+    width: 690px;
+  }
+  .improved .tableHeader,
+  .improved .tableRow {
+    grid-template-columns: 1.5fr 0.8fr 1fr;
+    padding-inline: 16px;
+  }
+  .improved .tableHeader > :nth-child(2),
+  .improved .tableRow > :nth-child(2) {
+    display: none;
+  }
+}

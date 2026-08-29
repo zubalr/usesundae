@@ -1,0 +1,39 @@
+# Installed by agent-kit product-init. The gate that does not depend on anyone
+# reading instructions. Keep in sync: ~/.agent-kit/product/.github/workflows/
+name: check
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # the contract is honored from the default branch, so a pushed branch
+          # cannot weaken its own gates
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Restore contract from default branch
+        run: |
+          git fetch --depth=1 origin "${{ github.event.repository.default_branch }}"
+          for f in .oxlintrc.json scripts/lint-tokens.mjs; do
+            git checkout FETCH_HEAD -- "$f" 2>/dev/null || true
+          done
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        if: hashFiles('bun.lock', 'bunfig.toml') != ''
+        with:
+          bun-version: latest
+      - name: Install and check
+        run: |
+          if [ -f bunfig.toml ] || [ -f bun.lock ]; then
+            bun install --frozen-lockfile
+            bun run check
+          else
+            npm ci
+            npm run check
+          fi

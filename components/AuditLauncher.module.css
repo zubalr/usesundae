@@ -1,0 +1,229 @@
+.launcher {
+  display: grid;
+  gap: var(--space-m);
+  margin-top: var(--space-s);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(var(--space-none), 1.2fr) minmax(var(--space-none), 0.8fr);
+  gap: var(--space-xs);
+}
+
+.urlField,
+.goalField {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: var(--space-none);
+}
+
+.urlField > span,
+.goalField > span {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.goalField small {
+  color: var(--text-secondary);
+  font-size: inherit;
+  font-weight: var(--weight-normal);
+}
+
+.urlField input,
+.goalField input {
+  width: 100%;
+  min-block-size: calc(var(--space-xl) + var(--space-xs));
+  border: thin solid var(--border);
+  border-radius: var(--radius-m);
+  padding-inline: var(--space-m);
+  outline: none;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-s);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.urlField input {
+  font-family: var(--font-mono);
+  font-size: var(--text-s);
+}
+
+.urlField input::placeholder,
+.goalField input::placeholder,
+.receipt textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+.urlField input:focus,
+.goalField input:focus {
+  border-color: var(--focus-ring);
+  box-shadow: var(--shadow-s);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.actions button,
+.receiptLinks button,
+.receiptLinks a {
+  min-block-size: calc(var(--space-xl) + var(--space-xs));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  border: thin solid transparent;
+  border-radius: var(--radius-m);
+  padding-inline: var(--space-m);
+  cursor: pointer;
+  font-size: var(--text-s);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.actions svg {
+  inline-size: var(--space-l);
+  block-size: var(--space-l);
+}
+
+.primaryAction {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+
+.primaryAction:hover {
+  background: var(--accent-strong);
+}
+
+.chatGptAction {
+  border-color: var(--text-primary) !important;
+  background: var(--text-primary);
+  color: var(--surface-raised);
+}
+
+.chatGptAction:hover {
+  background: var(--text-secondary);
+}
+
+.controlNote,
+.error,
+.receipt p {
+  margin: var(--space-none);
+  font-size: var(--text-xs);
+}
+
+.controlNote {
+  max-width: var(--measure);
+  color: var(--text-secondary);
+}
+
+.error {
+  color: var(--accent-strong);
+  font-weight: var(--weight-bold);
+}
+
+.receipt {
+  display: grid;
+  gap: var(--space-s);
+  padding: var(--space-m);
+  border: thin solid var(--border);
+  border-radius: var(--radius-l);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-s);
+}
+
+.receiptStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-m);
+  font-size: var(--text-xs);
+}
+
+.receiptStatus span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-secondary);
+  font-weight: var(--weight-bold);
+}
+
+.receiptStatus i {
+  inline-size: var(--space-xs);
+  block-size: var(--space-xs);
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  transition: background-color var(--duration-slow) var(--ease-out);
+}
+
+.receiptStatus i[data-copied="true"] {
+  background: var(--success);
+}
+
+.receiptStatus strong {
+  color: var(--success);
+}
+
+.receipt p {
+  color: var(--text-secondary);
+}
+
+.receipt textarea {
+  min-block-size: calc(var(--space-3xl) + var(--space-3xl));
+  resize: vertical;
+  border: thin solid var(--border);
+  border-radius: var(--radius-m);
+  padding: var(--space-s);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.receiptLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.receiptLinks button,
+.receiptLinks a {
+  min-block-size: var(--space-xl);
+  border-color: var(--border);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.receiptLinks button:hover,
+.receiptLinks a:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+@media (max-width: 40rem) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+
+  .actions,
+  .actions button,
+  .receiptLinks,
+  .receiptLinks button,
+  .receiptLinks a {
+    width: 100%;
+  }
+
+  .receiptStatus {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,218 @@
+[
+  {
+    "id": "refresh-live-evidence",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Measure the live product shown in Sundae again before we make a decision."
+      }
+    ],
+    "expectedCall": [{ "functionName": "audit_current_scope", "arguments": {} }]
+  },
+  {
+    "id": "read-shared-state",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is selected on this Sundae board, what are the leading findings, and what did the audit not see?"
+      }
+    ],
+    "expectedCall": [{ "functionName": "get_board_context", "arguments": {} }]
+  },
+  {
+    "id": "focus-bounded-evidence",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Open the evidence for mobile:contrast:helper-copy on the shared board."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "focus_finding",
+        "arguments": { "finding_id": "mobile:contrast:helper-copy" }
+      }
+    ]
+  },
+  {
+    "id": "record-reversible-decision",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Accept mobile:contrast:helper-copy because the measured 3.25:1 text contrast is below the stated 4.5:1 threshold."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_finding_decision",
+        "arguments": {
+          "finding_id": "mobile:contrast:helper-copy",
+          "decision": "accepted",
+          "reason": "Measured 3.25:1 text contrast is below the stated 4.5:1 threshold."
+        }
+      }
+    ]
+  },
+  {
+    "id": "preview-without-overclaiming",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Show the reversible improvement, but do not call anything fixed yet."
+      }
+    ],
+    "expectedCall": [{ "functionName": "preview_fix", "arguments": {} }]
+  },
+  {
+    "id": "reopen-a-decision",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reopen mobile:contrast:helper-copy so the team can reconsider it, and explain that the evidence remains on the board."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_finding_decision",
+        "arguments": {
+          "finding_id": "mobile:contrast:helper-copy",
+          "decision": "open",
+          "reason": "Reopened for reconsideration; the existing evidence remains attached."
+        }
+      }
+    ]
+  },
+  {
+    "id": "verify-current-scope",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Re-measure the current preview and verify all baseline findings that are actually covered."
+      }
+    ],
+    "expectedCall": [{ "functionName": "verify_recapture", "arguments": {} }]
+  },
+  {
+    "id": "complete-honest-loop",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the board, focus the mobile overflow finding, accept it as a ship blocker, preview the included change, and verify it from fresh browser evidence."
+      }
+    ],
+    "expectedCall": [
+      { "functionName": "get_board_context", "arguments": {} },
+      {
+        "functionName": "focus_finding",
+        "arguments": { "finding_id": "mobile:horizontal-overflow:document-overflow" }
+      },
+      {
+        "functionName": "set_finding_decision",
+        "arguments": {
+          "finding_id": "mobile:horizontal-overflow:document-overflow",
+          "decision": "accepted",
+          "reason": "Treat the measured mobile overflow as a ship blocker."
+        }
+      },
+      { "functionName": "preview_fix", "arguments": {} },
+      {
+        "functionName": "verify_recapture",
+        "arguments": { "finding_id": "mobile:horizontal-overflow:document-overflow" }
+      }
+    ]
+  },
+  {
+    "id": "capture-explicit-public-page",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Audit https://example.com/pricing as it renders on desktop. I explicitly chose this public page."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "capture_public_page",
+        "arguments": { "url": "https://example.com/pricing", "viewport": "desktop" }
+      }
+    ]
+  },
+  {
+    "id": "append-explicit-journey-step",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Keep the pricing evidence and add https://example.com/checkout as the Checkout entry step in this same public journey."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "capture_journey_step",
+        "arguments": { "url": "https://example.com/checkout", "label": "Checkout entry" }
+      }
+    ]
+  },
+  {
+    "id": "capture-approved-page-below-fold",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Add a below-fold checkpoint for the public page already active in Sundae. Do not open another URL or crawl the site."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "capture_below_fold",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "id": "inspect-target-agent-interface",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Inspect the WebMCP tool contracts exposed by the included live target and put any contract faults on the same board."
+      }
+    ],
+    "expectedCall": [{ "functionName": "inspect_agent_surface", "arguments": {} }]
+  },
+  {
+    "id": "record-visible-product-judgment",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The captured screenshot shows the primary action using the same visual weight as tertiary links. Record that as a high-severity judgment, not a measurement."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "record_visual_finding",
+        "arguments": {
+          "title": "The primary action is visually indistinguishable from tertiary links",
+          "observation": "In the current screenshot, the primary action uses the same color, weight, and treatment as tertiary links.",
+          "why_it_matters": "A first-time visitor may not know where to begin.",
+          "recommendation": "Give the primary action a distinct treatment and clearer placement.",
+          "severity": "high"
+        }
+      }
+    ]
+  },
+  {
+    "id": "name-unseen-checkout",
+    "messages": [
+      {
+        "role": "user",
+        "content": "We only saw the pricing page. Record that checkout, payment errors, and confirmation were not seen."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "record_coverage_gap",
+        "arguments": {
+          "label": "Checkout journey",
+          "detail": "Checkout, payment-error, and confirmation states were not opened or captured."
+        }
+      }
+    ]
+  }
+]
