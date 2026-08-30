@@ -75,6 +75,18 @@ test("skips visible download and media files instead of treating them as product
   ]);
 });
 
+test("skips favicon resources exposed as accessibility links", () => {
+  const routes = extractVisibleNav("https://example.com/", "", {
+    role: "RootWebArea",
+    children: [
+      { role: "link", name: "Icon for example.com", url: "https://example.com/favicon.ico" },
+      { role: "link", name: "About", url: "https://example.com/about" },
+    ],
+  });
+
+  assert.deepEqual(routes, [{ url: "https://example.com/about", label: "About" }]);
+});
+
 test("uncapturedVisibleNav compares path identity and the gap helpers stay exact", () => {
   const routes = [
     { url: "https://example.com/docs", label: "Docs" },

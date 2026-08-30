@@ -7,7 +7,7 @@ export type VisibleNavRoute = {
 
 const SKIP_PATH = /\/(?:log-?out|sign-?out)(?:\/|$)/i;
 const SKIP_FILE =
-  /\.(?:7z|avi|csv|dmg|docx?|exe|gif|jpe?g|mov|mp[34]|ogg|pdf|png|pptx?|rar|svg|tar|wav|webm|webp|xlsx?|zip)$/i;
+  /\.(?:7z|avi|csv|dmg|docx?|exe|gif|ico|jpe?g|mov|mp[34]|ogg|pdf|png|pptx?|rar|svg|tar|wav|webm|webp|xlsx?|zip)$/i;
 const MARKDOWN_LINK = /\[([^\]]{1,80})\]\(\s*<?([^>\s)]+)>?\s*\)/g;
 const URL_SHAPED_VALUE = /^(?:https?:\/\/|\.{1,2}\/|\/)/i;
 
