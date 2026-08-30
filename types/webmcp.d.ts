@@ -49,7 +49,7 @@ declare global {
     }) => Promise<RegisteredWebMcpTool[]> | RegisteredWebMcpTool[];
     executeTool?: (
       tool: RegisteredWebMcpTool,
-      input?: Record<string, unknown>,
+      input?: string,
       options?: { signal?: AbortSignal },
     ) => Promise<string>;
     ontoolchange?: ((event: Event) => void) | null;

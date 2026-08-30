@@ -10,6 +10,17 @@ import {
   WEBMCP_TOOL_NAMES,
 } from "../lib/webmcp/register";
 
+type ExecuteToolInput = Parameters<NonNullable<ModelContext["executeTool"]>>[1];
+type Extends<Source, Target> = [Source] extends [Target] ? true : false;
+
+const executeToolAcceptsJsonStrings: Extends<string, ExecuteToolInput> = true;
+const executeToolInputIsJsonString: Extends<ExecuteToolInput, string | undefined> = true;
+
+test("native executeTool input matches Chrome's serialized JSON contract", () => {
+  assert.equal(executeToolAcceptsJsonStrings, true);
+  assert.equal(executeToolInputIsJsonString, true);
+});
+
 test("runtime counts include only Sundae workbench tools", () => {
   const tools = [
     ...WEBMCP_TOOL_NAMES.slice(-WEBMCP_TOOL_COUNTS.sample).map((name) => ({
