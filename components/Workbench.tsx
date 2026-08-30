@@ -16,6 +16,7 @@ import { auditWebMcpTools, normalizeRuntimeToolContract } from "@/lib/audit/tool
 import type { AuditSnapshot, CoverageGap, DemoState, Finding, Viewport } from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import {
+  capturedVisibleNavLabels,
   type VisibleNavRoute,
   uncapturedVisibleNav,
   visibleNavGap,
@@ -27,7 +28,6 @@ import { boundedText } from "@/lib/text";
 import { assertApprovedForActor, canonicalizeApprovedUrl } from "@/lib/workbench/approval";
 import {
   assertSameJourneyOrigin,
-  capturedJourneyLabels,
   mergeBelowFoldSnapshot,
   mergeJourneySnapshots,
 } from "@/lib/workbench/journey";
@@ -660,9 +660,6 @@ export function Workbench({
       if (routes.length === 0) {
         throw new Error("No uncaptured visible navigation routes remain on this board.");
       }
-      const previousCheckpointIds = new Set(
-        journeyRef.current.map(({ checkpointId }) => checkpointId),
-      );
       const routeWaitSelector = waitForSelector ?? "";
       const operationEpoch = beginRemoteOperation();
       let failure: Error | null = null;
@@ -689,7 +686,7 @@ export function Workbench({
         remoteUrlRef.current,
         ...journeyRef.current.map((step) => step.displayUrl),
       ]);
-      const capturedLabels = capturedJourneyLabels(previousCheckpointIds, journeyRef.current);
+      const capturedLabels = capturedVisibleNavLabels(routes, remaining);
       if (failure) {
         return {
           ok: false,

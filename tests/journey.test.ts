@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   assertSameJourneyOrigin,
-  capturedJourneyLabels,
   mergeBelowFoldSnapshot,
   mergeJourneySnapshots,
 } from "../lib/workbench/journey";
@@ -56,18 +55,6 @@ test("journey steps preserve hash-routed application state", () => {
     assertSameJourneyOrigin("https://example.com", "https://example.com/app?plan=pro#/checkout"),
     "https://example.com/app?plan=pro#/checkout",
   );
-});
-
-test("partial navigation receipts use the journey checkpoints that actually committed", () => {
-  const before = new Set(["checkpoint-root"]);
-  const after = [
-    { checkpointId: "checkpoint-root", label: "Homepage" },
-    { checkpointId: "checkpoint-about", label: "About" },
-    { checkpointId: "checkpoint-domains", label: "Domains" },
-    { checkpointId: "checkpoint-root-zone", label: "Root zone" },
-  ];
-
-  assert.deepEqual(capturedJourneyLabels(before, after), ["About", "Domains", "Root zone"]);
 });
 
 test("journey snapshots retain route-scoped findings and deduplicate gaps", () => {

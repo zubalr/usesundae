@@ -2,12 +2,28 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  capturedVisibleNavLabels,
   extractVisibleNav,
   MAX_VISIBLE_NAV_ROUTES,
   uncapturedVisibleNav,
   visibleNavGap,
   withoutVisibleNavGap,
 } from "../lib/capture/visible-nav";
+
+test("partial navigation receipts use the attempted routes no longer remaining", () => {
+  const attempted = [
+    { url: "https://example.com/about", label: "About" },
+    { url: "https://example.com/domains", label: "Domains" },
+    { url: "https://example.com/domains/root", label: "Root zone" },
+    { url: "https://example.com/domains/root/db", label: "TLD database" },
+  ];
+
+  assert.deepEqual(capturedVisibleNavLabels(attempted, attempted.slice(-1)), [
+    "About",
+    "Domains",
+    "Root zone",
+  ]);
+});
 
 test("extracts a bounded set of same-origin nav links from markdown in document order", () => {
   const markdown = [

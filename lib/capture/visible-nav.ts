@@ -147,6 +147,14 @@ export function uncapturedVisibleNav(
   });
 }
 
+export function capturedVisibleNavLabels(
+  attempted: readonly VisibleNavRoute[],
+  remaining: readonly VisibleNavRoute[],
+) {
+  const remainingUrls = new Set(remaining.map(({ url }) => url));
+  return attempted.filter(({ url }) => !remainingUrls.has(url)).map(({ label }) => label);
+}
+
 export function visibleNavGap(count: number) {
   const noun = count === 1 ? "same-origin link is" : "same-origin links are";
   return {

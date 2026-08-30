@@ -1,16 +1,5 @@
 import type { AuditSnapshot } from "@/lib/audit/types";
 
-type JourneyLabelEntry = { checkpointId: string; label: string };
-
-export function capturedJourneyLabels(
-  previousCheckpointIds: ReadonlySet<string>,
-  journey: readonly JourneyLabelEntry[],
-) {
-  return journey
-    .filter(({ checkpointId }) => !previousCheckpointIds.has(checkpointId))
-    .map(({ label }) => label);
-}
-
 export function assertSameJourneyOrigin(activeOrigin: string, requestedUrl: string) {
   let parsed: URL;
   try {
