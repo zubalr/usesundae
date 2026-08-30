@@ -555,6 +555,7 @@ export function Workbench({
       signal?: AbortSignal,
       waitForSelector?: string,
       toolName?: string,
+      operationEpoch?: number,
     ): Promise<CommandResult> => {
       if (modeRef.current !== "remote" || !checkpointRef.current) {
         throw new Error("Start a public-page audit before appending a journey step.");
@@ -567,13 +568,13 @@ export function Workbench({
       const approvedUrl = assertApprovedForActor(actor, authorizedUrl, approvedUrlsRef.current);
       const waitSelector = resolveWaitForSelector(waitForSelector, waitForSelectorRef.current);
 
-      const operationEpoch = beginRemoteOperation();
+      const activeOperation = operationEpoch ?? beginRemoteOperation();
       const nextCheckpoint = await fetchRemote(authorizedUrl, viewportRef.current, {
         waitForSelector: waitSelector,
         signal,
         fullPage: true,
       });
-      assertCurrentOperation(operationEpoch, signal);
+      assertCurrentOperation(activeOperation, signal);
       const stepSnapshot = snapshotFromCheckpoint(nextCheckpoint);
       const previous = baselineRef.current[viewportRef.current];
       if (!previous) throw new Error("The active audit does not have baseline evidence.");
@@ -660,6 +661,7 @@ export function Workbench({
       }
       const capturedLabels: string[] = [];
       const routeWaitSelector = waitForSelector ?? "";
+      const operationEpoch = beginRemoteOperation();
       try {
         for (const route of routes) {
           signal?.throwIfAborted();
@@ -670,6 +672,7 @@ export function Workbench({
             signal,
             routeWaitSelector,
             toolName,
+            operationEpoch,
           );
           capturedLabels.push(route.label);
         }
@@ -693,7 +696,7 @@ export function Workbench({
             : "Call get_board_context, then continue the design sweep.",
       };
     },
-    [activateCheckpoint, captureJourneyStep],
+    [activateCheckpoint, beginRemoteOperation, captureJourneyStep],
   );
 
   const captureBelowFold = useCallback(

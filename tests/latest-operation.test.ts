@@ -20,3 +20,14 @@ test("an invocation abort prevents a current operation from committing", () => {
 
   assert.throws(() => operations.assertCurrent(current, controller.signal), { name: "AbortError" });
 });
+
+test("one composite action can validate several sequential checkpoints", () => {
+  const operations = new LatestOperation();
+  const composite = operations.begin();
+
+  assert.doesNotThrow(() => operations.assertCurrent(composite));
+  assert.doesNotThrow(() => operations.assertCurrent(composite));
+
+  operations.begin();
+  assert.throws(() => operations.assertCurrent(composite), { name: "AbortError" });
+});
