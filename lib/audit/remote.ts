@@ -1,6 +1,6 @@
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { boundedText } from "@/lib/text";
-import type { AuditSnapshot, Finding, Region, Severity } from "./types";
+import type { AuditSnapshot, DesignCategory, Finding, Region, Severity } from "./types";
 
 export type JudgedFindingInput = {
   title: string;
@@ -8,6 +8,8 @@ export type JudgedFindingInput = {
   whyItMatters: string;
   recommendation: string;
   severity: Severity;
+  category: DesignCategory;
+  productJob?: string;
   rect?: Region | null;
 };
 
@@ -189,7 +191,7 @@ export function createJudgedFinding(
   input: JudgedFindingInput,
   sequence: number,
 ): Finding {
-  const { title, observation, whyItMatters, recommendation, severity, rect } =
+  const { title, observation, whyItMatters, recommendation, severity, category, productJob, rect } =
     normalizeJudgedFindingInput(input);
 
   return {
@@ -198,6 +200,8 @@ export function createJudgedFinding(
     rule: "visual-judgment",
     truth: "judged",
     severity,
+    category,
+    productJob,
     title,
     observation,
     whyItMatters,
@@ -218,6 +222,8 @@ export function normalizeJudgedFindingInput(input: JudgedFindingInput): JudgedFi
     whyItMatters: boundedText(input.whyItMatters, 300),
     recommendation: boundedText(input.recommendation, 300),
     severity: input.severity,
+    category: input.category,
+    productJob: input.productJob ? boundedText(input.productJob, 80) || undefined : undefined,
     rect: normalizeRegion(input.rect),
   };
   if (

@@ -41,6 +41,45 @@ test("the WebMCP eval manifest only expects registered tools", () => {
   }
 });
 
+test("design-review evals require categorized visible judgment after measurement and board context", () => {
+  const designReview = evals.find((entry) =>
+    /review this product/i.test(entry.messages[0]!.content),
+  );
+  assert.ok(designReview);
+  assert.deepEqual(
+    designReview.expectedCall.slice(0, 2).map(({ functionName }) => functionName),
+    ["audit_current_scope", "get_board_context"],
+  );
+  const judgedCalls = designReview.expectedCall.filter(
+    ({ functionName }) => functionName === "record_visual_finding",
+  );
+  assert.deepEqual(
+    judgedCalls
+      .map(({ arguments: input }) => ("category" in input ? input.category : undefined))
+      .toSorted(),
+    ["interaction", "ui", "ux"],
+  );
+  assert.ok(
+    judgedCalls.every(
+      ({ arguments: input }) =>
+        "product_job" in input &&
+        typeof input.product_job === "string" &&
+        input.product_job.length <= 80,
+    ),
+  );
+
+  for (const entry of evals) {
+    for (const call of entry.expectedCall) {
+      if (call.functionName !== "record_visual_finding") continue;
+      assert.ok(
+        "category" in call.arguments &&
+          typeof call.arguments.category === "string" &&
+          ["ui", "ux", "interaction"].includes(call.arguments.category),
+      );
+    }
+  }
+});
+
 test("the plugin eval manifest routes only eligible public audits to start_audit", () => {
   assert.equal(new Set(pluginEvals.map((entry) => entry.id)).size, pluginEvals.length);
   for (const entry of pluginEvals) {
@@ -147,6 +186,8 @@ test("representative eval calls execute through the registered tool surface", as
           why_it_matters: "A visitor may not know where to begin.",
           recommendation: "Give the primary action a distinct treatment.",
           severity: "high",
+          category: "ui",
+          product_job: "Help a new visitor start the product",
         },
       },
       {

@@ -117,6 +117,7 @@ export function deriveFindings(facts: BrowserFacts): Finding[] {
           auditId: "primary-promise",
           rule: "content-clarity",
           truth: "judged",
+          category: "ux",
           severity: "low",
           title: "The primary promise asks readers to decode product language",
           observation: `The promise says “${facts.copy.promise}” and the action says “${facts.copy.primaryAction}”.`,

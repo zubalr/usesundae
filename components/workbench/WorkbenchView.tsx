@@ -475,6 +475,12 @@ function FindingList({
           <span className={styles.findingCopy}>
             <span className={styles.findingMeta}>
               <b data-truth={finding.truth}>{finding.truth}</b>
+              {finding.category ? (
+                <>
+                  <i>·</i>
+                  <span>{finding.category}</span>
+                </>
+              ) : null}
               <i>·</i>
               <span>{finding.severity}</span>
               {finding.verification !== "not_run" ? (
@@ -668,6 +674,35 @@ function FindingControls({
             />
           </label>
           <label>
+            <span>Category</span>
+            <select
+              value={judgmentDraft.category}
+              onChange={(event) =>
+                onChangeJudgmentDraft((draft) => ({
+                  ...draft,
+                  category: event.target.value as JudgedFindingInput["category"],
+                }))
+              }
+            >
+              <option value="ui">UI</option>
+              <option value="ux">UX</option>
+              <option value="interaction">Interaction</option>
+            </select>
+          </label>
+          <label>
+            <span>Product job (optional)</span>
+            <input
+              maxLength={80}
+              value={judgmentDraft.productJob ?? ""}
+              onChange={(event) =>
+                onChangeJudgmentDraft((draft) => ({
+                  ...draft,
+                  productJob: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label>
             <span>Severity</span>
             <select
               value={judgmentDraft.severity}
@@ -740,6 +775,11 @@ function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewPro
         <span className={styles.truthBadge} data-truth={selected.truth}>
           {selected.truth}
         </span>
+        {selected.category ? (
+          <span className={styles.truthBadge} data-truth="judged">
+            {selected.category}
+          </span>
+        ) : null}
         <code>{selected.id}</code>
         <span className={styles.decisionBadge} data-decision={selected.decision}>
           {DECISION_OPTIONS[selected.decision].label}
@@ -747,6 +787,9 @@ function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewPro
       </div>
       <h3 id="selected-title">{selected.title}</h3>
       <p className={styles.observation}>{selected.observation}</p>
+      {selected.productJob ? (
+        <p className={styles.evidenceRef}>Product job · {selected.productJob}</p>
+      ) : null}
       {selected.evidence ? (
         <p className={styles.evidenceRef}>
           Evidence · {selected.evidence.kind} · <code>{selected.evidence.ref}</code>

@@ -92,6 +92,19 @@ function assertSchemaContracts() {
     (WEBMCP_INPUT_SCHEMAS.judgedFinding.properties?.severity as Record<string, unknown>)?.enum,
     ["high", "medium", "low"],
   );
+  assert.deepEqual(
+    (WEBMCP_INPUT_SCHEMAS.judgedFinding.properties?.category as Record<string, unknown>)?.enum,
+    ["ui", "ux", "interaction"],
+  );
+  assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.judgedFinding, "product_job")?.maxLength, 80);
+  assert.deepEqual(WEBMCP_INPUT_SCHEMAS.judgedFinding.required, [
+    "title",
+    "observation",
+    "why_it_matters",
+    "recommendation",
+    "severity",
+    "category",
+  ]);
   assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.gap, "label")?.maxLength, 100);
   assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.gap, "detail")?.maxLength, 300);
   assert.deepEqual(
@@ -162,9 +175,9 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       boardRequests.push({ actor, offset });
       return { ok: true, receipt: "context", findings: [] };
     },
-    recordVisualFinding: async ({ title, severity }, actor, toolName) => {
+    recordVisualFinding: async ({ title, severity, category, productJob }, actor, toolName) => {
       recordReceiptTool(toolName);
-      calls.push(`finding:${title}:${severity}:${actor}`);
+      calls.push(`finding:${title}:${severity}:${category}:${productJob ?? "none"}:${actor}`);
       return commandResult("finding");
     },
     recordCoverageGap: async (label, detail, actor, toolName) => {
@@ -286,14 +299,28 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     const recordFinding = registered.find(
       ({ tool }) => tool.name === "record_visual_finding",
     )!.tool;
-    await recordFinding.execute({
+    assert.match(recordFinding.description, /UI.*UX.*Interaction/i);
+    const missingCategory = await recordFinding.execute({
       title: "Primary action is visually buried",
       observation: "The action uses the same treatment as tertiary links.",
       why_it_matters: "A visitor may not know where to begin.",
       recommendation: "Give the primary action a distinct treatment.",
       severity: "high",
     });
-    assert.equal(calls.at(-1), "finding:Primary action is visually buried:high:agent");
+    assert.equal(JSON.parse(missingCategory.content[0]!.text).ok, false);
+    await recordFinding.execute({
+      title: "Primary action is visually buried",
+      observation: "The action uses the same treatment as tertiary links.",
+      why_it_matters: "A visitor may not know where to begin.",
+      recommendation: "Give the primary action a distinct treatment.",
+      severity: "high",
+      category: "ui",
+      product_job: "Help a new visitor start the product",
+    });
+    assert.equal(
+      calls.at(-1),
+      "finding:Primary action is visually buried:high:ui:Help a new visitor start the product:agent",
+    );
 
     const recordGap = registered.find(({ tool }) => tool.name === "record_coverage_gap")!.tool;
     await recordGap.execute({ label: "Checkout", detail: "The checkout flow was not opened." });

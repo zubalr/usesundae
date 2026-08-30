@@ -192,7 +192,58 @@
           "observation": "In the current screenshot, the primary action uses the same color, weight, and treatment as tertiary links.",
           "why_it_matters": "A first-time visitor may not know where to begin.",
           "recommendation": "Give the primary action a distinct treatment and clearer placement.",
-          "severity": "high"
+          "severity": "high",
+          "category": "ui",
+          "product_job": "Help a first-time visitor choose the next step"
+        }
+      }
+    ]
+  },
+  {
+    "id": "review-visible-product-design",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Review this product's visible dashboard completely. Measure it, read the board, infer its visible job, and critique the warranted UI, UX, and Interaction problems without inventing unseen states."
+      }
+    ],
+    "expectedCall": [
+      { "functionName": "audit_current_scope", "arguments": {} },
+      { "functionName": "get_board_context", "arguments": {} },
+      {
+        "functionName": "record_visual_finding",
+        "arguments": {
+          "title": "The generic promise outranks the workflow exceptions",
+          "observation": "The large operational-intelligence headline dominates the visible workflow table and its needs-review status.",
+          "why_it_matters": "A product-operations lead scanning for workflow issues must look past broad positioning before reaching the decision surface.",
+          "recommendation": "Lead with the workflows needing attention and demote the generic promise to supporting copy.",
+          "severity": "medium",
+          "category": "ui",
+          "product_job": "Help product-operations leads find workflow issues"
+        }
+      },
+      {
+        "functionName": "record_visual_finding",
+        "arguments": {
+          "title": "The primary action conflicts with the populated dashboard",
+          "observation": "The page shows 18 active workflows while the primary action says Initialize workspace.",
+          "why_it_matters": "A product-operations lead cannot tell whether the next step is setup or reviewing the three workflows that need attention.",
+          "recommendation": "Rename the action for the visible task, such as Review 3 workflows, and point it to the filtered workflow list.",
+          "severity": "high",
+          "category": "ux",
+          "product_job": "Help product-operations leads find workflow issues"
+        }
+      },
+      {
+        "functionName": "record_visual_finding",
+        "arguments": {
+          "title": "The primary control sends conflicting action cues",
+          "observation": "Initialize workspace suggests setup while its trailing arrow suggests navigation to an existing destination.",
+          "why_it_matters": "The product-operations lead cannot predict what activating the most prominent control will do.",
+          "recommendation": "Use a task-specific label and an icon or supporting cue that matches the resulting action.",
+          "severity": "medium",
+          "category": "interaction",
+          "product_job": "Help product-operations leads find workflow issues"
         }
       }
     ]

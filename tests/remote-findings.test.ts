@@ -127,12 +127,16 @@ test("visual judgments are bounded, attributed to a screenshot, and remain judgm
       whyItMatters: "A first-time visitor may not know where to begin.",
       recommendation: "Give the primary action a distinct treatment and clearer placement.",
       severity: "high",
+      category: "ui",
+      productJob: "Help a new visitor start an activation workflow",
     },
     3,
   );
 
   assert.equal(finding.rule, "visual-judgment");
   assert.equal(finding.truth, "judged");
+  assert.equal(finding.category, "ui");
+  assert.equal(finding.productJob, "Help a new visitor start an activation workflow");
   assert.equal(finding.measurement, null);
   assert.equal(finding.checkpointId, "checkpoint_1");
   assert.equal(finding.evidence?.kind, "screenshot");
@@ -148,6 +152,7 @@ test("visual evidence regions cannot extend beyond the captured screenshot", () 
       whyItMatters: "The boundary makes the control harder to distinguish.",
       recommendation: "Restore deliberate space around the action.",
       severity: "medium",
+      category: "interaction",
       rect: { x: 1400, y: 880, width: 300, height: 100 },
     },
     1,

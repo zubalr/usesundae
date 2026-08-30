@@ -40,6 +40,11 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /audit_current_scope/);
   assert.match(prompt, /get_board_context/);
   assert.match(prompt, /measured.*judged.*not seen/is);
+  assert.match(prompt, /visible product job/i);
+  assert.match(prompt, /UI.*UX.*Interaction/is);
+  assert.match(prompt, /0–3 judged findings per bucket/i);
+  assert.match(prompt, /coverage gap/i);
+  assert.match(prompt, /do not restate a measured finding/i);
   assert.match(prompt, /preview_fix/);
   assert.match(prompt, /verify_recapture/);
   assert.match(prompt, /do not claim that an audit or capture completed/i);

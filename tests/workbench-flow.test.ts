@@ -18,6 +18,8 @@ function finding(index: number): Finding {
     auditId: `item-${index}`,
     rule: "contrast",
     truth: index === 5 ? "judged" : "measured",
+    category: index === 5 ? "ux" : undefined,
+    productJob: index === 5 ? "Help a new visitor understand the next step" : undefined,
     severity: "high",
     title: `Finding ${index}`,
     observation: "Baseline evidence is below the stated threshold.",
@@ -176,7 +178,13 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
   const payload = JSON.parse(text) as {
     truncated?: boolean;
     target: { checkpoint_id: string };
-    findings: Array<{ id: string; checkpoint_id: string; evidence_role: string }>;
+    findings: Array<{
+      id: string;
+      checkpoint_id: string;
+      evidence_role: string;
+      category?: string;
+      product_job?: string;
+    }>;
     coverage_gaps: string[];
   };
 
@@ -188,6 +196,29 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
   assert.equal(payload.target.checkpoint_id.startsWith("checkpoint_"), true);
   assert.equal(payload.findings.length, 2);
   assert.equal(payload.coverage_gaps.length, 3);
+});
+
+test("agent board context exposes the product-job category for judged evidence", () => {
+  const judged = finding(5);
+  const context = buildAgentBoardContext({
+    auditGoal: "Review activation",
+    target: { kind: "included_live_target", path: "/demo", screenshotVisible: true },
+    viewport: "mobile",
+    state: "baseline",
+    currentFindingCount: 1,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: judged.id,
+    retainsBaseline: false,
+    findings: [judged],
+    decisions: {},
+    verifications: {},
+    coverageGaps: [],
+    trailStepCount: 0,
+  });
+
+  assert.equal(context.findings[0]?.category, "ux");
+  assert.equal(context.findings[0]?.product_job, "Help a new visitor understand the next step");
 });
 
 test("agent board context paginates exact actionable finding ids", () => {

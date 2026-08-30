@@ -2,6 +2,8 @@
 
 Sundae is a ChatGPT WebMCP product-design audit. Remote MCP prepares an exact workspace; page-scoped Site Tools let ChatGPT operate the same visible evidence board as the person using it.
 
+After deterministic measurements, ChatGPT uses the visible screenshot or live `/demo` plus the optional audit goal to name the product's job and critique UI, UX, and Interaction with evidence-linked recommendations. Sundae stores the judgment, category, and optional job; it does not auto-classify the industry or run a server-side model.
+
 The contest proof uses the included [`/demo`](https://usesundae.vercel.app/demo) target inside Sundae's visible workbench: capture and measure the current scope, read the board, record design judgment and coverage gaps, make a reversible decision, preview an improvement, and verify it with a fresh recapture. Opening `/demo` takes the judge to that complete audit workspace. It needs no provider keys.
 
 ## What works now

@@ -26,6 +26,12 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.equal(tools.tools[0]?.annotations?.readOnlyHint, true);
     assert.equal(tools.tools[0]?.annotations?.destructiveHint, false);
     assert.match(tools.tools[0]?.description ?? "", /does not capture|workspace only/i);
+    const instructions = client.getInstructions() ?? "";
+    assert.match(instructions, /visible product job/i);
+    assert.match(instructions, /UI.*UX.*Interaction/is);
+    assert.match(instructions, /0–3 judged findings per bucket/i);
+    assert.match(instructions, /coverage gap/i);
+    assert.match(instructions, /do not restate a measured finding/i);
 
     const result = await client.callTool({
       name: "start_audit",
@@ -61,6 +67,8 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.match(demoNextStep, /call audit_current_scope/);
     assert.doesNotMatch(demoNextStep, /do not call audit_current_scope/);
     assert.match(demoNextStep, /get_board_context/);
+    assert.match(demoNextStep, /visible product job/i);
+    assert.match(demoNextStep, /UI.*UX.*Interaction/is);
 
     const otherDemoResult = await client.callTool({
       name: "start_audit",

@@ -122,6 +122,8 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
     findings: findingPage.findings.map((finding) => ({
       id: agentText(finding.id, 120),
       truth: finding.truth,
+      category: finding.category,
+      product_job: finding.productJob ? agentText(finding.productJob, 80) : undefined,
       severity: finding.severity,
       title: agentText(finding.title, 24),
       decision: input.decisions[finding.id]?.decision ?? "open",

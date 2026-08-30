@@ -1,6 +1,7 @@
 export type Viewport = "desktop" | "mobile";
 export type DemoState = "baseline" | "improved";
 export type TruthKind = "measured" | "judged";
+export type DesignCategory = "ui" | "ux" | "interaction";
 export type Severity = "high" | "medium" | "low";
 export type Verification = "not_run" | "fixed" | "still_open" | "unverified";
 export type IdentityConfidence = "stable" | "unstable";
@@ -53,6 +54,8 @@ export type Finding = {
   checkpointId?: string;
   scopeKey?: string;
   evidence?: EvidenceReference;
+  category?: DesignCategory;
+  productJob?: string;
 };
 
 export type CoverageGap = {

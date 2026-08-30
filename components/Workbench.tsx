@@ -72,6 +72,7 @@ const EMPTY_JUDGMENT: JudgedFindingInput = {
   whyItMatters: "",
   recommendation: "",
   severity: "medium",
+  category: "ui",
 };
 
 type SnapshotMap = Partial<Record<Viewport, AuditSnapshot>>;
@@ -909,6 +910,8 @@ export function Workbench({
           rule: "visual-judgment",
           truth: "judged",
           severity: normalized.severity,
+          category: normalized.category,
+          productJob: normalized.productJob,
           title: normalized.title,
           observation: normalized.observation,
           whyItMatters: normalized.whyItMatters,
@@ -928,6 +931,8 @@ export function Workbench({
           id: finding.id,
           truth: finding.truth,
           severity: finding.severity,
+          category: finding.category,
+          product_job: finding.productJob ?? null,
           checkpoint_id: finding.checkpointId ?? null,
         },
       };

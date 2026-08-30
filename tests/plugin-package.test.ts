@@ -35,6 +35,14 @@ test("the audit skill requires visible evidence and an honest fallback", () => {
   assert.match(skill, /\/demo/);
   assert.match(skill, /`audit_current_scope`/);
   assert.match(skill, /`get_board_context`/);
+  assert.match(skill, /Name the product job in one line/i);
+  assert.match(skill, /\*\*UI\*\*/);
+  assert.match(skill, /\*\*UX\*\*/);
+  assert.match(skill, /\*\*Interaction\*\*/);
+  assert.match(skill, /0–3 judged findings per bucket/i);
+  assert.match(skill, /skip a bucket only/i);
+  assert.match(skill, /Do not restate a measured finding/i);
+  assert.match(skill, /Beige.*rounded.*gradient.*not.*defect/i);
   assert.match(skill, /`preview_fix`/);
   assert.match(skill, /`verify_recapture`/);
   assert.match(skill, /Never imply that browsing, capture, or analysis happened when it did not/);

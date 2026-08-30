@@ -51,6 +51,7 @@ test("browser facts become bounded, evidence-linked findings", () => {
   );
   assert.equal(findings[0]?.truth, "measured");
   assert.equal(findings.at(-1)?.truth, "judged");
+  assert.equal(findings.at(-1)?.category, "ux");
   assert.match(findings[0]?.observation ?? "", /300 CSS px/);
   assert.ok(findings.every((finding) => finding.rect));
 });
