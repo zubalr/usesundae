@@ -20,6 +20,27 @@ export type EvidenceBoardDescription = {
   truthLabel: "Current evidence" | "Baseline evidence";
 };
 
+type AuthorityCheckpoint = { id: string; scopeId: string };
+
+export function describeAgentAuthority(
+  mode: "sample" | "remote",
+  checkpoint: AuthorityCheckpoint | null,
+  currentScopeKey?: string,
+) {
+  if (mode === "sample") {
+    const scope = currentScopeKey ?? "included:/demo";
+    return { label: "Included workspace", scope, scopeTitle: scope };
+  }
+  if (!checkpoint) {
+    return { label: "Public workspace", scope: "No checkpoint yet", scopeTitle: undefined };
+  }
+  return {
+    label: "Public checkpoint",
+    scope: checkpoint.id,
+    scopeTitle: checkpoint.scopeId,
+  };
+}
+
 type AgentBoardTarget =
   | {
       kind: "public_checkpoint";

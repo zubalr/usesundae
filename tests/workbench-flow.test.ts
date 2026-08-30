@@ -5,6 +5,7 @@ import type { AuditSnapshot, Finding } from "../lib/audit/types";
 import {
   buildAgentBoardContext,
   buildVerificationReceipts,
+  describeAgentAuthority,
   describeEvidenceBoard,
   invalidateVerificationForFindings,
   verificationLabel,
@@ -39,6 +40,27 @@ const baseline: AuditSnapshot = {
   findings: [1, 2, 3, 4, 5].map(finding),
   gaps: [],
 };
+
+test("agent authority keeps pre-capture public scope honest", () => {
+  assert.deepEqual(describeAgentAuthority("remote", null), {
+    label: "Public workspace",
+    scope: "No checkpoint yet",
+    scopeTitle: undefined,
+  });
+  assert.deepEqual(
+    describeAgentAuthority("remote", { id: "checkpoint-1", scopeId: "scope-public" }),
+    {
+      label: "Public checkpoint",
+      scope: "checkpoint-1",
+      scopeTitle: "scope-public",
+    },
+  );
+  assert.deepEqual(describeAgentAuthority("sample", null, "included:/demo:mobile"), {
+    label: "Included workspace",
+    scope: "included:/demo:mobile",
+    scopeTitle: "included:/demo:mobile",
+  });
+});
 
 test("baseline → preview → recapture keeps current and historical evidence distinct", () => {
   const initial = describeEvidenceBoard(baseline, baseline, "baseline", "mobile");

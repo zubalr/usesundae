@@ -13,7 +13,11 @@ import type { JudgedFindingInput } from "@/lib/audit/remote";
 import type { AuditSnapshot, CoverageGap, DemoState, Viewport } from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { DECISION_OPTIONS, DECISION_VALUES, type Decision } from "@/lib/workbench/decisions";
-import { type EvidenceBoardDescription, verificationLabel } from "@/lib/workbench/evidence";
+import {
+  describeAgentAuthority,
+  type EvidenceBoardDescription,
+  verificationLabel,
+} from "@/lib/workbench/evidence";
 import {
   activityActorLabel,
   activityTitle,
@@ -125,7 +129,7 @@ function AgentAuthority({
   }, []);
 
   const expectedCount = WEBMCP_TOOL_COUNTS[mode];
-  const scopeId = checkpoint?.scopeId ?? current?.scopeKey ?? "included:/demo";
+  const authority = describeAgentAuthority(mode, checkpoint, current?.scopeKey);
   const target = mode === "remote" ? checkpoint?.target.displayUrl || urlDraft : "/demo";
   const approval =
     mode === "sample"
@@ -140,7 +144,7 @@ function AgentAuthority({
     <section className={styles.authorityBar} aria-label="Agent authority">
       <div>
         <span>Agent authority</span>
-        <strong>{mode === "sample" ? "Included workspace" : "Public checkpoint"}</strong>
+        <strong>{authority.label}</strong>
       </div>
       <dl>
         <div>
@@ -161,7 +165,7 @@ function AgentAuthority({
         </div>
         <div>
           <dt>Scope</dt>
-          <dd title={scopeId}>{checkpoint?.id ?? scopeId}</dd>
+          <dd title={authority.scopeTitle}>{authority.scope}</dd>
         </div>
         <div>
           <dt>Boundaries</dt>
