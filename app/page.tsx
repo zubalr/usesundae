@@ -27,8 +27,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             sundae
           </a>
           <nav aria-label="Landing page navigation">
-            <a href="#method">WebMCP loop</a>
-            <a href="#availability">Contest scope</a>
+            <a href="#method">Why WebMCP</a>
+            <a href="#availability">How it works</a>
             <a className={styles.navAction} href="#workbench">
               Open workbench
             </a>
@@ -38,13 +38,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <main aria-label="Sundae product review landing">
           <section className={styles.hero} aria-labelledby="landing-title">
             <div className={styles.heroCopy}>
-              <h1 id="landing-title">
-                ChatGPT audits the product. Sundae keeps the evidence visible.
-              </h1>
+              <h1 id="landing-title">Audit the same live page together.</h1>
               <p>
-                Remote MCP opens an exact workspace. WebMCP Site Tools let ChatGPT measure the
-                included /demo, read the same board you see, preview a reversible fix, and verify it
-                with fresh evidence.
+                Ordinary AI audits split the interface, conversation, evidence, and decisions.
+                Sundae makes the live page the shared WebMCP workspace: ChatGPT measures and
+                organizes evidence, you govern judgment, and fresh recapture verifies every claimed
+                fix.
               </p>
               <AuditLauncher includedDemoUrl={includedDemoUrl} />
             </div>
@@ -116,7 +115,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </div>
                 <div className={styles.verificationLine}>
                   <span>Fresh recapture</span>
-                  <strong>Verified fixed · 36 px → 48 px</strong>
+                  <strong>Required before “fixed”</strong>
                 </div>
               </article>
 
@@ -131,40 +130,40 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           <section className={styles.method} id="method" aria-labelledby="method-title">
             <div className={styles.methodIntro}>
-              <h2 id="method-title">ChatGPT and the human share one audit board.</h2>
+              <h2 id="method-title">WebMCP keeps the work inspectable.</h2>
               <p>
-                The remote tool prepares the workspace; page-scoped Site Tools let ChatGPT critique
-                visible UI, UX, and Interaction for the product&apos;s job, update the same board as
-                human controls, and keep what was not seen there as coverage gaps with receipts.
+                A person and their ChatGPT agent audit the same live page together: the agent
+                measures and organizes evidence through WebMCP, the person governs judgment, and
+                Sundae verifies every claimed fix.
               </p>
             </div>
             <ol className={styles.methodSteps}>
               <li>
-                <strong>Prepare the exact workspace</strong>
+                <strong>Open one shared page</strong>
                 <span>
-                  `start_audit` preserves the target and goal. `workspace_ready` never means capture
-                  completed.
+                  ChatGPT Desktop discovers Sundae&apos;s page-hosted Site Tools automatically. No
+                  separate connection is needed.
                 </span>
               </li>
               <li>
-                <strong>Wait, then audit /demo</strong>
+                <strong>Measure before judging</strong>
                 <span>
-                  The workbench around the included target exposes nine Site Tools and needs no
-                  browser-provider or model key.
+                  ChatGPT measures the approved scope, reads the board, then critiques visible UI,
+                  UX, and Interaction for the product&apos;s job.
                 </span>
               </li>
               <li>
-                <strong>Read before deciding</strong>
+                <strong>Keep authority visible</strong>
                 <span>
-                  Board context keeps measured facts, judged opinions, decisions, and unseen
-                  coverage separate.
+                  Facts, supported opinions, gaps, decisions, previews, and receipts remain distinct
+                  on the board the person controls.
                 </span>
               </li>
               <li>
-                <strong>Preview, then verify</strong>
+                <strong>Require fresh proof</strong>
                 <span>
-                  The preview is reversible; only a fresh same-scope recapture can verify a measured
-                  fix.
+                  A preview is reversible and never counts as fixed. Only a matching recapture can
+                  verify a measured change.
                 </span>
               </li>
             </ol>
@@ -178,8 +177,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className={styles.availabilityIntro}>
               <h2 id="availability-title">The contest path runs without provider keys.</h2>
               <p>
-                Judges can run the complete WebMCP loop on /demo. Public Cloudflare capture remains
-                secondary and reports honestly when it is not configured.
+                The included /demo is a complete nine-tool audit workspace. A public URL adds four
+                bounded capture tools when the configured browser provider can render it.
               </p>
             </div>
             <div className={styles.capabilityLedger}>
@@ -188,27 +187,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <span className={styles.availableLabel}>
                     <i /> Available now
                   </span>
-                  <h3>ChatGPT operating Sundae through WebMCP</h3>
+                  <h3>One visible board for agent and person</h3>
                 </div>
                 <ul>
-                  <li>Read-only `start_audit` handoff with an exact workspace URL</li>
-                  <li>Visible workbench with nine Site Tools for the included /demo</li>
-                  <li>One visible board for ChatGPT actions and human controls</li>
+                  <li>Nine page-hosted tools for the included /demo</li>
+                  <li>Thirteen tools for an approved public capture workspace</li>
+                  <li>The same command path for ChatGPT actions and human controls</li>
                   <li>Measured, judged, and not-seen evidence kept distinct</li>
                   <li>Reversible preview followed by fresh recapture verification</li>
-                  <li>Attributed receipts after every successful agent action</li>
+                  <li>Tool-named receipts tied to visible board changes</li>
                 </ul>
               </article>
               <article className={styles.capabilityBand}>
                 <div>
-                  <span className={styles.comingSoonLabel}>Not claimed</span>
-                  <h3>Deliberately outside this contest build</h3>
+                  <span className={styles.comingSoonLabel}>Bounded honestly</span>
+                  <h3>What Sundae does not pretend to see</h3>
                 </div>
                 <ul>
-                  <li>Private or login-only product capture</li>
-                  <li>Source-code, deployment, or design-file changes</li>
-                  <li>Persistent accounts or shareable saved workspaces</li>
-                  <li>Cross-provider browser and connector parity</li>
+                  <li>Pages that require login or target-site cookies</li>
+                  <li>Routes not visible in evidence or named by the person</li>
+                  <li>Click-only states without an approved public URL</li>
+                  <li>Sites the configured browser provider cannot render</li>
                 </ul>
               </article>
             </div>
@@ -216,15 +215,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           <section className={styles.handoff} aria-labelledby="handoff-title">
             <div>
-              <h2 id="handoff-title">Remote MCP opens the door. WebMCP does the work.</h2>
+              <h2 id="handoff-title">Open the shared page in ChatGPT Desktop.</h2>
               <p>
-                `start_audit` returns `workspace_ready` and stops. ChatGPT opens the page, waits for
-                Sundae Site Tools, audits the approved scope, reads the board, and leaves each
-                action visible. If the tools never appear, the exact workspace link remains—and the
-                audit is not reported as complete.
+                Copy the exact workspace URL, open ChatGPT Desktop&apos;s built-in browser, and
+                paste it there. Site Tools appear from the page itself. If they do not appear, the
+                human controls still work and Sundae does not claim an agent audit happened.
               </p>
             </div>
-            <a href="#launch">Run the /demo handoff</a>
+            <a href="#launch">Prepare the exact workspace</a>
           </section>
         </main>
       </div>

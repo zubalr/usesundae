@@ -3,10 +3,25 @@ import test from "node:test";
 
 import type { WorkbenchCommands } from "../lib/workbench/types";
 import {
+  countRegisteredWorkbenchTools,
   registerWorkbenchTools,
   WEBMCP_INPUT_SCHEMAS,
   WEBMCP_TOOL_COUNTS,
+  WEBMCP_TOOL_NAMES,
 } from "../lib/webmcp/register";
+
+test("runtime counts include only Sundae workbench tools", () => {
+  const tools = [
+    ...WEBMCP_TOOL_NAMES.slice(-WEBMCP_TOOL_COUNTS.sample).map((name) => ({
+      name,
+      description: "Sundae workbench tool",
+    })),
+    { name: "sundae_lab_get_workflow_summary", description: "Controlled target tool" },
+    { name: "sundae_lab_archive_workflow", description: "Controlled target tool" },
+  ] as RegisteredWebMcpTool[];
+
+  assert.equal(countRegisteredWorkbenchTools(tools), WEBMCP_TOOL_COUNTS.sample);
+});
 
 const commandResult = (receipt: string) => Promise.resolve({ ok: true, receipt });
 
@@ -198,7 +213,13 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     focusFinding: async (id, _actor, toolName) => {
       recordReceiptTool(toolName);
       calls.push(`focus:${id}`);
-      return commandResult("focus");
+      return {
+        ok: true,
+        receipt: 'Focused “🙂” and preserved a quoted \\\"receipt\\\".',
+        checkpoint_id: "checkpoint-focus",
+        scope_id: "scope-focus",
+        next: "Ask the person for a decision.",
+      };
     },
     setFindingDecision: async (id, decision, _reason, _actor, toolName) => {
       recordReceiptTool(toolName);
@@ -268,9 +289,27 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       url: "ftp://example.com/file",
       viewport: "desktop",
     });
-    assert.equal(JSON.parse(invalidCapture.content[0]!.text).ok, false);
-    await capture.execute({ url: "https://example.com/pricing", wait_for_selector: "#pricing" });
+    const invalidCaptureReceipt = JSON.parse(invalidCapture.content[0]!.text);
+    assert.equal(invalidCaptureReceipt.ok, false);
+    assert.equal(invalidCaptureReceipt.tool_name, "capture_public_page");
+    assert.equal(invalidCaptureReceipt.actor, "agent");
+    assert.equal(invalidCaptureReceipt.status, "failure");
+    assert.equal(typeof invalidCaptureReceipt.elapsed_ms, "number");
+    assert.match(invalidCaptureReceipt.next, /visible board/i);
+    const captureReceipt = JSON.parse(
+      (
+        await capture.execute({
+          url: "https://example.com/pricing",
+          wait_for_selector: "#pricing",
+        })
+      ).content[0]!.text,
+    );
     assert.deepEqual(calls, ["capture:https://example.com/pricing:desktop:agent:#pricing"]);
+    assert.equal(captureReceipt.tool_name, "capture_public_page");
+    assert.equal(captureReceipt.actor, "agent");
+    assert.equal(captureReceipt.status, "success");
+    assert.equal(typeof captureReceipt.elapsed_ms, "number");
+    assert.match(captureReceipt.next, /visible board/i);
 
     const journeyStep = registered.find(({ tool }) => tool.name === "capture_journey_step")!.tool;
     await journeyStep.execute({
@@ -308,6 +347,8 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       (await audit.execute({}, { signal: auditCancellation.signal })).content[0]!.text,
     );
     assert.equal(cancelledAudit.ok, false);
+    assert.equal(cancelledAudit.tool_name, "audit_current_scope");
+    assert.equal(cancelledAudit.status, "cancelled");
     assert.match(cancelledAudit.receipt, /cancelled/i);
     cancelAuditAfterHandler = false;
 
@@ -344,7 +385,14 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     const focus = registered.find(({ tool }) => tool.name === "focus_finding")!.tool;
     const response = await focus.execute({ finding_id: "mobile:contrast:helper-copy" });
     assert.equal(calls.at(-1), "focus:mobile:contrast:helper-copy");
-    assert.equal(JSON.parse(response.content[0]!.text).receipt, "focus");
+    const focusReceipt = JSON.parse(response.content[0]!.text);
+    assert.equal(focusReceipt.receipt, 'Focused “🙂” and preserved a quoted \\\"receipt\\\".');
+    assert.equal(focusReceipt.checkpoint_id, "checkpoint-focus");
+    assert.equal(focusReceipt.scope_id, "scope-focus");
+    assert.equal(focusReceipt.next, "Ask the person for a decision.");
+    assert.equal(focusReceipt.tool_name, "focus_finding");
+    assert.equal(focusReceipt.actor, "agent");
+    assert.equal(focusReceipt.status, "success");
 
     const decision = registered.find(({ tool }) => tool.name === "set_finding_decision")!.tool;
     const invalid = await decision.execute({ finding_id: "f1", decision: "accepted", reason: "" });
@@ -364,6 +412,8 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     invocation.abort(new Error("Cancelled for test."));
     const cancelled = JSON.parse((await pendingPreview).content[0]!.text);
     assert.equal(cancelled.ok, false);
+    assert.equal(cancelled.tool_name, "preview_fix");
+    assert.equal(cancelled.status, "cancelled");
     assert.match(cancelled.receipt, /cancelled.*rolled back/i);
     assert.equal(calls.at(-1), "preview:none:none");
     await preview.execute({ css: "main { display: block; }", wait_for_selector: "main" });

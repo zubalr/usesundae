@@ -70,6 +70,7 @@
 }
 
 .actions button,
+.actions a,
 .receiptLinks button,
 .receiptLinks a {
   min-block-size: calc(var(--space-xl) + var(--space-xs));
@@ -106,6 +107,17 @@
 
 .workbenchAction {
   border-color: var(--border) !important;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.desktopAction {
+  border-color: transparent !important;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.desktopAction:hover {
   background: var(--surface-raised);
   color: var(--text-primary);
 }
@@ -218,6 +230,7 @@
 
   .actions,
   .actions button,
+  .actions a,
   .receiptLinks,
   .receiptLinks button,
   .receiptLinks a {

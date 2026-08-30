@@ -33,11 +33,16 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.equal(workspace.searchParams.get("url"), launch.targetUrl);
   assert.equal(workspace.searchParams.get("goal"), launch.goal);
   assert.equal(workspace.hash, "#workbench");
-  assert.match(prompt, /start_audit/);
-  assert.match(prompt, /Open this exact Sundae workspace/);
+  assert.match(prompt, /ChatGPT Desktop/);
+  assert.match(prompt, /built-in browser/);
+  assert.match(prompt, /No plugin or connection is required/);
   assert.ok(prompt.includes(workspaceUrl));
   assert.match(prompt, /wait for Sundae Site Tools/i);
-  assert.match(prompt, /audit_current_scope/);
+  assert.match(prompt, /Allow agent to capture/);
+  assert.match(prompt, /Capture myself/);
+  assert.match(prompt, /alternatives.*never ask me to do both/is);
+  assert.doesNotMatch(prompt, /chatgpt\.com/i);
+  assert.doesNotMatch(prompt, /start.audit|workspace.ready/i);
   assert.match(prompt, /get_board_context/);
   assert.match(prompt, /`uncaptured_nav`.*`capture_visible_nav`/is);
   assert.match(prompt, /`capture_visible_nav`.*accepts no URL/is);
@@ -56,7 +61,7 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /do not restate a measured finding/i);
   assert.match(prompt, /preview_fix/);
   assert.match(prompt, /verify_recapture/);
-  assert.match(prompt, /do not claim that an audit or capture completed/i);
+  assert.match(prompt, /do not claim an audit or capture completed/i);
   assert.doesNotMatch(prompt, /Gemini|Google Cloud/i);
 
   const boardRead = prompt.indexOf("get_board_context");
@@ -64,6 +69,20 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   const belowFold = prompt.indexOf("`gap-below-fold`");
   const designPass = prompt.indexOf("visible product job");
   assert.ok(boardRead < visibleNav && visibleNav < belowFold && belowFold < designPass);
+
+  const demoLaunch = createAuditLaunch("https://sundae.example/demo");
+  const demoPrompt = buildChatGptHandoffPrompt(
+    demoLaunch,
+    buildWorkspaceUrl("https://sundae.example", demoLaunch),
+    demoLaunch.targetUrl,
+  );
+  assert.match(demoPrompt, /audit_current_scope.*get_board_context/is);
+  assert.match(demoPrompt, /no public-capture tools/i);
+  assert.match(demoPrompt, /not visible as coverage gaps/i);
+  assert.doesNotMatch(
+    demoPrompt,
+    /capture_public_page|capture_visible_nav|capture_below_fold|capture_journey_step/,
+  );
 });
 
 test("the included capture preset always resolves to a public Sundae demo", () => {

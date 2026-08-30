@@ -1,145 +1,112 @@
 # Sundae
 
-Sundae is a ChatGPT WebMCP product-design audit. Remote MCP prepares an exact workspace; page-scoped Site Tools let ChatGPT operate the same visible evidence board as the person using it.
+Ordinary AI website audits split the interface, the model conversation, the evidence, and the decision record. Sundae uses WebMCP to make the live audit page the structured operating surface for ChatGPT, so the agent and the person inspect and change the same visible board in the same session.
 
-After deterministic measurements, ChatGPT uses the visible screenshot or live `/demo` plus the optional audit goal to name the product's job and critique UI, UX, and Interaction with evidence-linked recommendations. Sundae stores the judgment, category, and optional job; it does not auto-classify the industry or run a server-side model.
+**A person and their ChatGPT agent audit the same live page together: the agent measures and organizes evidence through WebMCP, the person governs judgment, and Sundae verifies every claimed fix.**
 
-The contest proof uses the included [`/demo`](https://usesundae.vercel.app/demo) target inside Sundae's visible workbench: capture and measure the current scope, read the board, record design judgment and coverage gaps, make a reversible decision, preview an improvement, and verify it with a fresh recapture. Opening `/demo` takes the judge to that complete audit workspace. It needs no provider keys.
+[Open the published `/demo` workspace](https://usesundae.vercel.app/demo). It needs no login, connector, hosted auditor model, capture-provider key, or plugin. In ChatGPT Desktop, open the built-in browser and paste that URL. Sundae's Site Tools are discovered automatically from the page.
 
-## What works now
+## Why WebMCP
 
-- An included zero-key `/demo` target with real measured findings, judged findings, explicit coverage gaps, decisions, reversible preview, and recapture verification.
-- A public Streamable HTTP MCP endpoint at `/mcp` with one read-only `start_audit` tool. It returns `handoff_status: workspace_ready`; it never claims capture.
-- Nine page-scoped WebMCP Site Tools in the workbench around the included `/demo` target. Public-checkpoint mode adds four explicit capture tools for thirteen total.
-- A recoverable ChatGPT handoff that preserves the exact target, goal, prompt, and workspace URL.
-- One command layer shared by Site Tools and human controls, with the exact Site Tool named in every agent receipt on the board.
-- Optional Cloudflare Browser Run capture for an explicitly approved public page. It is secondary and fails honestly when unconfigured.
-- An installable Sundae plugin skill under `plugins/sundae` that teaches the same wait → audit → read → decide → preview → verify loop.
+Sundae is not a report API hidden behind a chat. Its page-hosted tools operate the evidence board the person can see and control:
 
-## Judge path: zero provider keys
+1. ChatGPT measures the approved scope and reads the visible board.
+2. It keeps measured facts, supported design judgment, and what was not seen distinct.
+3. The person decides whether to accept, defer, or dismiss a finding and approves any preview.
+4. Sundae renders a reversible preview and requires fresh matching evidence before a measured issue is called fixed.
+5. Tool-named receipts leave each agent action inspectable on the same page.
 
-1. Open Sundae and leave the URL blank to use the included `/demo` target.
-2. Choose **Continue in ChatGPT** and paste the prepared request if automatic copy is unavailable.
-3. ChatGPT calls `start_audit`, receives `workspace_ready`, and opens the exact `workspace_url`.
-4. ChatGPT waits for Sundae Site Tools. Handoff alone is not an audit.
-5. ChatGPT calls `audit_current_scope`, then `get_board_context` before choosing the next action.
-6. Approved decisions and `preview_fix` update the visible board; `verify_recapture` creates the fresh same-scope evidence required for a measured fix.
+Without WebMCP, this workflow collapses into a screenshot conversation, a hidden API report, or brittle click automation. WebMCP gives the user's agent goal-shaped commands with explicit authority while preserving a human-readable operating surface.
 
-If Site Tools do not appear, the correct result is the exact workspace link plus an honest unavailable state. Sundae does not substitute a hidden model review or claim that capture completed.
+## Judge path
 
-## Run it locally
+1. Open `https://usesundae.vercel.app/demo` in ChatGPT Desktop's built-in browser.
+2. Confirm **9 page tools ready** in the Sundae top bar.
+3. Ask ChatGPT to call `audit_current_scope`, then `get_board_context`.
+4. Have it inspect the controlled target's agent surface and focus the strongest supported finding.
+5. ChatGPT asks before changing the decision or starting a preview.
+6. Accept with a visible reason, run `preview_fix`, then `verify_recapture`.
+7. Confirm the same board shows the fresh measurement, verification state, and tool-named receipts.
 
-Requirements: Node.js 20 or newer.
+An ordinary browser still provides deterministic measurement and every human control. It does not pretend an agent is present; the UI says **Human controls ready** and explains how to open the exact workspace in ChatGPT Desktop.
+
+## Evidence contract
+
+Sundae deliberately separates:
+
+- **Measured** — deterministic observations from the rendered page, accessibility tree, or inspected WebMCP contract.
+- **Judged** — evidence-linked UI, UX, or Interaction critique for the visible product job.
+- **Not seen** — routes, states, or motion windows outside the captured evidence.
+- **Decision** — a reversible person-governed workflow state.
+- **Preview** — a source-neutral visual proposal, never proof that the product changed.
+- **Verification** — a fresh same-scope measurement. A judged finding remains unverified unless it is reassessed.
+
+ChatGPT performs the design critique through Site Tools using visible screenshot and page evidence. Sundae stores the category and product-job tag; it does not auto-classify an industry or call a server-side model.
+
+## Page-hosted tool surface
+
+The included `/demo` registers nine Sundae workbench tools:
+
+| Tool                    | Purpose                                               |
+| ----------------------- | ----------------------------------------------------- |
+| `audit_current_scope`   | Measure the live included target                      |
+| `inspect_agent_surface` | Inspect the controlled target's WebMCP contracts      |
+| `get_board_context`     | Read bounded evidence, decisions, gaps, and next work |
+| `record_visual_finding` | Add a supported UI, UX, or Interaction judgment       |
+| `record_coverage_gap`   | Record an important surface that was not observed     |
+| `focus_finding`         | Select evidence on the visible board                  |
+| `set_finding_decision`  | Record the person's reversible decision and reason    |
+| `preview_fix`           | Render a reversible local preview                     |
+| `verify_recapture`      | Re-measure the same scope before calling a fact fixed |
+
+A public workspace adds four bounded capture commands, for 13 tools total:
+
+| Tool                   | Boundary                                                          |
+| ---------------------- | ----------------------------------------------------------------- |
+| `capture_public_page`  | Exact public URL the person allowed or captured                   |
+| `capture_visible_nav`  | Up to four evidence-derived same-origin links; no URL argument    |
+| `capture_below_fold`   | Active approved route only, when below-fold evidence is missing   |
+| `capture_journey_step` | Exact same-origin URL explicitly named and approved by the person |
+
+Each input is a closed, bounded schema. Long-running capture work receives the invocation `AbortSignal`. Mutating commands are not marked read-only; page- or capture-derived output is marked untrusted. Registration uses one abortable transaction, and human controls call the same command implementation as Site Tools.
+
+## Public capture boundary
+
+Sundae audits public HTTPS pages its configured browser provider can render. When a page blocks automated rendering, requires login, or exceeds browser limits, Sundae records what was not seen instead of claiming a complete audit.
+
+**Allow agent to capture** authorizes only the exact displayed URL for the current browser session; it does not start a capture. ChatGPT may then call `capture_public_page`. **Capture myself** is the human alternative and captures immediately. The two choices are not a sequence.
+
+Public capture uses Cloudflare Browser Run Quick Actions and never accepts credentials in URLs, private-network targets, nonstandard ports, target-site cookies, silent tabs, login flows, form submission, recursive crawling, or off-origin navigation. Existing board evidence remains intact when the provider fails.
+
+For local public-capture development, configure opaque values outside source control:
+
+```text
+CLOUDFLARE_ACCOUNT_ID
+CLOUDFLARE_API_TOKEN
+CAPTURE_GATE_SECRET
+SUNDAE_APP_ORIGIN
+```
+
+## Development
 
 ```bash
 npm install
 npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000). The included audit works without external credentials.
-
-The workbench remains fully operable without WebMCP. Use the visible controls to run the same proof loop by hand:
-
-1. Audit the included target and read the evidence board.
-2. Select a measured finding and record an **Accepted**, **Deferred**, or **Dismissed** decision.
-3. Choose **Preview improvement**.
-4. Choose **Verify recapture**.
-
-Sundae retains the baseline evidence during preview. A measured issue becomes **Verified fixed** only when a fresh render of the same scope no longer reproduces it. A design judgment remains unverified until it is reassessed.
-
-## ChatGPT handoff
-
-The first interaction does not require a special browser. A visitor can start on Sundae in a normal browser or the ChatGPT app:
-
-1. Leave the URL blank for `/demo`, or enter an explicit public URL and optional audit goal.
-2. Choose **Continue in ChatGPT**.
-3. Sundae opens ChatGPT and prepares a request containing the exact recoverable workspace.
-4. ChatGPT calls `start_audit`, opens the returned workspace, and waits for Sundae Site Tools.
-5. Site Tools operate the same visible board; `get_board_context` is read before the next action.
-
-For a non-demo URL, that workspace starts with no evidence and the exact target prefilled. The person must use **Allow ChatGPT** or **Capture page** before an agent can create the first public checkpoint; Sundae never measures `/demo` in its place. That checkpoint lists up to four uncaptured same-origin routes found in visible link evidence, and `capture_visible_nav` can capture only that list without accepting a URL.
-
-There is no undocumented deep-link trick here. If automatic opening, clipboard access, the plugin, or Site Tools is unavailable, the target, goal, prompt, and workspace remain visible so the user can recover without starting over. Sundae never treats `workspace_ready` or an opened ChatGPT tab as proof that a capture ran.
-
-### Remote MCP and plugin packaging
-
-`POST /mcp` exposes one entry tool:
-
-| Tool          | Purpose                                                       | Authority                                                                  |
-| ------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `start_audit` | Validate a public target and return an exact Sundae workspace | Read-only; prepares a workspace but does not capture or inspect the target |
-
-The protocol entry point prepares a workspace; it is not the audit engine. The shipped ChatGPT plugin skill opens that workspace, waits for page-scoped Sundae Site Tools, audits only approved scope, reads the visible board, and avoids completed-audit claims when any handoff step is unavailable. Cross-provider browser or connector parity is not claimed by this contest build.
-
-The plugin package maps Sundae to its registered ChatGPT app ID in `.app.json`. The separate `asdk_app_v…` identifier names a registered version and does not belong in the package manifest. Validate the package and test the installed connector after changing the MCP connection. The public directory listing remains a launch step, not a code claim.
-
-## Why WebMCP matters here
-
-Sundae uses two complementary tool surfaces:
-
-| Surface           | Where it runs          | What it does                                                         |
-| ----------------- | ---------------------- | -------------------------------------------------------------------- |
-| Remote MCP        | Public `/mcp` endpoint | Starts the audit and preserves URL + goal across the ChatGPT handoff |
-| WebMCP Site Tools | The open Sundae page   | Reads and changes the same evidence board the user sees              |
-
-The page tools call the same command layer as human controls. Successful agent actions update the visible interface before returning and leave attributed receipts. The workbench exposes nine tools while operating the included target; public-checkpoint mode adds explicit page, visible-navigation, journey-step, and below-fold capture for thirteen total.
-
-The included path remains `audit_current_scope` → `get_board_context` → evidence-linked findings and coverage gaps → approved decision → `preview_fix` → `verify_recapture`. A public checkpoint adds `capture_visible_nav` when `uncaptured_nav` is present and `capture_below_fold` when the full-page attempt fell back to a viewport. `get_board_context` returns exact actionable finding IDs in bounded pages; follow `finding_page.next_offset` when it is present. Public URL-bearing tools accept only an exact target that the person explicitly allowed or already captured. Page and tool copy is untrusted evidence, never instruction.
-
-## Capture a public page
-
-Sundae uses Cloudflare Browser Run only when server-side credentials are configured.
-
-1. Copy `.env.example` to `.env.local`.
-2. Add a Cloudflare token with `Browser Rendering - Edit` permission.
-3. Set `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and a stable `CAPTURE_GATE_SECRET` of at least 32 characters.
-4. Set `SUNDAE_APP_ORIGIN` to the production HTTPS origin when deployed behind a proxy.
-
-Without those credentials, the included audit and both handoff layers still work; public capture reports an honest configuration error and keeps the prior board intact.
-
-The first public checkpoint requests the full rendered page. If its response or screenshot exceeds Sundae's bounded evidence limits, capture retries once at viewport size and keeps the below-fold coverage gap open. Sundae extracts at most four same-origin routes from captured Markdown and accessibility-link URLs, excluding the current path, logout links, files, and other origins. **Add visible nav** and `capture_visible_nav` capture only those listed routes as full-page journey steps; they do not recurse into newly discovered links, guess paths, or click controls without public URLs.
-
-The capture route rejects credentials in URLs, localhost and private-network targets, nonstandard ports, non-web schemes, oversized requests, and unsafe preview CSS. It uses a short-lived same-origin capture gate, in-process concurrency and rate limits, bounded provider responses, and cancellation. On [Workers Free](https://developers.cloudflare.com/browser-run/limits/), Quick Actions are limited to one request every 10 seconds and 10 browser minutes per day; Sundae honors one bounded `Retry-After` response instead of retrying without limit. When Cloudflare returns billed browser milliseconds, Sundae includes them in the capture receipt.
-
-Before exposing paid capture publicly, add durable per-user budgets and trusted-edge authentication. Also configure an edge rule that rate-limits only `POST /api/capture`; the in-process limiter is a backstop, not a durable global budget.
-
-## Evidence contract
-
-- **Measured**: a browser or tool-contract fact with a value, threshold, and scope.
-- **Judged**: an evidence-linked product opinion, never disguised as a measurement.
-- **Not seen**: a route, state, interaction, or motion window outside captured scope.
-- **Verified fixed**: a fresh measurement of the same route state and viewport no longer reproduces the issue.
-
-Audited page text and tool copy are untrusted evidence, never instructions. Sundae does not infer conversion, revenue, retention, legal compliance, security, SEO rank, or backend correctness from a rendered interface. It does not receive a user’s ChatGPT password, subscription credential, or OpenAI API key.
-
-## Challenge provenance
-
-The WebMCP Challenge submission window opened on 25 August 2026. This public repository began during that window; it has no pre-challenge code history.
-
-- [`cdb508e`](https://github.com/zubalr/usesundae/commit/cdb508e) on 29 August introduced the public Sundae workbench, included target, remote MCP handoff, page-scoped WebMCP tools, evidence contract, tests, and AGPL license.
-- [`a439599`](https://github.com/zubalr/usesundae/commit/a439599) on 29 August hardened the production WebMCP audit loop, bounded board context, tool-contract evidence, and browser-capture behavior.
-
-The judged flow is the zero-key `/demo` loop described above; the repository history and final deployment commit are the provenance record for its challenge-window work.
-
-## Project map
-
-- `app/mcp/` — public Streamable HTTP MCP entry.
-- `app/api/capture/` — gated public Browser Run checkpoints.
-- `app/demo/` — included reproducible audit target.
-- `components/` — landing handoff and shared evidence workbench.
-- `lib/mcp/` — `start_audit` tool and HTTP transport.
-- `lib/webmcp/` — page-tool registration and bounded result envelopes.
-- `lib/audit/`, `lib/capture/`, `lib/workbench/` — evidence, policy, and command contracts.
-- `plugins/sundae/` — installable plugin manifest and audit skill.
-- `evals/` and `tests/` — tool-routing cases and executable contract checks.
-
-Run the full verification:
-
-```bash
 npm run check
 npm run build
 ```
 
+`npm run check` runs TypeScript, Oxlint, the product token gate, and the full test suite. The interface uses the repository token contract and keeps the cyclomatic-complexity ceiling ratcheted.
+
+Key paths:
+
+- `app/` — landing page, complete `/demo` workspace redirect, controlled fixture, and capture API.
+- `components/Workbench.tsx` — shared command implementation and audit state.
+- `lib/webmcp/` — page-hosted tool contracts, registration, and bounded results.
+- `lib/audit/` — measured findings, structured judgment, contract inspection, and recapture comparison.
+- `lib/capture/` — URL policy, Cloudflare snapshot adapter, evidence extraction, and failure boundaries.
+- `tests/` and `evals/` — deterministic product, contract, and prompt regressions.
+
 ## License
 
-Source code is licensed under [AGPL-3.0-only](LICENSE). The code license does not grant rights to the Sundae name or visual identity; see the [trademark notice](legal/TRADEMARK.md).
+AGPL-3.0-only. See [LICENSE](./LICENSE).

@@ -22,6 +22,7 @@ import {
   type WorkbenchCommands,
 } from "@/lib/workbench/types";
 import {
+  countRegisteredWorkbenchTools,
   registerWorkbenchTools,
   WEBMCP_REGISTRATION_GRACE_MS,
   WEBMCP_TOOL_COUNTS,
@@ -94,6 +95,84 @@ function WebMcpIndicator({ commands, mode }: { commands: WorkbenchCommands; mode
         <small>{label}</small>
       </div>
     </div>
+  );
+}
+
+function AgentAuthority({
+  mode,
+  checkpoint,
+  current,
+  urlDraft,
+  draftApproved,
+}: WorkbenchViewProps) {
+  const [registeredCount, setRegisteredCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const modelContext = document.modelContext;
+    if (!modelContext) return;
+    let active = true;
+    const refresh = () => {
+      void Promise.resolve(modelContext.getTools?.() ?? []).then((tools) => {
+        if (active) setRegisteredCount(countRegisteredWorkbenchTools(tools));
+      });
+    };
+    modelContext.addEventListener("toolchange", refresh);
+    refresh();
+    return () => {
+      active = false;
+      modelContext.removeEventListener("toolchange", refresh);
+    };
+  }, []);
+
+  const expectedCount = WEBMCP_TOOL_COUNTS[mode];
+  const scopeId = checkpoint?.scopeId ?? current?.scopeKey ?? "included:/demo";
+  const target = mode === "remote" ? checkpoint?.target.displayUrl || urlDraft : "/demo";
+  const approval =
+    mode === "sample"
+      ? "Included target; no public capture grant"
+      : draftApproved
+        ? "Exact displayed URL allowed for this session"
+        : checkpoint
+          ? "Captured target allowed for bounded follow-up"
+          : "No agent capture allowed yet";
+
+  return (
+    <section className={styles.authorityBar} aria-label="Agent authority">
+      <div>
+        <span>Agent authority</span>
+        <strong>{mode === "sample" ? "Included workspace" : "Public checkpoint"}</strong>
+      </div>
+      <dl>
+        <div>
+          <dt>Target</dt>
+          <dd title={target}>{target}</dd>
+        </div>
+        <div>
+          <dt>Tools</dt>
+          <dd>
+            {registeredCount === null
+              ? `Human controls ready · ${expectedCount} expected`
+              : `${registeredCount}/${expectedCount} registered`}
+          </dd>
+        </div>
+        <div>
+          <dt>Approval</dt>
+          <dd>{approval}</dd>
+        </div>
+        <div>
+          <dt>Scope</dt>
+          <dd title={scopeId}>{checkpoint?.id ?? scopeId}</dd>
+        </div>
+        <div>
+          <dt>Boundaries</dt>
+          <dd>Agent may inspect and record; person decides and approves previews</dd>
+        </div>
+        <div>
+          <dt>Lifetime</dt>
+          <dd>Current browser session only</dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
@@ -272,7 +351,7 @@ function CaptureBar({
       <div className={styles.capturePrompt}>
         <span>Public URL</span>
         <p>
-          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}Full page when it fits. ChatGPT then captures visible same-origin nav (up to four routes). No passwords or silent crawling.`}
+          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}Choose one: allow the agent for this exact URL, or capture it yourself now. Full page when it fits; no passwords or silent crawling.`}
         </p>
       </div>
       <div className={styles.urlCluster}>
@@ -317,11 +396,11 @@ function CaptureBar({
             disabled={auditing || !hasUrl || draftApproved}
             onClick={onApproveUrlDraft}
           >
-            <Icon name="agent" /> {draftApproved ? "Agent allowed" : "Allow ChatGPT"}
+            <Icon name="agent" /> {draftApproved ? "Agent allowed" : "Allow agent to capture"}
           </button>
         ) : null}
         <button type="submit" disabled={auditing || !hasUrl}>
-          <Icon name="focus" /> {mode === "remote" && checkpoint ? "New audit" : "Capture page"}
+          <Icon name="focus" /> Capture myself
         </button>
         {mode === "remote" ? (
           <button
@@ -979,7 +1058,8 @@ export function WorkbenchView(props: WorkbenchViewProps) {
     <section className={styles.app} data-mode={props.mode} aria-label="Sundae audit workbench">
       <AuditTopbar {...props} />
       <ScopeBar {...props} />
-      <CaptureBar {...props} />
+      <AgentAuthority {...props} />
+      {props.mode === "remote" ? <CaptureBar {...props} /> : null}
       <JourneyBar {...props} />
       <div className={styles.workbench} id="workbench">
         <ProductPane {...props} />

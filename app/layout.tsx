@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sundae — ChatGPT WebMCP product audits",
+  title: "Sundae — Audit the same live page together",
   description:
-    "Let ChatGPT operate a visible product-design audit board through WebMCP Site Tools, with measured evidence, reversible previews, and fresh verification.",
+    "A shared WebMCP audit workspace where ChatGPT measures and organizes evidence, the person governs judgment, and Sundae requires fresh proof before a fix is verified.",
   robots: { index: true, follow: true },
 };
 

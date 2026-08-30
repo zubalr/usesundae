@@ -39,9 +39,20 @@ declare global {
     window?: Window;
   };
 
-  type ModelContext = {
-    registerTool: (tool: WebMcpTool, options?: { signal?: AbortSignal }) => Promise<void> | void;
-    getTools?: () => Promise<RegisteredWebMcpTool[]> | RegisteredWebMcpTool[];
+  type ModelContext = EventTarget & {
+    registerTool: (
+      tool: WebMcpTool,
+      options?: { exposedTo?: string[]; signal?: AbortSignal },
+    ) => Promise<void> | void;
+    getTools?: (options?: {
+      fromOrigins?: string[];
+    }) => Promise<RegisteredWebMcpTool[]> | RegisteredWebMcpTool[];
+    executeTool?: (
+      tool: RegisteredWebMcpTool,
+      input?: Record<string, unknown>,
+      options?: { signal?: AbortSignal },
+    ) => Promise<string>;
+    ontoolchange?: ((event: Event) => void) | null;
   };
 
   interface Document {

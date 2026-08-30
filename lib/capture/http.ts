@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   CaptureProviderError,
   captureWithCloudflare,
+  type CaptureProviderCategory,
   type CloudflareCaptureConfig,
 } from "./cloudflare";
 import {
@@ -21,6 +22,48 @@ const MAX_REQUEST_BYTES = 16_384;
 const DEFAULT_MAX_CONCURRENT_CAPTURES = 4;
 const DEFAULT_RATE_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT = 20;
+
+const providerFailures: Record<
+  CaptureProviderCategory,
+  { code: string; message: string; status: number }
+> = {
+  timeout: {
+    code: "capture_provider_timeout",
+    message: "The browser provider timed out before a checkpoint was created. Try again once.",
+    status: 504,
+  },
+  browser_crash: {
+    code: "capture_provider_browser_crash",
+    message: "The remote browser stopped before a checkpoint was created. Try again once.",
+    status: 502,
+  },
+  resource_limit: {
+    code: "capture_provider_resource_limit",
+    message: "The rendered page exceeded the browser provider’s safe capture limits.",
+    status: 502,
+  },
+  blocked_rendering: {
+    code: "capture_provider_blocked",
+    message: "The page did not allow the configured browser provider to render it.",
+    status: 502,
+  },
+  invalid_target: {
+    code: "capture_provider_invalid_target",
+    message: "The browser provider could not navigate to this public target.",
+    status: 400,
+  },
+  rate_limit: {
+    code: "capture_provider_rate_limited",
+    message: "The browser provider is rate limited. Try again shortly.",
+    status: 429,
+  },
+  provider_rejection: {
+    code: "capture_provider_rejected",
+    message:
+      "The browser provider rejected this capture. Existing board evidence was left unchanged.",
+    status: 502,
+  },
+};
 
 function parsePositiveIntEnv(raw: string | undefined, fallback: number) {
   const trimmed = raw?.trim() ?? "";
@@ -339,13 +382,15 @@ export async function handleCapturePost(
       );
     }
     if (error instanceof CaptureProviderError) {
+      const failure = providerFailures[error.category];
       return json(
         {
           ok: false,
-          code: "capture_provider_error",
-          message: error.message,
+          code: failure.code,
+          category: error.category,
+          message: failure.message,
         },
-        502,
+        failure.status,
       );
     }
     return json(

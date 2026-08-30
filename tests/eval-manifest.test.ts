@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import evals from "../evals/webmcp-prompts.json";
-import pluginEvals from "../evals/plugin-prompts.json";
 import type { WorkbenchCommands } from "../lib/workbench/types";
 import { registerWorkbenchTools } from "../lib/webmcp/register";
 
@@ -79,20 +78,6 @@ test("design-review evals require categorized visible judgment after measurement
       );
     }
   }
-});
-
-test("the plugin eval manifest routes only eligible public audits to start_audit", () => {
-  assert.equal(new Set(pluginEvals.map((entry) => entry.id)).size, pluginEvals.length);
-  for (const entry of pluginEvals) {
-    assert.ok(entry.messages[0]?.content);
-    assert.ok(entry.expectedCall.length <= 1);
-    for (const call of entry.expectedCall) {
-      assert.equal(call.functionName, "start_audit");
-      assert.match(call.arguments.url, /^https:\/\//);
-    }
-  }
-  assert.equal(pluginEvals.filter((entry) => entry.expectedCall.length === 1).length, 5);
-  assert.equal(pluginEvals.filter((entry) => entry.expectedCall.length === 0).length, 3);
 });
 
 test("representative eval calls execute through the registered tool surface", async () => {

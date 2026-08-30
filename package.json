@@ -17,7 +17,6 @@
     "tokens:sync": "node scripts/sync-tokens-doc.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
     "next": "^16.3.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

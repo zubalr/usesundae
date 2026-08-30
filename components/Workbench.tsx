@@ -525,6 +525,7 @@ export function Workbench({
         receipt: `Created rendered checkpoint ${nextCheckpoint.id}.`,
         target: nextCheckpoint.target,
         checkpoint_id: nextCheckpoint.id,
+        scope_id: nextCheckpoint.scopeId,
         viewport: nextCheckpoint.viewport,
         capture_extent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
         measured_finding_count: snapshot.findings.length,
@@ -623,6 +624,7 @@ export function Workbench({
         ok: true,
         receipt: `Appended “${cleanLabel}” as checkpoint ${nextCheckpoint.id}.`,
         checkpoint_id: nextCheckpoint.id,
+        scope_id: nextCheckpoint.scopeId,
         step_count: journeyRef.current.length,
         new_finding_count: stepSnapshot.findings.length,
         total_finding_count: aggregate.findings.length,
@@ -683,6 +685,8 @@ export function Workbench({
         receipt: `Captured ${capturedLabels.length} visible navigation route${capturedLabels.length === 1 ? "" : "s"}.`,
         captured_routes: capturedLabels,
         remaining_count: remaining.length,
+        checkpoint_id: checkpointRef.current?.id ?? null,
+        scope_id: checkpointRef.current?.scopeId ?? null,
         next:
           remaining.length > 0
             ? "Call get_board_context."
@@ -764,6 +768,7 @@ export function Workbench({
         ok: true,
         receipt: `Appended ${nextCheckpoint.capture.fullPage ? "Below fold" : "a viewport fallback"} as checkpoint ${nextCheckpoint.id}.`,
         checkpoint_id: nextCheckpoint.id,
+        scope_id: nextCheckpoint.scopeId,
         capture_extent: captureExtent,
         step_count: journeyRef.current.length,
         new_finding_count: stepSnapshot.findings.length,
@@ -795,6 +800,7 @@ export function Workbench({
         return {
           ok: true,
           receipt: `Measured the ${snapshot.demoState} ${snapshot.viewport} live target in this browser.`,
+          scope_id: snapshot.scopeKey ?? `included:/demo:${snapshot.viewport}`,
           scope: snapshot.viewport,
           state: snapshot.demoState,
           finding_count: snapshot.findings.length,
@@ -857,6 +863,7 @@ export function Workbench({
         ok: true,
         receipt: `Created fresh checkpoint ${nextCheckpoint.id}.`,
         checkpoint_id: nextCheckpoint.id,
+        scope_id: nextCheckpoint.scopeId,
         state: snapshot.demoState,
         finding_count: snapshot.findings.length,
         coverage_gap_count: snapshot.gaps.length,
@@ -971,6 +978,8 @@ export function Workbench({
           receipt: "Recorded that the remote WebMCP contract was not observed.",
           supported: false,
           coverage_gap: gap,
+          checkpoint_id: checkpointRef.current?.id ?? null,
+          scope_id: checkpointRef.current?.scopeId ?? null,
         };
       }
 
@@ -987,11 +996,15 @@ export function Workbench({
         receipt: `Inspected ${tools.length} target WebMCP tools via ${source} and recorded ${additions.length} new findings.`,
         inspection_source: source,
         runtime_registration_status: runtimeStatus,
+        scope_id: `included:/demo:${viewportRef.current}`,
         tools: tools.map((tool) => ({
           name: tool.name,
-          description: tool.description,
-          annotations: tool.annotations,
-          schema_inspection: tool.schemaInspection ?? "inspectable",
+          schema_status: tool.schemaInspection ?? "inspectable",
+          read_only: tool.annotations?.readOnlyHint === true,
+          untrusted_output: tool.annotations?.untrustedContentHint === true,
+          origin: tool.origin ?? "same-origin controlled fixture",
+          scope: "included /demo target",
+          observable_invocation: "contract inspected; tool not invoked",
         })),
         findings: additions.map((finding) => ({
           id: finding.id,
@@ -1057,6 +1070,10 @@ export function Workbench({
           category: finding.category,
           product_job: finding.productJob ?? null,
           checkpoint_id: finding.checkpointId ?? null,
+          scope_id:
+            finding.scopeKey ??
+            checkpointRef.current?.scopeId ??
+            `included:/demo:${finding.viewport}`,
         },
       };
     },
@@ -1093,6 +1110,11 @@ export function Workbench({
           : `“${cleanLabel}” was already present in Not seen.`,
         added,
         gap: { label: cleanLabel, detail: cleanDetail },
+        checkpoint_id: checkpointRef.current?.id ?? null,
+        scope_id:
+          checkpointRef.current?.scopeId ??
+          baselineRef.current[viewportRef.current]?.scopeKey ??
+          `included:/demo:${viewportRef.current}`,
       };
     },
     [appendGap, pushActivity],
@@ -1134,10 +1156,16 @@ export function Workbench({
                 kind: "public_checkpoint",
                 displayUrl: checkpointRef.current?.target.displayUrl ?? null,
                 checkpointId: checkpointRef.current?.id ?? null,
+                scopeId: checkpointRef.current?.scopeId ?? null,
                 screenshotVisible: Boolean(checkpointRef.current?.screenshotDataUrl),
                 captureExtent: checkpointRef.current?.capture.fullPage ? "full-page" : "viewport",
               }
-            : { kind: "included_live_target", path: "/demo", screenshotVisible: true },
+            : {
+                kind: "included_live_target",
+                path: "/demo",
+                scopeId: baseline.scopeKey ?? `included:/demo:${baseline.viewport}`,
+                screenshotVisible: true,
+              },
         viewport: baseline.viewport,
         state: demoStateRef.current,
         currentFindingCount: board.currentCount,
@@ -1190,6 +1218,11 @@ export function Workbench({
           title: finding.title,
           truth: finding.truth,
           severity: finding.severity,
+          checkpoint_id: finding.checkpointId ?? null,
+          scope_id:
+            finding.scopeKey ??
+            checkpointRef.current?.scopeId ??
+            `included:/demo:${finding.viewport}`,
         },
       };
     },
@@ -1221,6 +1254,11 @@ export function Workbench({
         finding_id: finding.id,
         decision,
         reason: cleanReason,
+        checkpoint_id: finding.checkpointId ?? null,
+        scope_id:
+          finding.scopeKey ??
+          checkpointRef.current?.scopeId ??
+          `included:/demo:${finding.viewport}`,
       };
     },
     [pushActivity, visibleFindingById],
@@ -1338,6 +1376,7 @@ export function Workbench({
           ok: true,
           receipt: `Rendered reversible preview checkpoint ${nextCheckpoint.id}.`,
           checkpoint_id: nextCheckpoint.id,
+          scope_id: nextCheckpoint.scopeId,
           fresh_finding_count: snapshot.findings.length,
           next: "Call verify_recapture before describing any measured finding as fixed.",
         };
@@ -1363,6 +1402,10 @@ export function Workbench({
         return {
           ok: true,
           receipt: "The reversible improvement is already visible.",
+          scope_id:
+            snapshot?.scopeKey ??
+            checkpointRef.current?.scopeId ??
+            `included:/demo:${viewportRef.current}`,
           state: "improved",
           fresh_finding_count: snapshot?.findings.length ?? null,
         };
@@ -1395,6 +1438,7 @@ export function Workbench({
       return {
         ok: true,
         receipt: "Previewed the reversible improvement and measured the rendered result.",
+        scope_id: snapshot.scopeKey ?? `included:/demo:${snapshot.viewport}`,
         state: snapshot.demoState,
         fresh_finding_count: snapshot.findings.length,
         next: "Call verify_recapture before describing any finding as fixed.",
@@ -1484,6 +1528,11 @@ export function Workbench({
         receipt: `Re-measured ${snapshot.viewport}; fixed is used only for reproduced measured scope.`,
         results: comparison.results,
         summary: { fixed, still_open: stillOpen, unverified },
+        checkpoint_id: checkpointRef.current?.id ?? null,
+        scope_id:
+          snapshot.scopeKey ??
+          checkpointRef.current?.scopeId ??
+          `included:/demo:${snapshot.viewport}`,
         measured_at: snapshot.capturedAt,
         ...browserMs.fields,
       };

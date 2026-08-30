@@ -13,6 +13,15 @@ export type CloudflareCaptureConfig = {
   apiToken: string;
 };
 
+export type CaptureProviderCategory =
+  | "timeout"
+  | "browser_crash"
+  | "resource_limit"
+  | "blocked_rendering"
+  | "invalid_target"
+  | "rate_limit"
+  | "provider_rejection";
+
 type CloudflareSnapshotResponse = {
   success?: boolean;
   result?: {
@@ -45,7 +54,10 @@ const viewportSizes = {
 } as const;
 
 export class CaptureProviderError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly category: CaptureProviderCategory = "provider_rejection",
+  ) {
     super(message);
     this.name = "CaptureProviderError";
   }
@@ -102,6 +114,7 @@ async function parseProviderResponse(response: Response): Promise<CloudflareSnap
     if (text === null) {
       throw new CaptureResponseTooLargeError(
         "The remote browser returned a response that was too large to inspect safely.",
+        "resource_limit",
       );
     }
     return JSON.parse(text) as CloudflareSnapshotResponse;
@@ -240,6 +253,7 @@ async function runWithProviderTimeout<T>(
       reject(
         new CaptureProviderError(
           "The remote browser took too long to respond. Try the capture again.",
+          "timeout",
         ),
       );
     }, timeoutMs);
@@ -253,6 +267,7 @@ async function runWithProviderTimeout<T>(
     if (timedOut) {
       throw new CaptureProviderError(
         "The remote browser took too long to respond. Try the capture again.",
+        "timeout",
       );
     }
     if (inputSignal?.aborted) throw new DOMException("The capture was cancelled.", "AbortError");
@@ -345,8 +360,16 @@ export async function captureWithCloudflare(
   );
   const { response, payload, fullPage } = captured;
   if (!response.ok || payload.success !== true || !payload.result) {
+    const categoryByStatus: Partial<Record<number, CaptureProviderCategory>> = {
+      400: "invalid_target",
+      408: "timeout",
+      413: "resource_limit",
+      429: "rate_limit",
+      504: "timeout",
+    };
     throw new CaptureProviderError(
       `The remote browser could not capture this page (${response.status}).`,
+      categoryByStatus[response.status] ?? "provider_rejection",
     );
   }
   await assertSafeProviderNavigation(payload.meta, target.captureUrl, options?.resolveTarget);
@@ -357,6 +380,7 @@ export async function captureWithCloudflare(
   ) {
     throw new CaptureProviderError(
       "The remote browser returned a screenshot that was too large to inspect safely.",
+      "resource_limit",
     );
   }
   const screenshot = cleanText(payload.result.screenshot, MAX_CAPTURE_SCREENSHOT_BASE64_CHARS);

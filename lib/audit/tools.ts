@@ -7,6 +7,7 @@ export type AuditedToolContract = {
   inputSchema?: WebMcpInputSchema;
   schemaInspection?: "inspectable" | "not_inspectable";
   annotations?: WebMcpTool["annotations"];
+  origin?: string;
 };
 
 type RuntimeToolContract = Omit<AuditedToolContract, "inputSchema" | "schemaInspection"> & {

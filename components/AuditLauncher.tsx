@@ -1,17 +1,17 @@
 "use client";
 
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { useAuditIntent } from "@/components/AuditIntent";
 import { Icon } from "@/components/Icons";
 import {
   buildChatGptHandoffPrompt,
   buildWorkspaceUrl,
-  CHATGPT_HOME_URL,
   createAuditLaunch,
   MAX_AUDIT_GOAL_LENGTH,
   MAX_PUBLIC_URL_LENGTH,
 } from "@/lib/launch";
+import { countRegisteredWorkbenchTools } from "@/lib/webmcp/register";
 import styles from "./AuditLauncher.module.css";
 
 type HandoffReceipt = {
@@ -19,6 +19,8 @@ type HandoffReceipt = {
   workspaceUrl: string;
   copied: boolean;
 };
+
+type ToolReadiness = { state: "checking" } | { state: "human" } | { state: "ready"; count: number };
 
 function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : "Sundae could not prepare this audit.";
@@ -28,43 +30,69 @@ function revealFeedback(target: { current: HTMLElement | null }) {
   requestAnimationFrame(() => target.current?.focus());
 }
 
+function copyWorkspaceUrl(receipt: HandoffReceipt) {
+  void navigator.clipboard?.writeText(receipt.workspaceUrl);
+}
+
 export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) {
   const { targetUrl, setTargetUrl, goal, setGoal } = useAuditIntent();
   const [error, setError] = useState("");
   const [handoff, setHandoff] = useState<HandoffReceipt | null>(null);
+  const [toolReadiness, setToolReadiness] = useState<ToolReadiness>({ state: "checking" });
   const errorRef = useRef<HTMLParagraphElement>(null);
   const handoffRef = useRef<HTMLElement>(null);
 
-  function prepareLaunch() {
-    const launch = createAuditLaunch(targetUrl.trim() || includedDemoUrl, goal);
+  useEffect(() => {
+    const modelContext = document.modelContext;
+    if (!modelContext) {
+      setToolReadiness({ state: "human" });
+      return;
+    }
+
+    let active = true;
+    const refresh = () => {
+      void Promise.resolve(modelContext.getTools?.() ?? []).then((tools) => {
+        if (active)
+          setToolReadiness({ state: "ready", count: countRegisteredWorkbenchTools(tools) });
+      });
+    };
+    modelContext.addEventListener("toolchange", refresh);
+    refresh();
+    return () => {
+      active = false;
+      modelContext.removeEventListener("toolchange", refresh);
+    };
+  }, []);
+
+  function prepareLaunch(useDemo: boolean) {
+    const launch = createAuditLaunch(useDemo ? includedDemoUrl : targetUrl, goal);
     return {
       launch,
       workspaceUrl: buildWorkspaceUrl(window.location.origin, launch),
     };
   }
 
-  function openWorkbench() {
+  function openPublicWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError("");
     setHandoff(null);
     try {
-      window.location.assign(prepareLaunch().workspaceUrl);
+      window.location.assign(prepareLaunch(false).workspaceUrl);
     } catch (cause) {
       setError(errorMessage(cause));
       revealFeedback(errorRef);
     }
   }
 
-  function continueInChatGpt(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function prepareChatGptHandoff() {
     setError("");
     setHandoff(null);
     try {
-      const { launch, workspaceUrl } = prepareLaunch();
-      const prompt = buildChatGptHandoffPrompt(launch, workspaceUrl);
+      const { launch, workspaceUrl } = prepareLaunch(!targetUrl.trim());
+      const prompt = buildChatGptHandoffPrompt(launch, workspaceUrl, includedDemoUrl);
       const receipt = { prompt, workspaceUrl, copied: false };
       setHandoff(receipt);
       revealFeedback(handoffRef);
-      window.open(CHATGPT_HOME_URL, "_blank", "noopener,noreferrer");
       copyHandoff(receipt);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -89,18 +117,18 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       className={styles.launcher}
       id="launch"
       aria-label="Start a Sundae audit"
-      onSubmit={continueInChatGpt}
+      onSubmit={openPublicWorkspace}
       noValidate
     >
       <div className={styles.fields}>
         <label className={styles.urlField}>
-          <span>Public product URL · optional</span>
+          <span>Public product URL</span>
           <input
             type="url"
             value={targetUrl}
             maxLength={MAX_PUBLIC_URL_LENGTH}
             onChange={(event) => setTargetUrl(event.target.value)}
-            placeholder="Leave blank for the included /demo"
+            placeholder="https://your-product.com"
             autoComplete="url"
             autoCapitalize="none"
             spellCheck={false}
@@ -127,17 +155,23 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       ) : null}
 
       <div className={styles.actions}>
-        <button className={styles.chatGptAction} type="submit">
-          <Icon name="agent" /> Continue in ChatGPT
+        <a className={styles.chatGptAction} href="/demo">
+          <Icon name="focus" /> Try the included demo
+        </a>
+        <button className={styles.workbenchAction} type="submit">
+          Audit a public website
         </button>
-        <button className={styles.workbenchAction} type="button" onClick={openWorkbench}>
-          <Icon name="focus" /> Open visible workbench
+        <button className={styles.desktopAction} type="button" onClick={prepareChatGptHandoff}>
+          <Icon name="agent" /> Use with ChatGPT Desktop
         </button>
       </div>
 
       <p className={styles.controlNote}>
-        Zero-key contest path: leave the URL blank. ChatGPT opens the included /demo, waits for
-        Sundae Site Tools, and operates the same evidence board you can control by hand below.
+        {toolReadiness.state === "ready"
+          ? `${toolReadiness.count} page tools registered and ready in this browser.`
+          : toolReadiness.state === "human"
+            ? "Human controls ready. For Site Tools, open the exact workspace in ChatGPT Desktop’s built-in browser."
+            : "Checking this browser for Site Tools…"}
       </p>
 
       {handoff ? (
@@ -150,13 +184,14 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
         >
           <div className={styles.receiptStatus}>
             <span>
-              <i data-copied={handoff.copied} /> ChatGPT handoff
+              <i data-copied={handoff.copied} /> ChatGPT Desktop handoff
             </span>
             <strong>{handoff.copied ? "Request copied" : "Request ready to copy"}</strong>
           </div>
           <p>
-            Paste this into ChatGPT. If automatic copy was blocked, use Copy request or select the
-            text. The exact workspace remains available either way.
+            No plugin or connection is required. In ChatGPT Desktop, open the built-in browser and
+            paste the exact workspace URL below. Site Tools are discovered automatically there; an
+            ordinary browser cannot force that internal browser to open.
           </p>
           <textarea
             readOnly
@@ -168,9 +203,9 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
             <button type="button" onClick={() => copyHandoff(handoff)}>
               Copy request
             </button>
-            <a href={CHATGPT_HOME_URL} target="_blank" rel="noreferrer">
-              Open ChatGPT
-            </a>
+            <button type="button" onClick={() => copyWorkspaceUrl(handoff)}>
+              Copy workspace URL
+            </button>
             <a href={handoff.workspaceUrl}>Open exact workspace</a>
           </div>
         </section>

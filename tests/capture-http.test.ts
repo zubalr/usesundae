@@ -218,6 +218,29 @@ test("capture endpoint returns a provider checkpoint without exposing configurat
   assert.equal(payload.checkpoint.title, "Example");
 });
 
+test("capture provider failures are categorized without exposing provider internals", async () => {
+  const response = await handleCapturePost(
+    captureRequest(),
+    { accountId: "account", apiToken: "opaque-token" },
+    async () =>
+      Response.json(
+        {
+          success: false,
+          errors: [{ message: "opaque-token and provider-ray-id must never reach the client" }],
+        },
+        { status: 422 },
+      ),
+    { resolveTarget: publicResolver },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.equal(body.code, "capture_provider_rejected");
+  assert.equal(body.category, "provider_rejection");
+  assert.match(body.message, /existing board evidence was left unchanged/i);
+  assert.doesNotMatch(JSON.stringify(body), /opaque-token|provider-ray-id/i);
+});
+
 test("capture endpoint forwards explicit full-page and wait-selector options", async () => {
   let providerBody: Record<string, unknown> | undefined;
   const response = await handleCapturePost(
