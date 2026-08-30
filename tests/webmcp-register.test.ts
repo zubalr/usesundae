@@ -176,7 +176,13 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     captureVisibleNav: async (actor, _signal, waitForSelector, toolName) => {
       recordReceiptTool(toolName);
       calls.push(`visible-nav:${waitForSelector ?? "none"}:${actor}`);
-      return commandResult("visible-nav");
+      return {
+        ok: false,
+        receipt:
+          "Captured 3 visible navigation routes; 1 remains after the provider stopped the batch.",
+        captured_routes: ["About", "Domains", "Root zone"],
+        remaining_count: 1,
+      };
     },
     captureBelowFold: async (waitForSelector, actor, _signal, toolName) => {
       recordReceiptTool(toolName);
@@ -320,8 +326,13 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     assert.equal(calls.at(-1), "step:https://example.com/checkout:Checkout entry:agent:#checkout");
 
     const visibleNav = registered.find(({ tool }) => tool.name === "capture_visible_nav")!.tool;
-    await visibleNav.execute({ wait_for_selector: "main" });
+    const visibleNavResult = JSON.parse(
+      (await visibleNav.execute({ wait_for_selector: "main" })).content[0]!.text,
+    );
     assert.equal(calls.at(-1), "visible-nav:main:agent");
+    assert.equal(visibleNavResult.status, "failure");
+    assert.equal(visibleNavResult.remaining_count, 1);
+    assert.match(visibleNavResult.receipt, /Captured 3.*1 remains/);
 
     const belowFold = registered.find(({ tool }) => tool.name === "capture_below_fold")!.tool;
     await belowFold.execute({ wait_for_selector: "main" });

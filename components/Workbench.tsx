@@ -584,9 +584,9 @@ export function Workbench({
         authorizedUrl,
         ...journeyRef.current.map((step) => step.displayUrl),
       ]);
-      if (remainingVisibleNav.length === 0) {
-        aggregate.gaps = withoutVisibleNavGap(aggregate.gaps);
-      }
+      aggregate.gaps = withoutVisibleNavGap(aggregate.gaps);
+      if (remainingVisibleNav.length > 0)
+        aggregate.gaps.push(visibleNavGap(remainingVisibleNav.length));
 
       remoteUrlRef.current = authorizedUrl;
       fullPageRef.current = nextCheckpoint.capture.fullPage;
@@ -662,6 +662,7 @@ export function Workbench({
       const capturedLabels: string[] = [];
       const routeWaitSelector = waitForSelector ?? "";
       const operationEpoch = beginRemoteOperation();
+      let failure: Error | null = null;
       try {
         for (const route of routes) {
           signal?.throwIfAborted();
@@ -676,6 +677,9 @@ export function Workbench({
           );
           capturedLabels.push(route.label);
         }
+      } catch (cause) {
+        if (cause instanceof Error && cause.name === "AbortError") throw cause;
+        failure = cause instanceof Error ? cause : new Error("The capture could not be completed.");
       } finally {
         if (entry) activateCheckpoint(entry.checkpoint.id);
       }
@@ -683,6 +687,18 @@ export function Workbench({
         remoteUrlRef.current,
         ...journeyRef.current.map((step) => step.displayUrl),
       ]);
+      if (failure) {
+        return {
+          ok: false,
+          receipt: `Captured ${capturedLabels.length} visible navigation route${capturedLabels.length === 1 ? "" : "s"}; ${remaining.length} remain after the provider stopped the batch.`,
+          captured_routes: capturedLabels,
+          remaining_count: remaining.length,
+          error: failure.message.slice(0, 280),
+          checkpoint_id: checkpointRef.current?.id ?? null,
+          scope_id: checkpointRef.current?.scopeId ?? null,
+          next: "Read get_board_context before retrying any remaining evidence-derived route.",
+        };
+      }
       return {
         ok: true,
         receipt: `Captured ${capturedLabels.length} visible navigation route${capturedLabels.length === 1 ? "" : "s"}.`,
