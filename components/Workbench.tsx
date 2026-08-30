@@ -12,8 +12,25 @@ import {
   snapshotFromCheckpoint,
   type JudgedFindingInput,
 } from "@/lib/audit/remote";
+import {
+  compareFindingsForReview,
+  createAuditBrief,
+  createReviewResult,
+  validateReviewResultScope,
+  withoutConflictingNoIssue,
+} from "@/lib/audit/review";
 import { auditWebMcpTools, normalizeRuntimeToolContract } from "@/lib/audit/tools";
-import type { AuditSnapshot, CoverageGap, DemoState, Finding, Viewport } from "@/lib/audit/types";
+import type {
+  AuditBrief,
+  AuditBriefInput,
+  AuditSnapshot,
+  CoverageGap,
+  DemoState,
+  Finding,
+  ReviewResult,
+  ReviewResultInput,
+  Viewport,
+} from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import {
   capturedVisibleNavLabels,
@@ -26,6 +43,7 @@ import { DEMO_TOOL_CONTRACTS } from "@/lib/demo/tools";
 import { resolveInitialTargetMode, resolvePublicDemoUrl } from "@/lib/launch";
 import { boundedText } from "@/lib/text";
 import { assertApprovedForActor, canonicalizeApprovedUrl } from "@/lib/workbench/approval";
+import { deriveCoverageSummary, inferSurfaceType } from "@/lib/workbench/coverage";
 import {
   assertSameJourneyOrigin,
   mergeBelowFoldSnapshot,
@@ -52,6 +70,7 @@ import { type JourneyEntry, type TargetMode, WorkbenchView } from "./workbench/W
 
 const MAX_ACTIVITY_RECEIPTS = 100;
 const MAX_MANUAL_JUDGMENTS = 32;
+const MAX_REVIEW_RESULTS = 32;
 const MAX_COVERAGE_GAPS = 32;
 
 function browserMsReceipt(checkpoint: RemoteCheckpoint) {
@@ -72,6 +91,16 @@ const SAMPLE_GAPS: CoverageGap[] = [
     label: "Billing settings",
     detail: "An authenticated billing state was not part of this scope.",
   },
+  {
+    id: "gap-motion-window",
+    label: "Motion and transition behavior",
+    detail: "No reproducible motion or transition window was captured in this static viewport.",
+  },
+  {
+    id: "gap-flow-states",
+    label: "Multi-step flow states",
+    detail: "Loading, error, empty, and success states were not opened in this sampled scope.",
+  },
 ];
 const EMPTY_JUDGMENT: JudgedFindingInput = {
   title: "",
@@ -79,6 +108,7 @@ const EMPTY_JUDGMENT: JudgedFindingInput = {
   whyItMatters: "",
   recommendation: "",
   severity: "medium",
+  confidence: "medium",
   category: "ui",
 };
 
@@ -107,7 +137,54 @@ type RemoteCheckpointOptions = {
   signal?: AbortSignal;
 };
 
-const severityRank = { high: 0, medium: 1, low: 2 } as const;
+function inspectedScopeIds(
+  baseline: AuditSnapshot,
+  checkpoint: RemoteCheckpoint | null,
+  journey: JourneyEntry[],
+) {
+  return new Set(
+    [
+      baseline.scopeKey,
+      checkpoint?.scopeId,
+      ...journey.map(({ scopeId }) => scopeId),
+      ...baseline.findings.map(({ scopeKey }) => scopeKey),
+    ].filter((scopeId): scopeId is string => Boolean(scopeId)),
+  );
+}
+
+function inspectedEvidenceRefs(
+  baseline: AuditSnapshot,
+  checkpoint: RemoteCheckpoint | null,
+  journey: JourneyEntry[],
+) {
+  return new Set(
+    [
+      ...(!checkpoint ? ["included-live-target"] : []),
+      checkpoint?.id,
+      ...journey.map(({ checkpointId }) => checkpointId),
+      ...baseline.findings.map(({ evidence }) => evidence?.ref),
+    ].filter((ref): ref is string => Boolean(ref)),
+  );
+}
+
+function inspectedEvidenceRefsForScope(
+  baseline: AuditSnapshot,
+  checkpoint: RemoteCheckpoint | null,
+  journey: JourneyEntry[],
+  scopeId: string,
+) {
+  const refs = new Set<string>();
+  if (!checkpoint && baseline.scopeKey === scopeId) refs.add("included-live-target");
+  if (checkpoint?.scopeId === scopeId) refs.add(checkpoint.id);
+  for (const entry of journey) {
+    if (entry.scopeId === scopeId) refs.add(entry.checkpointId);
+  }
+  for (const finding of baseline.findings) {
+    if ((finding.scopeKey ?? baseline.scopeKey) !== scopeId || !finding.evidence) continue;
+    refs.add(finding.evidence.ref);
+  }
+  return refs;
+}
 
 type WorkbenchProps = {
   initialUrl?: string;
@@ -115,9 +192,6 @@ type WorkbenchProps = {
   includedDemoUrl?: string;
 };
 
-function compareFindingsBySeverity(first: Finding, second: Finding) {
-  return severityRank[first.severity] - severityRank[second.severity];
-}
 function nowIso() {
   return new Date().toISOString();
 }
@@ -188,6 +262,7 @@ export function Workbench({
   const activitySequence = useRef(0);
   const activityRef = useRef<Activity[]>([]);
   const judgmentSequence = useRef(0);
+  const reviewResultSequence = useRef(0);
   const auditWaiters = useRef<AuditWaiter[]>([]);
   const auditTimerRef = useRef<number | null>(null);
   const auditEndTimerRef = useRef<number | null>(null);
@@ -205,6 +280,8 @@ export function Workbench({
   const decisionsRef = useRef<Record<string, DecisionRecord>>({});
   const verificationRef = useRef<Record<string, VerificationReceipt>>({});
   const selectedRef = useRef<string | null>(null);
+  const auditBriefRef = useRef<AuditBrief | null>(null);
+  const reviewResultsRef = useRef<ReviewResult[]>([]);
   const commandRef = useRef<WorkbenchCommands | null>(null);
   const journeyRef = useRef<JourneyEntry[]>([]);
   const visibleNavRef = useRef<VisibleNavRoute[]>([]);
@@ -235,6 +312,8 @@ export function Workbench({
   const [decisionReason, setDecisionReason] = useState("");
   const [judgmentDraft, setJudgmentDraft] = useState<JudgedFindingInput>(EMPTY_JUDGMENT);
   const [gapDraft, setGapDraft] = useState({ label: "", detail: "" });
+  const [auditBrief, setAuditBrief] = useState<AuditBrief | null>(null);
+  const [reviewResults, setReviewResults] = useState<ReviewResult[]>([]);
 
   useEffect(
     () => () => {
@@ -339,7 +418,8 @@ export function Workbench({
           demoState: renderedState,
           viewport: viewportRef.current,
           viewportSize: facts.viewportSize,
-          findings: deriveFindings(facts).toSorted(compareFindingsBySeverity),
+          scopeKey: `included:/demo:${viewportRef.current}`,
+          findings: deriveFindings(facts).toSorted(compareFindingsForReview),
           gaps: SAMPLE_GAPS,
         };
         const replaceBaseline =
@@ -392,6 +472,9 @@ export function Workbench({
     verificationRef.current = {};
     selectedRef.current = null;
     judgmentSequence.current = 0;
+    reviewResultSequence.current = 0;
+    auditBriefRef.current = null;
+    reviewResultsRef.current = [];
     journeyRef.current = [];
     visibleNavRef.current = [];
     checkpointRecordsRef.current.clear();
@@ -411,6 +494,8 @@ export function Workbench({
     setDecisionReason("");
     setJudgmentDraft(EMPTY_JUDGMENT);
     setGapDraft({ label: "", detail: "" });
+    setAuditBrief(null);
+    setReviewResults([]);
   }, []);
 
   const beginRemoteOperation = useCallback(() => {
@@ -511,6 +596,11 @@ export function Workbench({
         displayUrl: nextCheckpoint.target.displayUrl,
         capturedAt: nextCheckpoint.capturedAt,
         findingCount: snapshot.findings.length,
+        surfaceType: "entry",
+        state: "settled render",
+        captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
+        reason: "Establish the visible proposition and entry job",
+        motion: "not_seen",
       };
       journeyRef.current = [firstStep];
       setJourney(journeyRef.current);
@@ -580,7 +670,7 @@ export function Workbench({
       const previous = baselineRef.current[viewportRef.current];
       if (!previous) throw new Error("The active audit does not have baseline evidence.");
       const aggregate = mergeJourneySnapshots(previous, stepSnapshot);
-      aggregate.findings.sort(compareFindingsBySeverity);
+      aggregate.findings.sort(compareFindingsForReview);
       const remainingVisibleNav = uncapturedVisibleNav(visibleNavRef.current, [
         authorizedUrl,
         ...journeyRef.current.map((step) => step.displayUrl),
@@ -612,6 +702,11 @@ export function Workbench({
         displayUrl: nextCheckpoint.target.displayUrl,
         capturedAt: nextCheckpoint.capturedAt,
         findingCount: stepSnapshot.findings.length,
+        surfaceType: inferSurfaceType(cleanLabel, nextCheckpoint.target.displayUrl),
+        state: cleanLabel,
+        captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
+        reason: `Human-named journey evidence: ${cleanLabel}`,
+        motion: "not_seen",
       };
       journeyRef.current = [...journeyRef.current, entry].slice(-12);
       setJourney(journeyRef.current);
@@ -752,7 +847,7 @@ export function Workbench({
         stepSnapshot,
         nextCheckpoint.capture.fullPage,
       );
-      aggregate.findings.sort(compareFindingsBySeverity);
+      aggregate.findings.sort(compareFindingsForReview);
 
       fullPageRef.current = nextCheckpoint.capture.fullPage;
       waitForSelectorRef.current = waitSelector;
@@ -772,6 +867,13 @@ export function Workbench({
         displayUrl: nextCheckpoint.target.displayUrl,
         capturedAt: nextCheckpoint.capturedAt,
         findingCount: stepSnapshot.findings.length,
+        surfaceType:
+          journeyRef.current.findLast(({ scopeId }) => scopeId === nextCheckpoint.scopeId)
+            ?.surfaceType ?? "other",
+        state: "settled render",
+        captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
+        reason: "Extend the active route beyond the first viewport",
+        motion: "not_seen",
       };
       journeyRef.current = [...journeyRef.current, entry].slice(-12);
       setJourney(journeyRef.current);
@@ -910,7 +1012,7 @@ export function Workbench({
     if (additions.length === 0) return [];
     const nextBaseline = {
       ...baseline,
-      findings: [...baseline.findings, ...additions].toSorted(compareFindingsBySeverity),
+      findings: [...baseline.findings, ...additions].toSorted(compareFindingsForReview),
     };
     baselineRef.current = { ...baselineRef.current, [activeViewport]: nextBaseline };
     setBaselineSnapshots(baselineRef.current);
@@ -1035,12 +1137,123 @@ export function Workbench({
     [appendFindings, appendGap, pushActivity, readSampleAgentFindings],
   );
 
+  const recordAuditBrief = useCallback(
+    async (input: AuditBriefInput, actor: Actor, toolName?: string): Promise<CommandResult> => {
+      if (demoStateRef.current !== "baseline") {
+        throw new Error("Record the product brief on baseline evidence, not a reversible preview.");
+      }
+      const baseline = baselineRef.current[viewportRef.current];
+      if (!baseline)
+        throw new Error("Run an audit before recording the provisional product brief.");
+      const allowedEvidence = inspectedEvidenceRefs(
+        baseline,
+        checkpointRef.current,
+        journeyRef.current,
+      );
+      if (input.evidenceRefs.some((ref) => !allowedEvidence.has(ref))) {
+        throw new Error("The audit brief must cite evidence already present on the visible board.");
+      }
+      const hadBrief = Boolean(auditBriefRef.current);
+      const brief = createAuditBrief(input, currentAuditGoal, nowIso());
+      auditBriefRef.current = brief;
+      setAuditBrief(brief);
+      pushActivity(
+        actor,
+        hadBrief ? "Updated audit brief" : "Recorded audit brief",
+        `${brief.productCategory} · ${brief.productJob} · ${brief.confidence} confidence`,
+        toolName,
+      );
+      return {
+        ok: true,
+        receipt: `Recorded a provisional ${brief.confidence}-confidence audit brief for “${brief.productJob}”.`,
+        audit_brief: {
+          status: brief.status,
+          product_category: brief.productCategory,
+          audience: brief.audience,
+          product_job: brief.productJob,
+          primary_action: brief.primaryAction,
+          confidence: brief.confidence,
+          unresolved_question_count: brief.unresolvedQuestions.length,
+        },
+        checkpoint_id: checkpointRef.current?.id ?? null,
+        scope_id: baseline.scopeKey ?? checkpointRef.current?.scopeId ?? null,
+      };
+    },
+    [currentAuditGoal, pushActivity],
+  );
+
+  const recordReviewResult = useCallback(
+    async (input: ReviewResultInput, actor: Actor, toolName?: string): Promise<CommandResult> => {
+      if (demoStateRef.current !== "baseline") {
+        throw new Error("Record review results on baseline evidence, not a reversible preview.");
+      }
+      const baseline = baselineRef.current[viewportRef.current];
+      if (!baseline) throw new Error("Run an audit before recording a review result.");
+      if (!auditBriefRef.current) {
+        throw new Error("Record the provisional audit brief before recording review results.");
+      }
+      validateReviewResultScope(
+        input,
+        inspectedScopeIds(baseline, checkpointRef.current, journeyRef.current),
+        inspectedEvidenceRefsForScope(
+          baseline,
+          checkpointRef.current,
+          journeyRef.current,
+          input.scopeId,
+        ),
+      );
+      const conflictsWithFinding = baseline.findings.some(
+        (finding) =>
+          input.kind === "no_material_issue" &&
+          finding.truth === "judged" &&
+          finding.category === input.category &&
+          (finding.scopeKey ?? input.scopeId) === input.scopeId,
+      );
+      if (conflictsWithFinding) {
+        throw new Error(
+          "No material issue cannot be recorded beside an open judgment in that category and scope.",
+        );
+      }
+      const result = createReviewResult(input, reviewResultSequence.current++, nowIso());
+      const retained =
+        input.kind === "no_material_issue"
+          ? reviewResultsRef.current.filter(
+              (current) =>
+                current.kind !== input.kind ||
+                current.category !== input.category ||
+                current.scopeId !== input.scopeId,
+            )
+          : reviewResultsRef.current;
+      reviewResultsRef.current = [...retained, result].slice(-MAX_REVIEW_RESULTS);
+      setReviewResults(reviewResultsRef.current);
+      pushActivity(
+        actor,
+        result.kind === "strength" ? "Recorded product strength" : "Recorded no-issue result",
+        `${result.category} · ${result.scopeId} · ${result.confidence} confidence`,
+        toolName,
+      );
+      return {
+        ok: true,
+        receipt:
+          result.kind === "strength"
+            ? `Added a ${result.category.toUpperCase()} strength worth preserving.`
+            : `Recorded no material ${result.category.toUpperCase()} issue in this inspected scope.`,
+        review_result: result,
+        checkpoint_id: checkpointRef.current?.id ?? null,
+        scope_id: result.scopeId,
+      };
+    },
+    [pushActivity],
+  );
+
   const recordVisualFinding = useCallback(
     async (input: JudgedFindingInput, actor: Actor, toolName?: string): Promise<CommandResult> => {
       if (demoStateRef.current !== "baseline")
         throw new Error(
           "Record judgments on a baseline checkpoint, then preview and verify separately.",
         );
+      const brief = auditBriefRef.current;
+      if (!brief) throw new Error("Record the provisional audit brief before adding judgments.");
       const baseline = baselineRef.current[viewportRef.current];
       if (
         (baseline?.findings.filter((finding) => finding.rule === "visual-judgment").length ?? 0) >=
@@ -1050,7 +1263,26 @@ export function Workbench({
           `This scope already retains ${MAX_MANUAL_JUDGMENTS} visual judgments. Start a new audit before adding more.`,
         );
       }
-      const normalized = normalizeJudgedFindingInput(input);
+      const activeScope =
+        checkpointRef.current?.scopeId ??
+        baseline?.scopeKey ??
+        `included:/demo:${viewportRef.current}`;
+      const categoryCount =
+        baseline?.findings.filter(
+          (finding) =>
+            finding.truth === "judged" &&
+            finding.category === input.category &&
+            (finding.scopeKey ?? activeScope) === activeScope,
+        ).length ?? 0;
+      if (categoryCount >= 3) {
+        throw new Error(
+          "Keep the audit readable: retain at most three judgments per inspected category.",
+        );
+      }
+      const normalized = normalizeJudgedFindingInput({
+        ...input,
+        productJob: input.productJob ?? brief.productJob,
+      });
       const sequence = judgmentSequence.current++;
       let finding: Finding;
       if (modeRef.current === "remote") {
@@ -1065,6 +1297,7 @@ export function Workbench({
           rule: "visual-judgment",
           truth: "judged",
           severity: normalized.severity,
+          confidence: normalized.confidence,
           category: normalized.category,
           productJob: normalized.productJob,
           title: normalized.title,
@@ -1074,18 +1307,26 @@ export function Workbench({
           viewport: viewportRef.current,
           rect: null,
           measurement: null,
+          scopeKey: activeScope,
           evidence: { kind: "dom", ref: "included-live-target" },
         };
       }
       appendFindings([finding]);
+      const compatibleReviewResults = withoutConflictingNoIssue(reviewResultsRef.current, finding);
+      const invalidatedReviewResultCount =
+        reviewResultsRef.current.length - compatibleReviewResults.length;
+      reviewResultsRef.current = compatibleReviewResults;
+      setReviewResults(compatibleReviewResults);
       pushActivity(actor, "Recorded visual judgment", `${finding.id} · ${finding.title}`, toolName);
       return {
         ok: true,
         receipt: `Added ${finding.id} as a judged finding linked to the current evidence.`,
+        invalidated_no_issue_count: invalidatedReviewResultCount,
         finding: {
           id: finding.id,
           truth: finding.truth,
           severity: finding.severity,
+          confidence: finding.confidence,
           category: finding.category,
           product_job: finding.productJob ?? null,
           checkpoint_id: finding.checkpointId ?? null,
@@ -1202,6 +1443,17 @@ export function Workbench({
           ...journeyRef.current.map((step) => step.displayUrl),
         ]),
         findingOffset,
+        auditBrief: auditBriefRef.current,
+        reviewResults: reviewResultsRef.current,
+        coverage: deriveCoverageSummary({
+          mode: modeRef.current,
+          baseline,
+          current,
+          trail: journeyRef.current,
+          hasVerification: baseline.findings.some(
+            ({ id }) => verificationRef.current[id] !== undefined,
+          ),
+        }),
       });
     },
     [currentAuditGoal, pushActivity],
@@ -1506,10 +1758,32 @@ export function Workbench({
         fullPageRef.current = nextCheckpoint.capture.fullPage;
         waitForSelectorRef.current = waitSelector;
         checkpointRef.current = nextCheckpoint;
+        checkpointRecordsRef.current.set(nextCheckpoint.id, {
+          checkpoint: nextCheckpoint,
+          captureUrl: remoteUrlRef.current,
+        });
         setCheckpoint(nextCheckpoint);
         setWaitForSelectorDraft(waitSelector ?? "");
         snapshot = snapshotFromCheckpoint(nextCheckpoint);
         commitSnapshot(snapshot, { replaceBaseline: false });
+        const priorSurface = journeyRef.current.findLast(
+          ({ scopeId }) => scopeId === nextCheckpoint.scopeId,
+        );
+        const verificationEntry: JourneyEntry = {
+          checkpointId: nextCheckpoint.id,
+          scopeId: nextCheckpoint.scopeId,
+          label: "Verification recapture",
+          displayUrl: nextCheckpoint.target.displayUrl,
+          capturedAt: nextCheckpoint.capturedAt,
+          findingCount: snapshot.findings.length,
+          surfaceType: priorSurface?.surfaceType ?? "other",
+          state: "verification",
+          captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
+          reason: "Fresh comparable recapture after the visible preview decision",
+          motion: "not_seen",
+        };
+        journeyRef.current = [...journeyRef.current, verificationEntry].slice(-12);
+        setJourney(journeyRef.current);
         browserMs = browserMsReceipt(nextCheckpoint);
       } else {
         snapshot = await measureFrame(false);
@@ -1520,7 +1794,7 @@ export function Workbench({
           snapshot = {
             ...snapshot,
             findings: [...snapshot.findings, ...agentSurface.findings].toSorted(
-              compareFindingsBySeverity,
+              compareFindingsForReview,
             ),
           };
           commitSnapshot(snapshot, { replaceBaseline: false });
@@ -1576,6 +1850,8 @@ export function Workbench({
     auditCurrentScope,
     inspectAgentSurface,
     getBoardContext,
+    recordAuditBrief,
+    recordReviewResult,
     recordVisualFinding,
     recordCoverageGap,
     focusFinding,
@@ -1593,6 +1869,8 @@ export function Workbench({
       auditCurrentScope: (...args) => commandRef.current!.auditCurrentScope(...args),
       inspectAgentSurface: (...args) => commandRef.current!.inspectAgentSurface(...args),
       getBoardContext: (...args) => commandRef.current!.getBoardContext(...args),
+      recordAuditBrief: (...args) => commandRef.current!.recordAuditBrief(...args),
+      recordReviewResult: (...args) => commandRef.current!.recordReviewResult(...args),
       recordVisualFinding: (...args) => commandRef.current!.recordVisualFinding(...args),
       recordCoverageGap: (...args) => commandRef.current!.recordCoverageGap(...args),
       focusFinding: (...args) => commandRef.current!.focusFinding(...args),
@@ -1603,14 +1881,27 @@ export function Workbench({
     [],
   );
 
-  const runVisibleCommand = useCallback((command: Promise<unknown>) => {
-    void command.catch((cause) => {
-      if (cause instanceof Error && cause.name === "AbortError") return;
-      setError(
-        cause instanceof Error ? cause.message : "Sundae could not complete the browser action.",
-      );
-    });
+  const resolveVisibleCommand = useCallback(async (command: Promise<unknown>) => {
+    try {
+      setError(null);
+      await command;
+      return true;
+    } catch (cause) {
+      if (!(cause instanceof Error && cause.name === "AbortError")) {
+        setError(
+          cause instanceof Error ? cause.message : "Sundae could not complete the browser action.",
+        );
+      }
+      return false;
+    }
   }, []);
+
+  const runVisibleCommand = useCallback(
+    (command: Promise<unknown>) => {
+      void resolveVisibleCommand(command);
+    },
+    [resolveVisibleCommand],
+  );
 
   const scheduleAudit = useCallback(
     (delay = 32) => {
@@ -1798,6 +2089,13 @@ export function Workbench({
   const judgedCount = visibleFindings.filter((finding) => finding.truth === "judged").length;
   const evidenceBoard = describeEvidenceBoard(baseline, current, demoState, viewport);
   const activeGaps = baseline?.gaps ?? [];
+  const coverage = deriveCoverageSummary({
+    mode,
+    baseline,
+    current,
+    trail: journey,
+    hasVerification: Boolean(baseline?.findings.some(({ id }) => verification[id] !== undefined)),
+  });
   const uncapturedNav = uncapturedVisibleNav(visibleNavRef.current, [
     remoteUrlRef.current,
     ...journey.map((step) => step.displayUrl),
@@ -1821,6 +2119,9 @@ export function Workbench({
       selected={selected}
       measuredCount={measuredCount}
       judgedCount={judgedCount}
+      auditBrief={auditBrief}
+      reviewResults={reviewResults}
+      coverage={coverage}
       evidenceBoard={evidenceBoard}
       activeGaps={activeGaps}
       activity={activity}
@@ -1860,6 +2161,8 @@ export function Workbench({
       onChangeDecisionReason={setDecisionReason}
       onChangeJudgmentDraft={setJudgmentDraft}
       onSubmitManualJudgment={submitManualJudgment}
+      onRecordAuditBrief={(input) => runVisibleCommand(recordAuditBrief(input, "human"))}
+      onRecordReviewResult={(input) => resolveVisibleCommand(recordReviewResult(input, "human"))}
       onChangeGapDraft={setGapDraft}
       onSubmitCoverageGap={submitCoverageGap}
       onChangeCssDraft={setCssDraft}

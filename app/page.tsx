@@ -177,7 +177,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className={styles.availabilityIntro}>
               <h2 id="availability-title">The contest path runs without provider keys.</h2>
               <p>
-                The included /demo is a complete nine-tool audit workspace. A public URL adds four
+                The included /demo is a complete eleven-tool audit workspace. A public URL adds four
                 bounded capture tools when the configured browser provider can render it.
               </p>
             </div>
@@ -190,8 +190,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <h3>One visible board for agent and person</h3>
                 </div>
                 <ul>
-                  <li>Nine page-hosted tools for the included /demo</li>
-                  <li>Thirteen tools for an approved public capture workspace</li>
+                  <li>Eleven page-hosted tools for the included /demo</li>
+                  <li>Fifteen tools for an approved public capture workspace</li>
                   <li>The same command path for ChatGPT actions and human controls</li>
                   <li>Measured, judged, and not-seen evidence kept distinct</li>
                   <li>Reversible preview followed by fresh recapture verification</li>

@@ -13,6 +13,8 @@ const registeredTools = new Set([
   "audit_current_scope",
   "inspect_agent_surface",
   "get_board_context",
+  "record_audit_brief",
+  "record_review_result",
   "record_visual_finding",
   "record_coverage_gap",
   "focus_finding",
@@ -41,14 +43,14 @@ test("the WebMCP eval manifest only expects registered tools", () => {
   }
 });
 
-test("design-review evals require categorized visible judgment after measurement and board context", () => {
+test("design-review evals orient the product and preserve strengths before supported faults", () => {
   const designReview = evals.find((entry) =>
     /review this product/i.test(entry.messages[0]!.content),
   );
   assert.ok(designReview);
   assert.deepEqual(
-    designReview.expectedCall.slice(0, 2).map(({ functionName }) => functionName),
-    ["audit_current_scope", "get_board_context"],
+    designReview.expectedCall.slice(0, 4).map(({ functionName }) => functionName),
+    ["audit_current_scope", "get_board_context", "record_audit_brief", "record_review_result"],
   );
   const judgedCalls = designReview.expectedCall.filter(
     ({ functionName }) => functionName === "record_visual_finding",
@@ -57,7 +59,7 @@ test("design-review evals require categorized visible judgment after measurement
     judgedCalls
       .map(({ arguments: input }) => ("category" in input ? input.category : undefined))
       .toSorted(),
-    ["interaction", "ui", "ux"],
+    ["interaction", "ux"],
   );
   assert.ok(
     judgedCalls.every(
@@ -65,6 +67,12 @@ test("design-review evals require categorized visible judgment after measurement
         "product_job" in input &&
         typeof input.product_job === "string" &&
         input.product_job.length <= 80,
+    ),
+  );
+  assert.ok(
+    judgedCalls.every(
+      ({ arguments: input }) =>
+        "confidence" in input && ["high", "medium", "low"].includes(String(input.confidence)),
     ),
   );
 
@@ -75,6 +83,10 @@ test("design-review evals require categorized visible judgment after measurement
         "category" in call.arguments &&
           typeof call.arguments.category === "string" &&
           ["ui", "ux", "interaction"].includes(call.arguments.category),
+      );
+      assert.ok(
+        "confidence" in call.arguments &&
+          ["high", "medium", "low"].includes(String(call.arguments.confidence)),
       );
     }
   }
@@ -124,6 +136,14 @@ test("representative eval calls execute through the registered tool surface", as
       calls.push(`board:${actor}`);
       return { ok: true, receipt: "board" };
     },
+    recordAuditBrief: async (_input, actor) => {
+      calls.push(`brief:${actor}`);
+      return commandResult("brief");
+    },
+    recordReviewResult: async (_input, actor) => {
+      calls.push(`result:${actor}`);
+      return commandResult("result");
+    },
     recordVisualFinding: async (_input, actor) => {
       calls.push(`finding:${actor}`);
       return commandResult("finding");
@@ -170,6 +190,30 @@ test("representative eval calls execute through the registered tool surface", as
       { name: "audit_current_scope", input: {} },
       { name: "get_board_context", input: {} },
       {
+        name: "record_audit_brief",
+        input: {
+          product_category: "Operations dashboard",
+          audience: "Product operations lead",
+          product_job: "Find workflows needing attention",
+          visible_proposition: "See exceptions in one place",
+          primary_action: "Review workflows",
+          confidence: "medium",
+          evidence_refs: ["checkpoint-1"],
+        },
+      },
+      {
+        name: "record_review_result",
+        input: {
+          kind: "strength",
+          category: "ui",
+          observation: "Exception counts are easy to scan.",
+          why_it_supports_job: "Urgent work is visible.",
+          confidence: "high",
+          scope_id: "scope-1",
+          evidence_ref: "checkpoint-1",
+        },
+      },
+      {
         name: "record_visual_finding",
         input: {
           title: "The action is visually buried",
@@ -177,6 +221,7 @@ test("representative eval calls execute through the registered tool surface", as
           why_it_matters: "A visitor may not know where to begin.",
           recommendation: "Give the primary action a distinct treatment.",
           severity: "high",
+          confidence: "medium",
           category: "ui",
           product_job: "Help a new visitor start the product",
         },
@@ -212,6 +257,8 @@ test("representative eval calls execute through the registered tool surface", as
       "below-fold:agent",
       "audit",
       "board:agent",
+      "brief:agent",
+      "result:agent",
       "finding:agent",
       "gap:agent",
       "decision:agent",

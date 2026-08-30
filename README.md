@@ -21,7 +21,7 @@ Without WebMCP, this workflow collapses into a screenshot conversation, a hidden
 ## Judge path
 
 1. Open `https://usesundae.vercel.app/demo` in ChatGPT Desktop's built-in browser.
-2. Confirm **9 page tools ready** in the Sundae top bar.
+2. Confirm **11 page tools ready** in the Sundae top bar.
 3. Ask ChatGPT to call `audit_current_scope`, then `get_board_context`.
 4. Have it inspect the controlled target's agent surface and focus the strongest supported finding.
 5. ChatGPT asks before changing the decision or starting a preview.
@@ -45,13 +45,15 @@ ChatGPT performs the design critique through Site Tools using visible screenshot
 
 ## Page-hosted tool surface
 
-The included `/demo` registers nine Sundae workbench tools:
+The included `/demo` registers eleven Sundae workbench tools:
 
 | Tool                    | Purpose                                               |
 | ----------------------- | ----------------------------------------------------- |
 | `audit_current_scope`   | Measure the live included target                      |
 | `inspect_agent_surface` | Inspect the controlled target's WebMCP contracts      |
 | `get_board_context`     | Read bounded evidence, decisions, gaps, and next work |
+| `record_audit_brief`    | Orient the product before judging the interface       |
+| `record_review_result`  | Preserve a strength or an inspected no-issue result   |
 | `record_visual_finding` | Add a supported UI, UX, or Interaction judgment       |
 | `record_coverage_gap`   | Record an important surface that was not observed     |
 | `focus_finding`         | Select evidence on the visible board                  |
@@ -59,7 +61,7 @@ The included `/demo` registers nine Sundae workbench tools:
 | `preview_fix`           | Render a reversible local preview                     |
 | `verify_recapture`      | Re-measure the same scope before calling a fact fixed |
 
-A public workspace adds four bounded capture commands, for 13 tools total:
+A public workspace adds four bounded capture commands, for 15 tools total:
 
 | Tool                   | Boundary                                                          |
 | ---------------------- | ----------------------------------------------------------------- |

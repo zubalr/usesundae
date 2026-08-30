@@ -191,7 +191,7 @@
     "messages": [
       {
         "role": "user",
-        "content": "The captured screenshot shows the primary action using the same visual weight as tertiary links. Record that as a high-severity judgment, not a measurement."
+        "content": "The provisional product brief is already on the Sundae board. The captured screenshot shows the primary action using the same visual weight as tertiary links. Record that as a high-severity judgment, not a measurement."
       }
     ],
     "expectedCall": [
@@ -203,6 +203,7 @@
           "why_it_matters": "A first-time visitor may not know where to begin.",
           "recommendation": "Give the primary action a distinct treatment and clearer placement.",
           "severity": "high",
+          "confidence": "medium",
           "category": "ui",
           "product_job": "Help a first-time visitor choose the next step"
         }
@@ -221,15 +222,28 @@
       { "functionName": "audit_current_scope", "arguments": {} },
       { "functionName": "get_board_context", "arguments": {} },
       {
-        "functionName": "record_visual_finding",
+        "functionName": "record_audit_brief",
         "arguments": {
-          "title": "The generic promise outranks the workflow exceptions",
-          "observation": "The large operational-intelligence headline dominates the visible workflow table and its needs-review status.",
-          "why_it_matters": "A product-operations lead scanning for workflow issues must look past broad positioning before reaching the decision surface.",
-          "recommendation": "Lead with the workflows needing attention and demote the generic promise to supporting copy.",
-          "severity": "medium",
+          "product_category": "Product operations dashboard",
+          "audience": "Product operations lead",
+          "product_job": "Find workflows needing attention",
+          "visible_proposition": "See workflow status and exceptions in one dashboard",
+          "primary_action": "Initialize workspace",
+          "confidence": "medium",
+          "evidence_refs": ["included-live-target"],
+          "unresolved_questions": ["What happens after a workflow is opened?"]
+        }
+      },
+      {
+        "functionName": "record_review_result",
+        "arguments": {
+          "kind": "strength",
           "category": "ui",
-          "product_job": "Help product-operations leads find workflow issues"
+          "observation": "The visible workflow rows pair status labels with exception counts in a scannable structure.",
+          "why_it_supports_job": "A product-operations lead can locate workflows needing attention without reading every row.",
+          "confidence": "high",
+          "scope_id": "included:/demo:mobile",
+          "evidence_ref": "included-live-target"
         }
       },
       {
@@ -240,6 +254,7 @@
           "why_it_matters": "A product-operations lead cannot tell whether the next step is setup or reviewing the three workflows that need attention.",
           "recommendation": "Rename the action for the visible task, such as Review 3 workflows, and point it to the filtered workflow list.",
           "severity": "high",
+          "confidence": "high",
           "category": "ux",
           "product_job": "Help product-operations leads find workflow issues"
         }
@@ -252,6 +267,7 @@
           "why_it_matters": "The product-operations lead cannot predict what activating the most prominent control will do.",
           "recommendation": "Use a task-specific label and an icon or supporting cue that matches the resulting action.",
           "severity": "medium",
+          "confidence": "medium",
           "category": "interaction",
           "product_job": "Help product-operations leads find workflow issues"
         }

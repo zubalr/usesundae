@@ -77,6 +77,7 @@ test("remote checkpoints report missing document semantics as measured accessibi
     }),
   );
   const mainFinding = missingMain.find((finding) => finding.rule === "main-landmark");
+  assert.equal(mainFinding?.severity, "low");
   assert.equal(mainFinding?.measurement?.value, "0");
   assert.equal(mainFinding?.measurement?.threshold, "at least 1");
   assert.equal(mainFinding?.measurement?.unit, "main landmarks");
@@ -93,6 +94,7 @@ test("remote checkpoints report missing document semantics as measured accessibi
     }),
   );
   const documentFinding = unnamedDocument.find((finding) => finding.rule === "document-name");
+  assert.equal(documentFinding?.severity, "low");
   assert.equal(documentFinding?.measurement?.value, "empty");
   assert.equal(documentFinding?.measurement?.threshold, "non-empty");
   assert.equal(documentFinding?.measurement?.unit, "accessible document name");
@@ -128,6 +130,7 @@ test("visual judgments are bounded, attributed to a screenshot, and remain judgm
       whyItMatters: "A first-time visitor may not know where to begin.",
       recommendation: "Give the primary action a distinct treatment and clearer placement.",
       severity: "high",
+      confidence: "medium",
       category: "ui",
       productJob: "Help a new visitor start an activation workflow",
     },
@@ -137,6 +140,7 @@ test("visual judgments are bounded, attributed to a screenshot, and remain judgm
   assert.equal(finding.rule, "visual-judgment");
   assert.equal(finding.truth, "judged");
   assert.equal(finding.category, "ui");
+  assert.equal(finding.confidence, "medium");
   assert.equal(finding.productJob, "Help a new visitor start an activation workflow");
   assert.equal(finding.measurement, null);
   assert.equal(finding.checkpointId, "checkpoint_1");
@@ -153,6 +157,7 @@ test("visual evidence regions cannot extend beyond the captured screenshot", () 
       whyItMatters: "The boundary makes the control harder to distinguish.",
       recommendation: "Restore deliberate space around the action.",
       severity: "medium",
+      confidence: "high",
       category: "interaction",
       rect: { x: 1400, y: 880, width: 300, height: 100 },
     },

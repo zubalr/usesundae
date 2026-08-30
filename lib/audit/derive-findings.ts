@@ -108,27 +108,5 @@ export function deriveFindings(facts: BrowserFacts): Finding[] {
     );
   }
 
-  if (facts.copy) {
-    const opaqueAction = /\b(initialize|activate|explore)\b/i.test(facts.copy.primaryAction);
-    const opaquePromise = /\boperational intelligence\b/i.test(facts.copy.promise);
-    if (opaqueAction || opaquePromise) {
-      findings.push(
-        baseFinding(facts, {
-          auditId: "primary-promise",
-          rule: "content-clarity",
-          truth: "judged",
-          category: "ux",
-          severity: "low",
-          title: "The primary promise asks readers to decode product language",
-          observation: `The promise says “${facts.copy.promise}” and the action says “${facts.copy.primaryAction}”.`,
-          whyItMatters: "This wording may make the next step less obvious to a first-time visitor.",
-          recommendation: "Name the concrete outcome and use an action label that matches it.",
-          rect: facts.copy.rect,
-          measurement: null,
-        }),
-      );
-    }
-  }
-
   return findings;
 }

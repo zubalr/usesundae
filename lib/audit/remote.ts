@@ -1,6 +1,13 @@
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { boundedText } from "@/lib/text";
-import type { AuditSnapshot, DesignCategory, Finding, Region, Severity } from "./types";
+import type {
+  AuditSnapshot,
+  DesignCategory,
+  Finding,
+  JudgmentConfidence,
+  Region,
+  Severity,
+} from "./types";
 
 export type JudgedFindingInput = {
   title: string;
@@ -8,6 +15,7 @@ export type JudgedFindingInput = {
   whyItMatters: string;
   recommendation: string;
   severity: Severity;
+  confidence: JudgmentConfidence;
   category: DesignCategory;
   productJob?: string;
   rect?: Region | null;
@@ -125,7 +133,7 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
       auditId: "document",
       rule: "main-landmark",
       truth: "measured",
-      severity: "medium",
+      severity: "low",
       title: "The page exposes no main landmark",
       observation:
         "The captured accessibility summary contains zero elements with the main landmark role.",
@@ -145,7 +153,7 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
       auditId: "document",
       rule: "document-name",
       truth: "measured",
-      severity: "medium",
+      severity: "low",
       title: "The document exposes no accessible name",
       observation: "The captured accessibility-tree root does not expose a usable document name.",
       whyItMatters:
@@ -164,7 +172,7 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
       auditId: "document",
       rule: "heading-outline",
       truth: "measured",
-      severity: "medium",
+      severity: "low",
       title: "The page hierarchy is not exposed clearly",
       observation: outlineIssue,
       whyItMatters:
@@ -191,8 +199,17 @@ export function createJudgedFinding(
   input: JudgedFindingInput,
   sequence: number,
 ): Finding {
-  const { title, observation, whyItMatters, recommendation, severity, category, productJob, rect } =
-    normalizeJudgedFindingInput(input);
+  const {
+    title,
+    observation,
+    whyItMatters,
+    recommendation,
+    severity,
+    confidence,
+    category,
+    productJob,
+    rect,
+  } = normalizeJudgedFindingInput(input);
 
   return {
     id: `${checkpoint.viewport}:visual-judgment:${targetKey(checkpoint)}-${slug(title)}-${sequence}`,
@@ -200,6 +217,7 @@ export function createJudgedFinding(
     rule: "visual-judgment",
     truth: "judged",
     severity,
+    confidence,
     category,
     productJob,
     title,
@@ -222,6 +240,7 @@ export function normalizeJudgedFindingInput(input: JudgedFindingInput): JudgedFi
     whyItMatters: boundedText(input.whyItMatters, 300),
     recommendation: boundedText(input.recommendation, 300),
     severity: input.severity,
+    confidence: input.confidence,
     category: input.category,
     productJob: input.productJob ? boundedText(input.productJob, 80) || undefined : undefined,
     rect: normalizeRegion(input.rect),

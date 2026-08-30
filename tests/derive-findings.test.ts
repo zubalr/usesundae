@@ -47,11 +47,9 @@ test("browser facts become bounded, evidence-linked findings", () => {
 
   assert.deepEqual(
     findings.map((finding) => finding.rule),
-    ["horizontal-overflow", "accessible-name", "tap-target", "contrast", "content-clarity"],
+    ["horizontal-overflow", "accessible-name", "tap-target", "contrast"],
   );
-  assert.equal(findings[0]?.truth, "measured");
-  assert.equal(findings.at(-1)?.truth, "judged");
-  assert.equal(findings.at(-1)?.category, "ux");
+  assert.ok(findings.every((finding) => finding.truth === "measured"));
   assert.match(findings[0]?.observation ?? "", /300 CSS px/);
   assert.ok(findings.every((finding) => finding.rect));
 });

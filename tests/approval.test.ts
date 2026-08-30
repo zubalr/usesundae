@@ -19,3 +19,8 @@ test("agents can capture only an exact URL approved by a human", () => {
     "https://example.com/another-page",
   );
 });
+
+test("approval normalizes bare public hostnames and rejects local targets", () => {
+  assert.equal(canonicalizeApprovedUrl("linear.app"), "https://linear.app/");
+  assert.throws(() => canonicalizeApprovedUrl("localhost:3000"), /public|http/i);
+});

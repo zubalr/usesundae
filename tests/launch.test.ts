@@ -23,6 +23,11 @@ test("keeps the exact target for capture while removing private state from displ
   assert.equal(launch.goal, "Review signup clarity");
 });
 
+test("normalizes bare public hostnames to https", () => {
+  assert.equal(createAuditLaunch("linear.app").targetUrl, "https://linear.app/");
+  assert.equal(createAuditLaunch("www.linear.app/path").targetUrl, "https://www.linear.app/path");
+});
+
 test("builds an exact recoverable workspace and truthful ChatGPT request", () => {
   const launch = createAuditLaunch("https://example.com/launch?source=test", "Improve activation");
   const workspaceUrl = buildWorkspaceUrl("https://sundae.example", launch);
@@ -55,8 +60,13 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /never crawl/i);
   assert.match(prompt, /measured.*judged.*not seen/is);
   assert.match(prompt, /visible product job/i);
+  assert.match(prompt, /record_audit_brief/i);
+  assert.match(prompt, /record_review_result/i);
   assert.match(prompt, /UI.*UX.*Interaction/is);
-  assert.match(prompt, /0–3 judged findings per bucket/i);
+  assert.match(prompt, /maximum of three per inspected category/i);
+  assert.match(prompt, /fewer or none/i);
+  assert.match(prompt, /severity.*confidence|confidence.*severity/is);
+  assert.doesNotMatch(prompt, /0–3 judged findings per bucket/i);
   assert.match(prompt, /coverage gap/i);
   assert.match(prompt, /do not restate a measured finding/i);
   assert.match(prompt, /preview_fix/);

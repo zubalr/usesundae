@@ -25,6 +25,12 @@ test("keeps the exact private target URL while redacting query and fragment from
   );
 });
 
+test("normalizes a bare public hostname to https", () => {
+  const target = normalizePublicTarget("www.linear.app/path");
+  assert.equal(target.captureUrl, "https://www.linear.app/path");
+  assert.equal(target.displayUrl, "https://www.linear.app/path");
+});
+
 test("rejects credentials, local networks, non-web schemes, and oversized URLs", () => {
   const rejected = [
     "file:///etc/passwd",

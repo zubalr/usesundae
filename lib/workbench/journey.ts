@@ -1,9 +1,11 @@
 import type { AuditSnapshot } from "@/lib/audit/types";
+import { withDefaultScheme } from "@/lib/url";
 
 export function assertSameJourneyOrigin(activeOrigin: string, requestedUrl: string) {
   let parsed: URL;
   try {
-    parsed = new URL(requestedUrl);
+    const active = new URL(activeOrigin);
+    parsed = new URL(withDefaultScheme(requestedUrl, active.protocol as "http:" | "https:"));
   } catch {
     throw new Error("Enter a valid public http or https URL for this journey step.");
   }

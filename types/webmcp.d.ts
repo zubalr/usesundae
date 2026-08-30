@@ -39,7 +39,7 @@ declare global {
     window?: Window;
   };
 
-  type ModelContext = EventTarget & {
+  type ModelContext = {
     registerTool: (
       tool: WebMcpTool,
       options?: { exposedTo?: string[]; signal?: AbortSignal },
@@ -52,6 +52,9 @@ declare global {
       input?: string,
       options?: { signal?: AbortSignal },
     ) => Promise<string>;
+    addEventListener?: EventTarget["addEventListener"];
+    removeEventListener?: EventTarget["removeEventListener"];
+    dispatchEvent?: EventTarget["dispatchEvent"];
     ontoolchange?: ((event: Event) => void) | null;
   };
 

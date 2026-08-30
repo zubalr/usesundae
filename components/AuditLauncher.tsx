@@ -11,7 +11,6 @@ import {
   MAX_AUDIT_GOAL_LENGTH,
   MAX_PUBLIC_URL_LENGTH,
 } from "@/lib/launch";
-import { countRegisteredWorkbenchTools } from "@/lib/webmcp/register";
 import styles from "./AuditLauncher.module.css";
 
 type HandoffReceipt = {
@@ -20,7 +19,7 @@ type HandoffReceipt = {
   copied: boolean;
 };
 
-type ToolReadiness = { state: "checking" } | { state: "human" } | { state: "ready"; count: number };
+type ToolReadiness = { state: "checking" } | { state: "human" } | { state: "available" };
 
 function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : "Sundae could not prepare this audit.";
@@ -43,25 +42,9 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
   const handoffRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const modelContext = document.modelContext;
-    if (!modelContext) {
-      setToolReadiness({ state: "human" });
-      return;
-    }
-
-    let active = true;
-    const refresh = () => {
-      void Promise.resolve(modelContext.getTools?.() ?? []).then((tools) => {
-        if (active)
-          setToolReadiness({ state: "ready", count: countRegisteredWorkbenchTools(tools) });
-      });
-    };
-    modelContext.addEventListener("toolchange", refresh);
-    refresh();
-    return () => {
-      active = false;
-      modelContext.removeEventListener("toolchange", refresh);
-    };
+    setToolReadiness(
+      document.modelContext?.registerTool ? { state: "available" } : { state: "human" },
+    );
   }, []);
 
   function prepareLaunch(useDemo: boolean) {
@@ -167,8 +150,8 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       </div>
 
       <p className={styles.controlNote}>
-        {toolReadiness.state === "ready"
-          ? `${toolReadiness.count} page tools registered and ready in this browser.`
+        {toolReadiness.state === "available"
+          ? "Site Tools supported here. The workspace registers its tools below."
           : toolReadiness.state === "human"
             ? "Human controls ready. For Site Tools, open the exact workspace in ChatGPT Desktop’s built-in browser."
             : "Checking this browser for Site Tools…"}

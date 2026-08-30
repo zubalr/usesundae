@@ -1,4 +1,4 @@
-import type { Finding, Verification } from "@/lib/audit/types";
+import type { AuditBriefInput, Finding, ReviewResultInput, Verification } from "@/lib/audit/types";
 import type { JudgedFindingInput } from "@/lib/audit/remote";
 import type { Viewport } from "@/lib/audit/types";
 import type { Decision } from "./decisions";
@@ -71,6 +71,16 @@ export type WorkbenchCommands = {
   ) => Promise<CommandResult>;
   inspectAgentSurface: (actor: Actor, toolName?: string) => Promise<CommandResult>;
   getBoardContext: (actor: Actor, findingOffset?: number, toolName?: string) => CommandResult;
+  recordAuditBrief: (
+    input: AuditBriefInput,
+    actor: Actor,
+    toolName?: string,
+  ) => Promise<CommandResult>;
+  recordReviewResult: (
+    input: ReviewResultInput,
+    actor: Actor,
+    toolName?: string,
+  ) => Promise<CommandResult>;
   recordVisualFinding: (
     input: JudgedFindingInput,
     actor: Actor,

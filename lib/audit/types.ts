@@ -3,6 +3,7 @@ export type DemoState = "baseline" | "improved";
 export type TruthKind = "measured" | "judged";
 export type DesignCategory = "ui" | "ux" | "interaction";
 export type Severity = "high" | "medium" | "low";
+export type JudgmentConfidence = "high" | "medium" | "low";
 export type Verification = "not_run" | "fixed" | "still_open" | "unverified";
 export type IdentityConfidence = "stable" | "unstable";
 
@@ -56,7 +57,40 @@ export type Finding = {
   evidence?: EvidenceReference;
   category?: DesignCategory;
   productJob?: string;
+  confidence?: JudgmentConfidence;
 };
+
+export type AuditBrief = {
+  status: "provisional";
+  productCategory: string;
+  audience: string;
+  productJob: string;
+  visibleProposition: string;
+  primaryAction: string;
+  auditGoal: string;
+  confidence: JudgmentConfidence;
+  evidenceRefs: string[];
+  unresolvedQuestions: string[];
+  updatedAt: string;
+};
+
+export type AuditBriefInput = Omit<AuditBrief, "status" | "auditGoal" | "updatedAt">;
+
+export type ReviewResultKind = "strength" | "no_material_issue";
+
+export type ReviewResult = {
+  id: string;
+  kind: ReviewResultKind;
+  category: DesignCategory;
+  observation: string;
+  whyItSupportsJob: string;
+  confidence: JudgmentConfidence;
+  scopeId: string;
+  evidenceRef: string;
+  recordedAt: string;
+};
+
+export type ReviewResultInput = Omit<ReviewResult, "id" | "recordedAt">;
 
 export type CoverageGap = {
   id: string;

@@ -57,6 +57,17 @@ test("journey steps preserve hash-routed application state", () => {
   );
 });
 
+test("journey authorization normalizes a bare same-origin hostname", () => {
+  assert.equal(
+    assertSameJourneyOrigin("https://example.com", "example.com/checkout"),
+    "https://example.com/checkout",
+  );
+  assert.equal(
+    assertSameJourneyOrigin("http://example.com", "example.com/checkout"),
+    "http://example.com/checkout",
+  );
+});
+
 test("journey snapshots retain route-scoped findings and deduplicate gaps", () => {
   const pricing = snapshot(
     "https://example.com/pricing",

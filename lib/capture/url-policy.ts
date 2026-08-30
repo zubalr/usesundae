@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 
+import { withDefaultHttps } from "@/lib/url";
+
 const MAX_URL_LENGTH = 2048;
 const MAX_PREVIEW_CSS_LENGTH = 4000;
 const MAX_WAIT_SELECTOR_LENGTH = 160;
@@ -128,7 +130,7 @@ function assertPublicHostname(hostname: string) {
 }
 
 export function normalizePublicTarget(input: string) {
-  const candidate = input.trim();
+  const candidate = withDefaultHttps(input);
   if (!candidate || candidate.length > MAX_URL_LENGTH) {
     throw new TargetPolicyError("Enter a public URL no longer than 2,048 characters.");
   }
@@ -137,7 +139,7 @@ export function normalizePublicTarget(input: string) {
   try {
     target = new URL(candidate);
   } catch {
-    throw new TargetPolicyError("Enter a complete public URL, including https://.");
+    throw new TargetPolicyError("Enter a public website URL or hostname.");
   }
 
   if (target.protocol !== "https:" && target.protocol !== "http:") {

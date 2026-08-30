@@ -76,8 +76,8 @@ function assertSchemaContracts() {
   }
 
   const captureUrl = stringSchema(WEBMCP_INPUT_SCHEMAS.capturePublicPage, "url");
-  assert.equal(captureUrl?.format, "uri");
-  assert.equal(captureUrl?.pattern, "^https?:\\/\\/");
+  assert.equal(captureUrl?.format, undefined);
+  assert.equal(captureUrl?.pattern, undefined);
   assert.equal(captureUrl?.minLength, 1);
   assert.equal(captureUrl?.maxLength, 2048);
   assert.deepEqual(WEBMCP_INPUT_SCHEMAS.capturePublicPage.required, ["url"]);
@@ -127,6 +127,10 @@ function assertSchemaContracts() {
     (WEBMCP_INPUT_SCHEMAS.judgedFinding.properties?.category as Record<string, unknown>)?.enum,
     ["ui", "ux", "interaction"],
   );
+  assert.deepEqual(
+    (WEBMCP_INPUT_SCHEMAS.judgedFinding.properties?.confidence as Record<string, unknown>)?.enum,
+    ["high", "medium", "low"],
+  );
   assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.judgedFinding, "product_job")?.maxLength, 80);
   assert.deepEqual(WEBMCP_INPUT_SCHEMAS.judgedFinding.required, [
     "title",
@@ -134,7 +138,35 @@ function assertSchemaContracts() {
     "why_it_matters",
     "recommendation",
     "severity",
+    "confidence",
     "category",
+  ]);
+  assert.deepEqual(WEBMCP_INPUT_SCHEMAS.auditBrief.required, [
+    "product_category",
+    "audience",
+    "product_job",
+    "visible_proposition",
+    "primary_action",
+    "confidence",
+    "evidence_refs",
+  ]);
+  assert.equal(
+    (WEBMCP_INPUT_SCHEMAS.auditBrief.properties?.evidence_refs as Record<string, unknown>)
+      ?.maxItems,
+    6,
+  );
+  assert.deepEqual(
+    (WEBMCP_INPUT_SCHEMAS.reviewResult.properties?.kind as Record<string, unknown>)?.enum,
+    ["strength", "no_material_issue"],
+  );
+  assert.deepEqual(WEBMCP_INPUT_SCHEMAS.reviewResult.required, [
+    "kind",
+    "category",
+    "observation",
+    "why_it_supports_job",
+    "confidence",
+    "scope_id",
+    "evidence_ref",
   ]);
   assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.gap, "label")?.maxLength, 100);
   assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.gap, "detail")?.maxLength, 300);
@@ -217,9 +249,25 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       boardRequests.push({ actor, offset });
       return { ok: true, receipt: "context", findings: [] };
     },
-    recordVisualFinding: async ({ title, severity, category, productJob }, actor, toolName) => {
+    recordAuditBrief: async ({ productJob, confidence }, actor, toolName) => {
       recordReceiptTool(toolName);
-      calls.push(`finding:${title}:${severity}:${category}:${productJob ?? "none"}:${actor}`);
+      calls.push(`brief:${productJob}:${confidence}:${actor}`);
+      return commandResult("brief");
+    },
+    recordReviewResult: async ({ kind, category, scopeId }, actor, toolName) => {
+      recordReceiptTool(toolName);
+      calls.push(`result:${kind}:${category}:${scopeId}:${actor}`);
+      return commandResult("result");
+    },
+    recordVisualFinding: async (
+      { title, severity, confidence, category, productJob },
+      actor,
+      toolName,
+    ) => {
+      recordReceiptTool(toolName);
+      calls.push(
+        `finding:${title}:${severity}:${confidence}:${category}:${productJob ?? "none"}:${actor}`,
+      );
       return commandResult("finding");
     },
     recordCoverageGap: async (label, detail, actor, toolName) => {
@@ -273,6 +321,8 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
         "audit_current_scope",
         "inspect_agent_surface",
         "get_board_context",
+        "record_audit_brief",
+        "record_review_result",
         "record_visual_finding",
         "record_coverage_gap",
         "focus_finding",
@@ -291,11 +341,14 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     const auditTool = registered.find(({ tool }) => tool.name === "audit_current_scope")?.tool;
     const previewTool = registered.find(({ tool }) => tool.name === "preview_fix")?.tool;
     const verifyTool = registered.find(({ tool }) => tool.name === "verify_recapture")?.tool;
+    const reviewTool = registered.find(({ tool }) => tool.name === "record_review_result")?.tool;
     assert.match(auditTool?.description ?? "", /first.*Site Tool|Site Tools.*first/i);
     assert.match(auditTool?.description ?? "", /\/demo/);
     assert.match(boardTool?.description ?? "", /after.*capture|after.*audit/i);
     assert.match(boardTool?.description ?? "", /next action/i);
     assert.match(boardTool?.description ?? "", /visible.*receipt/i);
+    assert.match(boardTool?.description ?? "", /scope_id.*evidence_ref/i);
+    assert.match(reviewTool?.description ?? "", /after record_audit_brief/i);
     assert.match(previewTool?.description ?? "", /board|decision/i);
     assert.match(verifyTool?.description ?? "", /after.*preview/i);
     assertToolContracts(registered);
@@ -327,6 +380,8 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     assert.equal(captureReceipt.status, "success");
     assert.equal(typeof captureReceipt.elapsed_ms, "number");
     assert.match(captureReceipt.next, /visible board/i);
+    await capture.execute({ url: "example.com/pricing" });
+    assert.equal(calls.at(-1), "capture:https://example.com/pricing:desktop:agent:none");
 
     const journeyStep = registered.find(({ tool }) => tool.name === "capture_journey_step")!.tool;
     await journeyStep.execute({
@@ -335,6 +390,11 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       wait_for_selector: "#checkout",
     });
     assert.equal(calls.at(-1), "step:https://example.com/checkout:Checkout entry:agent:#checkout");
+    await journeyStep.execute({
+      url: "example.com/checkout",
+      label: "HTTP checkout",
+    });
+    assert.equal(calls.at(-1), "step:example.com/checkout:HTTP checkout:agent:none");
 
     const visibleNav = registered.find(({ tool }) => tool.name === "capture_visible_nav")!.tool;
     const visibleNavResult = JSON.parse(
@@ -363,6 +423,31 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     const inspect = registered.find(({ tool }) => tool.name === "inspect_agent_surface")!.tool;
     await inspect.execute({});
 
+    const brief = registered.find(({ tool }) => tool.name === "record_audit_brief")!.tool;
+    await brief.execute({
+      product_category: "Operations dashboard",
+      audience: "Product operations lead",
+      product_job: "Find workflows needing attention",
+      visible_proposition: "See exceptions in one place",
+      primary_action: "Review workflows",
+      confidence: "medium",
+      evidence_refs: ["checkpoint-1"],
+      unresolved_questions: ["What happens after opening a workflow?"],
+    });
+    assert.equal(calls.at(-1), "brief:Find workflows needing attention:medium:agent");
+
+    const reviewResult = registered.find(({ tool }) => tool.name === "record_review_result")!.tool;
+    await reviewResult.execute({
+      kind: "strength",
+      category: "ui",
+      observation: "Exception counts are easy to scan.",
+      why_it_supports_job: "Urgent work is visible.",
+      confidence: "high",
+      scope_id: "scope-1",
+      evidence_ref: "checkpoint-1",
+    });
+    assert.equal(calls.at(-1), "result:strength:ui:scope-1:agent");
+
     auditCancellation = new AbortController();
     cancelAuditAfterHandler = true;
     const cancelledAudit = JSON.parse(
@@ -384,6 +469,7 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       why_it_matters: "A visitor may not know where to begin.",
       recommendation: "Give the primary action a distinct treatment.",
       severity: "high",
+      confidence: "medium",
     });
     assert.equal(JSON.parse(missingCategory.content[0]!.text).ok, false);
     await recordFinding.execute({
@@ -392,12 +478,13 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       why_it_matters: "A visitor may not know where to begin.",
       recommendation: "Give the primary action a distinct treatment.",
       severity: "high",
+      confidence: "medium",
       category: "ui",
       product_job: "Help a new visitor start the product",
     });
     assert.equal(
       calls.at(-1),
-      "finding:Primary action is visually buried:high:ui:Help a new visitor start the product:agent",
+      "finding:Primary action is visually buried:high:medium:ui:Help a new visitor start the product:agent",
     );
 
     const recordGap = registered.find(({ tool }) => tool.name === "record_coverage_gap")!.tool;
@@ -464,17 +551,18 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
   }
 });
 
-test("sample mode registers only tools that operate on the included target", async () => {
+test("sample mode registers eleven tools on a registration-only host", async () => {
   const tools: WebMcpTool[] = [];
+  const modelContext: ModelContext = {
+    registerTool(tool: WebMcpTool) {
+      tools.push(tool);
+    },
+  };
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
   Object.defineProperty(globalThis, "document", {
     configurable: true,
     value: {
-      modelContext: {
-        registerTool(tool: WebMcpTool) {
-          tools.push(tool);
-        },
-      },
+      modelContext,
     },
   });
 
@@ -489,6 +577,8 @@ test("sample mode registers only tools that operate on the included target", asy
         "audit_current_scope",
         "inspect_agent_surface",
         "get_board_context",
+        "record_audit_brief",
+        "record_review_result",
         "record_visual_finding",
         "record_coverage_gap",
         "focus_finding",

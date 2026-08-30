@@ -659,6 +659,210 @@
   background: var(--warning);
 }
 
+.auditBrief,
+.reviewResults {
+  padding: var(--space-m) var(--space-l);
+  border-bottom: thin solid var(--border);
+}
+
+.briefSummary {
+  display: grid;
+  gap: var(--space-s);
+}
+
+.briefSummary > p,
+.emptyCopy,
+.resultList p {
+  margin: var(--space-none);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.briefSummary dl,
+.coverageMatrix dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(var(--space-none), 1fr));
+  gap: var(--space-s);
+  margin: var(--space-none);
+}
+
+.briefSummary dl > div,
+.coverageMatrix dl > div {
+  min-width: var(--space-none);
+}
+
+.briefSummary dt,
+.coverageMatrix dt {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}
+
+.briefSummary dd,
+.coverageMatrix dd {
+  overflow: hidden;
+  margin: var(--space-2xs) var(--space-none) var(--space-none);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unresolvedBrief {
+  padding-left: var(--space-s);
+  border-left: var(--space-2xs) solid var(--warning);
+}
+
+.briefEditor,
+.reviewResultEditor {
+  margin-top: var(--space-s);
+  border: thin solid var(--border);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+
+.briefEditor summary,
+.reviewResultEditor summary {
+  cursor: pointer;
+  padding: var(--space-s);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.briefEditor form,
+.reviewResultEditor form {
+  display: grid;
+  gap: var(--space-s);
+  padding: var(--space-none) var(--space-s) var(--space-s);
+}
+
+.briefEditor form > p {
+  margin: var(--space-none);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.briefFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(var(--space-none), 1fr));
+  gap: var(--space-s);
+}
+
+.briefEditor label,
+.reviewResultEditor label {
+  display: grid;
+  gap: var(--space-2xs);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.briefEditor :is(input, select, textarea),
+.reviewResultEditor :is(input, select, textarea) {
+  width: 100%;
+  min-height: calc(var(--space-xl) + var(--space-2xs));
+  border: thin solid var(--border);
+  border-radius: var(--radius-m);
+  padding: var(--space-xs) var(--space-s);
+  outline: var(--space-none);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: var(--weight-normal);
+}
+
+.briefEditor textarea,
+.reviewResultEditor textarea {
+  resize: vertical;
+}
+
+.briefEditor :is(input, select, textarea):focus,
+.reviewResultEditor :is(input, select, textarea):focus {
+  border-color: var(--success);
+  box-shadow: 0 0 0 var(--space-2xs) var(--focus-ring);
+}
+
+.briefEditor button,
+.reviewResultEditor button {
+  min-height: calc(var(--space-xl) + var(--space-2xs));
+  border: var(--space-none);
+  border-radius: var(--radius-m);
+  background: var(--text-primary);
+  color: var(--surface-raised);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.briefEditor button:disabled,
+.reviewResultEditor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.resultList {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.resultList article {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-s);
+  border-left: var(--space-2xs) solid var(--success);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+
+.resultList article[data-kind="no_material_issue"] {
+  border-left-color: var(--warning);
+}
+
+.resultList article > span,
+.resultList article > small {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.resultList article > span {
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}
+
+.resultList article > b {
+  font-size: var(--text-s);
+}
+
+.findingLane + .findingLane {
+  border-top: thin solid var(--border);
+}
+
+.laneHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-l);
+  background: var(--surface);
+}
+
+.laneHead h3 {
+  margin: var(--space-none);
+  font-size: var(--text-s);
+}
+
+.laneHead span {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.findingLane > .emptyCopy {
+  padding: var(--space-s) var(--space-l);
+}
+
 .findingList {
   border-bottom: 1px solid #deded7;
 }
@@ -845,6 +1049,18 @@
 .truthBadge[data-truth="judged"] {
   background: #f4e7cc;
   color: #80580f;
+}
+.confidenceBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(var(--space-m) + var(--space-xs));
+  border-radius: var(--radius-full);
+  padding-inline: var(--space-xs);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
 }
 .decisionBadge {
   margin-left: auto;
@@ -1274,6 +1490,48 @@
   border-top: 1px dashed #ccccc4;
 }
 
+.coverageMatrix {
+  display: grid;
+  gap: var(--space-s);
+}
+
+.coverageMatrix article {
+  display: grid;
+  gap: var(--space-s);
+  padding: var(--space-s);
+  border: thin solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+
+.coverageMatrix article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+}
+
+.coverageMatrix article > div span {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}
+
+.coverageMatrix article > div b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coverageMatrix article > small {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .receipts ol {
   display: grid;
   gap: 0;
@@ -1504,6 +1762,11 @@
   .reasoning {
     grid-template-columns: 1fr;
     gap: 13px;
+  }
+  .briefFields,
+  .briefSummary dl,
+  .coverageMatrix dl {
+    grid-template-columns: 1fr;
   }
   .verifyActions {
     grid-template-columns: 1fr;

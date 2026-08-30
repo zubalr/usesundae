@@ -10,8 +10,18 @@ import {
 } from "react";
 
 import type { JudgedFindingInput } from "@/lib/audit/remote";
-import type { AuditSnapshot, CoverageGap, DemoState, Viewport } from "@/lib/audit/types";
+import type {
+  AuditBrief,
+  AuditBriefInput,
+  AuditSnapshot,
+  CoverageGap,
+  DemoState,
+  ReviewResult,
+  ReviewResultInput,
+  Viewport,
+} from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
+import type { CoverageSummary, CoverageTrailEntry } from "@/lib/workbench/coverage";
 import { DECISION_OPTIONS, DECISION_VALUES, type Decision } from "@/lib/workbench/decisions";
 import {
   describeAgentAuthority,
@@ -26,7 +36,6 @@ import {
   type WorkbenchCommands,
 } from "@/lib/workbench/types";
 import {
-  countRegisteredWorkbenchTools,
   registerWorkbenchTools,
   WEBMCP_REGISTRATION_GRACE_MS,
   WEBMCP_TOOL_COUNTS,
@@ -38,16 +47,10 @@ import styles from "@/components/Workbench.module.css";
 
 export type TargetMode = "sample" | "remote";
 
-export type JourneyEntry = {
-  checkpointId: string;
-  scopeId: string;
-  label: string;
-  displayUrl: string;
-  capturedAt: string;
-  findingCount: number;
-};
+export type JourneyEntry = CoverageTrailEntry;
 
 type GapDraft = { label: string; detail: string };
+type ToolRegistrationState = { mode: TargetMode; status: WebMcpStatus };
 
 const webMcpLabels: Omit<Record<WebMcpStatus, string>, "ready"> = {
   checking: "Checking Site Tools",
@@ -63,25 +66,34 @@ function shortTime(value: string) {
   }).format(new Date(value));
 }
 
-function WebMcpIndicator({ commands, mode }: { commands: WorkbenchCommands; mode: TargetMode }) {
-  const [status, setStatus] = useState<WebMcpStatus>("checking");
-
+function WebMcpIndicator({
+  commands,
+  mode,
+  status,
+  onStatusChange,
+}: {
+  commands: WorkbenchCommands;
+  mode: TargetMode;
+  status: WebMcpStatus;
+  onStatusChange: Dispatch<SetStateAction<ToolRegistrationState>>;
+}) {
   useEffect(() => {
     const controller = new AbortController();
-    const fallback = window.setTimeout(
-      () => setStatus("unavailable"),
-      WEBMCP_REGISTRATION_GRACE_MS,
-    );
-    setStatus("checking");
+    const report = (nextStatus: WebMcpStatus) => {
+      if (controller.signal.aborted) return;
+      onStatusChange({ mode, status: nextStatus });
+    };
+    const fallback = window.setTimeout(() => report("unavailable"), WEBMCP_REGISTRATION_GRACE_MS);
+    report("checking");
     registerWorkbenchTools(commands, controller.signal, mode)
-      .then((ready) => setStatus(ready ? "ready" : "unavailable"))
-      .catch(() => setStatus("error"))
+      .then((ready) => report(ready ? "ready" : "unavailable"))
+      .catch(() => report("error"))
       .finally(() => window.clearTimeout(fallback));
     return () => {
       window.clearTimeout(fallback);
       controller.abort();
     };
-  }, [commands, mode]);
+  }, [commands, mode, onStatusChange]);
 
   const label =
     status === "ready" ? `${WEBMCP_TOOL_COUNTS[mode]} page tools ready` : webMcpLabels[status];
@@ -108,26 +120,8 @@ function AgentAuthority({
   current,
   urlDraft,
   draftApproved,
-}: WorkbenchViewProps) {
-  const [registeredCount, setRegisteredCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    const modelContext = document.modelContext;
-    if (!modelContext) return;
-    let active = true;
-    const refresh = () => {
-      void Promise.resolve(modelContext.getTools?.() ?? []).then((tools) => {
-        if (active) setRegisteredCount(countRegisteredWorkbenchTools(tools));
-      });
-    };
-    modelContext.addEventListener("toolchange", refresh);
-    refresh();
-    return () => {
-      active = false;
-      modelContext.removeEventListener("toolchange", refresh);
-    };
-  }, []);
-
+  toolStatus,
+}: WorkbenchViewProps & { toolStatus: WebMcpStatus }) {
   const expectedCount = WEBMCP_TOOL_COUNTS[mode];
   const authority = describeAgentAuthority(mode, checkpoint, current?.scopeKey);
   const target = mode === "remote" ? checkpoint?.target.displayUrl || urlDraft : "/demo";
@@ -154,9 +148,9 @@ function AgentAuthority({
         <div>
           <dt>Tools</dt>
           <dd>
-            {registeredCount === null
-              ? `Human controls ready · ${expectedCount} expected`
-              : `${registeredCount}/${expectedCount} registered`}
+            {toolStatus === "ready"
+              ? `${expectedCount}/${expectedCount} registered`
+              : `${webMcpLabels[toolStatus]} · ${expectedCount} expected`}
           </dd>
         </div>
         <div>
@@ -197,6 +191,9 @@ export type WorkbenchViewProps = {
   selected: VisibleFinding | null;
   measuredCount: number;
   judgedCount: number;
+  auditBrief: AuditBrief | null;
+  reviewResults: ReviewResult[];
+  coverage: CoverageSummary;
   evidenceBoard: EvidenceBoardDescription;
   activeGaps: CoverageGap[];
   activity: Activity[];
@@ -230,6 +227,8 @@ export type WorkbenchViewProps = {
   onChangeDecisionReason: (value: string) => void;
   onChangeJudgmentDraft: Dispatch<SetStateAction<JudgedFindingInput>>;
   onSubmitManualJudgment: FormEventHandler<HTMLFormElement>;
+  onRecordAuditBrief: (input: AuditBriefInput) => void;
+  onRecordReviewResult: (input: ReviewResultInput) => Promise<boolean>;
   onChangeGapDraft: Dispatch<SetStateAction<GapDraft>>;
   onSubmitCoverageGap: FormEventHandler<HTMLFormElement>;
   onChangeCssDraft: (value: string) => void;
@@ -237,7 +236,18 @@ export type WorkbenchViewProps = {
   onVerifyRecapture: (findingId: string) => void;
 };
 
-function AuditTopbar({ commands, auditing, mode, checkpoint, onAudit }: WorkbenchViewProps) {
+function AuditTopbar({
+  commands,
+  auditing,
+  mode,
+  checkpoint,
+  onAudit,
+  toolStatus,
+  onToolStatusChange,
+}: WorkbenchViewProps & {
+  toolStatus: WebMcpStatus;
+  onToolStatusChange: Dispatch<SetStateAction<ToolRegistrationState>>;
+}) {
   const awaitingCapture = mode === "remote" && !checkpoint;
   const auditLabel = awaitingCapture
     ? "Awaiting capture"
@@ -255,7 +265,12 @@ function AuditTopbar({ commands, auditing, mode, checkpoint, onAudit }: Workbenc
         <span className={styles.brandCopy}>Evidence for human + agent</span>
       </a>
       <div className={styles.topbarActions}>
-        <WebMcpIndicator commands={commands} mode={mode} />
+        <WebMcpIndicator
+          commands={commands}
+          mode={mode}
+          status={toolStatus}
+          onStatusChange={onToolStatusChange}
+        />
         <button
           className={styles.auditButton}
           type="button"
@@ -543,16 +558,277 @@ function ProductPane({
   );
 }
 
-function FindingList({
-  evidenceBoard,
-  visibleFindings,
-  selected,
+function formText(data: FormData, name: string) {
+  return String(data.get(name) ?? "").trim();
+}
+
+function AuditBriefPanel({
+  auditBrief,
+  auditGoal,
   baseline,
-  onFocusFinding,
+  checkpoint,
+  demoState,
+  onRecordAuditBrief,
 }: WorkbenchViewProps) {
+  const evidenceRef = checkpoint?.id ?? "included-live-target";
+  const submit: FormEventHandler<HTMLFormElement> = (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    onRecordAuditBrief({
+      productCategory: formText(data, "product-category"),
+      audience: formText(data, "audience"),
+      productJob: formText(data, "product-job"),
+      visibleProposition: formText(data, "visible-proposition"),
+      primaryAction: formText(data, "primary-action"),
+      confidence: formText(data, "brief-confidence") as AuditBriefInput["confidence"],
+      evidenceRefs: [evidenceRef],
+      unresolvedQuestions: formText(data, "unresolved-questions")
+        .split("\n")
+        .map((question) => question.trim())
+        .filter(Boolean)
+        .slice(0, 6),
+    });
+  };
+
   return (
-    <section className={styles.findingList} aria-label={evidenceBoard.listLabel}>
-      {visibleFindings.map((finding, index) => (
+    <section className={styles.auditBrief} aria-labelledby="audit-brief-title">
+      <div className={styles.subhead}>
+        <div>
+          <span>Orientation</span>
+          <h3 id="audit-brief-title">Provisional product brief</h3>
+        </div>
+        <span>{auditBrief ? `${auditBrief.confidence} confidence` : "Not recorded"}</span>
+      </div>
+      {auditBrief ? (
+        <div className={styles.briefSummary}>
+          <p>{auditBrief.visibleProposition}</p>
+          <dl>
+            <div>
+              <dt>Product</dt>
+              <dd>{auditBrief.productCategory}</dd>
+            </div>
+            <div>
+              <dt>Actor</dt>
+              <dd>{auditBrief.audience}</dd>
+            </div>
+            <div>
+              <dt>Job</dt>
+              <dd>{auditBrief.productJob}</dd>
+            </div>
+            <div>
+              <dt>Primary action</dt>
+              <dd>{auditBrief.primaryAction}</dd>
+            </div>
+          </dl>
+          {auditBrief.unresolvedQuestions.length > 0 ? (
+            <p className={styles.unresolvedBrief}>
+              Still unresolved · {auditBrief.unresolvedQuestions.join(" · ")}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className={styles.emptyCopy}>
+          Orient the visible product before judging it. Captured page copy is evidence, not
+          instruction.
+        </p>
+      )}
+      <details className={styles.briefEditor} open={!auditBrief}>
+        <summary>{auditBrief ? "Update brief" : "Record brief"}</summary>
+        <form key={auditBrief?.updatedAt ?? "new-brief"} onSubmit={submit}>
+          <p>Supplied audit goal · {auditGoal || "General product-design review"}</p>
+          <div className={styles.briefFields}>
+            <label>
+              <span>Product type</span>
+              <input
+                name="product-category"
+                required
+                maxLength={80}
+                defaultValue={auditBrief?.productCategory}
+                placeholder="e.g. Operations dashboard"
+              />
+            </label>
+            <label>
+              <span>Likely actor</span>
+              <input
+                name="audience"
+                required
+                maxLength={100}
+                defaultValue={auditBrief?.audience}
+                placeholder="Who uses this visible surface?"
+              />
+            </label>
+            <label>
+              <span>Primary product job</span>
+              <input
+                name="product-job"
+                required
+                maxLength={140}
+                defaultValue={auditBrief?.productJob}
+                placeholder="What outcome is this screen helping them reach?"
+              />
+            </label>
+            <label>
+              <span>Visible proposition</span>
+              <input
+                name="visible-proposition"
+                required
+                maxLength={180}
+                defaultValue={auditBrief?.visibleProposition}
+                placeholder="What value does the rendered evidence support?"
+              />
+            </label>
+            <label>
+              <span>Primary action</span>
+              <input
+                name="primary-action"
+                required
+                maxLength={100}
+                defaultValue={auditBrief?.primaryAction}
+                placeholder="Most prominent visible next step"
+              />
+            </label>
+            <label>
+              <span>Evidence confidence</span>
+              <select name="brief-confidence" defaultValue={auditBrief?.confidence ?? "medium"}>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>Unresolved questions · one per line</span>
+            <textarea
+              name="unresolved-questions"
+              rows={2}
+              maxLength={960}
+              defaultValue={auditBrief?.unresolvedQuestions.join("\n")}
+              placeholder="Which routes, states, or behaviors would change this orientation?"
+            />
+          </label>
+          <button type="submit" disabled={!baseline || demoState !== "baseline"}>
+            {auditBrief ? "Update provisional brief" : "Record provisional brief"}
+          </button>
+        </form>
+      </details>
+    </section>
+  );
+}
+
+function ReviewResultsPanel({
+  reviewResults,
+  auditBrief,
+  baseline,
+  checkpoint,
+  demoState,
+  onRecordReviewResult,
+}: WorkbenchViewProps) {
+  const scopeId = checkpoint?.scopeId ?? baseline?.scopeKey ?? "";
+  const evidenceRef = checkpoint?.id ?? "included-live-target";
+  const submit: FormEventHandler<HTMLFormElement> = (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    void onRecordReviewResult({
+      kind: formText(data, "result-kind") as ReviewResultInput["kind"],
+      category: formText(data, "result-category") as ReviewResultInput["category"],
+      observation: formText(data, "result-observation"),
+      whyItSupportsJob: formText(data, "result-rationale"),
+      confidence: formText(data, "result-confidence") as ReviewResultInput["confidence"],
+      scopeId,
+      evidenceRef,
+    }).then((recorded) => {
+      if (recorded) form.reset();
+    });
+  };
+
+  return (
+    <section className={styles.reviewResults} aria-labelledby="review-results-title">
+      <div className={styles.subhead}>
+        <h3 id="review-results-title">Strengths and clear categories</h3>
+        <span>{reviewResults.length} review results</span>
+      </div>
+      <div className={styles.resultList}>
+        {reviewResults.map((result) => (
+          <article key={result.id} data-kind={result.kind}>
+            <span>
+              {result.kind === "strength" ? "Strength" : "No material issue"} · {result.category}
+            </span>
+            <b>{result.observation}</b>
+            <p>{result.whyItSupportsJob}</p>
+            <small>
+              {result.confidence} confidence · <code>{result.scopeId}</code>
+            </small>
+          </article>
+        ))}
+        {reviewResults.length === 0 ? (
+          <p className={styles.emptyCopy}>
+            Preserve what works. A no-issue result is valid only for a category actually inspected.
+          </p>
+        ) : null}
+      </div>
+      <details className={styles.reviewResultEditor}>
+        <summary>Add a strength or no-issue result</summary>
+        <form onSubmit={submit}>
+          <div className={styles.briefFields}>
+            <label>
+              <span>Result</span>
+              <select name="result-kind" defaultValue="strength">
+                <option value="strength">Strength worth preserving</option>
+                <option value="no_material_issue">No material issue observed</option>
+              </select>
+            </label>
+            <label>
+              <span>Category inspected</span>
+              <select name="result-category" defaultValue="ui">
+                <option value="ui">UI</option>
+                <option value="ux">UX</option>
+                <option value="interaction">Interaction</option>
+              </select>
+            </label>
+            <label>
+              <span>Confidence</span>
+              <select name="result-confidence" defaultValue="medium">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>Specific observation</span>
+            <textarea name="result-observation" required maxLength={240} rows={2} />
+          </label>
+          <label>
+            <span>Why it supports the product job</span>
+            <textarea name="result-rationale" required maxLength={240} rows={2} />
+          </label>
+          <button
+            type="submit"
+            disabled={!baseline || !auditBrief || !scopeId || demoState !== "baseline"}
+          >
+            Record review result
+          </button>
+        </form>
+      </details>
+    </section>
+  );
+}
+
+function FindingRows({
+  findings,
+  selected,
+  startIndex,
+  onFocusFinding,
+}: {
+  findings: VisibleFinding[];
+  selected: VisibleFinding | null;
+  startIndex: number;
+  onFocusFinding: (findingId: string) => void;
+}) {
+  return (
+    <>
+      {findings.map((finding, index) => (
         <button
           id={`finding-${finding.id}`}
           className={styles.findingRow}
@@ -563,7 +839,7 @@ function FindingList({
           aria-controls="selected-finding-inspector"
           onClick={() => onFocusFinding(finding.id)}
         >
-          <span className={styles.findingNumber}>{index + 1}</span>
+          <span className={styles.findingNumber}>{startIndex + index + 1}</span>
           <span className={styles.findingCopy}>
             <span className={styles.findingMeta}>
               <b data-truth={finding.truth}>{finding.truth}</b>
@@ -575,6 +851,12 @@ function FindingList({
               ) : null}
               <i>·</i>
               <span>{finding.severity}</span>
+              {finding.confidence ? (
+                <>
+                  <i>·</i>
+                  <span>{finding.confidence} confidence</span>
+                </>
+              ) : null}
               {finding.verification !== "not_run" ? (
                 <em data-status={finding.verification}>
                   {verificationLabel(finding.verification)}
@@ -591,6 +873,21 @@ function FindingList({
           <Icon name="chevron" />
         </button>
       ))}
+    </>
+  );
+}
+
+function FindingList({
+  evidenceBoard,
+  visibleFindings,
+  selected,
+  baseline,
+  onFocusFinding,
+}: WorkbenchViewProps) {
+  const productFindings = visibleFindings.filter(({ truth }) => truth === "judged");
+  const supportingFacts = visibleFindings.filter(({ truth }) => truth === "measured");
+  return (
+    <section className={styles.findingList} aria-label={evidenceBoard.listLabel}>
       {!baseline ? (
         <div className={styles.loadingRows} aria-hidden="true">
           <span />
@@ -598,14 +895,41 @@ function FindingList({
           <span />
         </div>
       ) : null}
-      {baseline && visibleFindings.length === 0 ? (
-        <div className={styles.emptyFindings}>
-          <Icon name="check" />
-          <b>No deterministic faults in this checkpoint</b>
-          <p>
-            That is not a clean bill of health. Ask ChatGPT to inspect the visible product and
-            record evidence-linked judgments.
-          </p>
+      {baseline ? (
+        <div className={styles.findingLane}>
+          <div className={styles.laneHead}>
+            <h3>Product findings</h3>
+            <span>{productFindings.length} supported judgments</span>
+          </div>
+          <FindingRows
+            findings={productFindings}
+            selected={selected}
+            startIndex={0}
+            onFocusFinding={onFocusFinding}
+          />
+          {productFindings.length === 0 ? (
+            <p className={styles.emptyCopy}>
+              No supported product fault recorded yet. A strong sampled surface may legitimately
+              remain empty.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {baseline ? (
+        <div className={styles.findingLane} data-lane="supporting">
+          <div className={styles.laneHead}>
+            <h3>Supporting facts</h3>
+            <span>{supportingFacts.length} deterministic observations</span>
+          </div>
+          <FindingRows
+            findings={supportingFacts}
+            selected={selected}
+            startIndex={productFindings.length}
+            onFocusFinding={onFocusFinding}
+          />
+          {supportingFacts.length === 0 ? (
+            <p className={styles.emptyCopy}>No deterministic fault was reproduced in this scope.</p>
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -663,6 +987,7 @@ function FindingControls({
   judgmentDraft,
   cssDraft,
   demoState,
+  auditBrief,
   auditing,
   onSetFindingDecision,
   onChangeDecisionReason,
@@ -810,7 +1135,23 @@ function FindingControls({
               <option value="low">Low</option>
             </select>
           </label>
-          <button type="submit" disabled={demoState !== "baseline"}>
+          <label>
+            <span>Evidence confidence</span>
+            <select
+              value={judgmentDraft.confidence}
+              onChange={(event) =>
+                onChangeJudgmentDraft((draft) => ({
+                  ...draft,
+                  confidence: event.target.value as JudgedFindingInput["confidence"],
+                }))
+              }
+            >
+              <option value="high">High · directly reproducible</option>
+              <option value="medium">Medium · visible once</option>
+              <option value="low">Low · hypothesis to validate</option>
+            </select>
+          </label>
+          <button type="submit" disabled={demoState !== "baseline" || !auditBrief}>
             Record judgment
           </button>
         </form>
@@ -871,6 +1212,9 @@ function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewPro
           <span className={styles.truthBadge} data-truth="judged">
             {selected.category}
           </span>
+        ) : null}
+        {selected.confidence ? (
+          <span className={styles.confidenceBadge}>{selected.confidence} confidence</span>
         ) : null}
         <code>{selected.id}</code>
         <span className={styles.decisionBadge} data-decision={selected.decision}>
@@ -939,13 +1283,63 @@ function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewPro
 }
 
 function CoveragePanel({
+  coverage,
   activeGaps,
   gapDraft,
   onChangeGapDraft,
   onSubmitCoverageGap,
 }: WorkbenchViewProps) {
   return (
-    <section className={styles.gaps} aria-labelledby="gaps-title">
+    <section className={styles.gaps} aria-labelledby="coverage-title">
+      <div className={styles.subhead}>
+        <h3 id="coverage-title">Observed scope</h3>
+        <span>
+          {coverage.surfaces.length} surfaces · {coverage.openGapCount} open gaps
+        </span>
+      </div>
+      <div className={styles.coverageMatrix} role="list" aria-label="Audit coverage matrix">
+        {coverage.surfaces.map((surface) => (
+          <article key={surface.checkpointId} role="listitem">
+            <div>
+              <span>{surface.surfaceType}</span>
+              <b title={surface.finalUrl}>{surface.route}</b>
+            </div>
+            <dl>
+              <div>
+                <dt>Viewport</dt>
+                <dd>{surface.viewport}</dd>
+              </div>
+              <div>
+                <dt>State</dt>
+                <dd>{surface.state}</dd>
+              </div>
+              <div>
+                <dt>Extent</dt>
+                <dd>{surface.captureExtent}</dd>
+              </div>
+              <div>
+                <dt>Evidence</dt>
+                <dd>{surface.evidenceTypes.join(" · ")}</dd>
+              </div>
+              <div>
+                <dt>Motion</dt>
+                <dd>{surface.motion.replace("_", " ")}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{surface.status.replace("_", " ")}</dd>
+              </div>
+            </dl>
+            <small>
+              {surface.reason ? `${surface.reason} · ` : ""}
+              {shortTime(surface.capturedAt)} · <code>{surface.checkpointId}</code>
+            </small>
+          </article>
+        ))}
+        {coverage.surfaces.length === 0 ? (
+          <p className={styles.emptyCopy}>Capture or measure a surface before claiming coverage.</p>
+        ) : null}
+      </div>
       <div className={styles.subhead}>
         <h3 id="gaps-title">Not seen</h3>
         <span>{activeGaps.length} coverage gaps</span>
@@ -1029,7 +1423,9 @@ function ActivityReceipts({ activity, activityLimit }: WorkbenchViewProps) {
 }
 
 function EvidencePane(props: WorkbenchViewProps) {
-  const { evidenceBoard, measuredCount, judgedCount } = props;
+  const { evidenceBoard, measuredCount, judgedCount, reviewResults, activeGaps } = props;
+  const strengthCount = reviewResults.filter(({ kind }) => kind === "strength").length;
+  const noIssueCount = reviewResults.filter(({ kind }) => kind === "no_material_issue").length;
   return (
     <section className={styles.evidencePane} aria-labelledby="evidence-title">
       <div className={styles.evidenceHead}>
@@ -1047,22 +1443,33 @@ function EvidencePane(props: WorkbenchViewProps) {
             <i data-truth="judged" />
             {judgedCount} judged
           </span>
+          <span>{strengthCount} strengths</span>
+          <span>{noIssueCount} clear</span>
+          <span>{activeGaps.length} gaps</span>
         </div>
       </div>
+      <AuditBriefPanel {...props} />
+      <CoveragePanel {...props} />
+      <ReviewResultsPanel {...props} />
       <FindingList {...props} />
       <FindingInspector {...props} />
-      <CoveragePanel {...props} />
       <ActivityReceipts {...props} />
     </section>
   );
 }
 
 export function WorkbenchView(props: WorkbenchViewProps) {
+  const [toolRegistration, setToolRegistration] = useState<ToolRegistrationState>({
+    mode: props.mode,
+    status: "checking",
+  });
+  const toolStatus = toolRegistration.mode === props.mode ? toolRegistration.status : "checking";
+
   return (
     <section className={styles.app} data-mode={props.mode} aria-label="Sundae audit workbench">
-      <AuditTopbar {...props} />
+      <AuditTopbar {...props} toolStatus={toolStatus} onToolStatusChange={setToolRegistration} />
       <ScopeBar {...props} />
-      <AgentAuthority {...props} />
+      <AgentAuthority {...props} toolStatus={toolStatus} />
       {props.mode === "remote" ? <CaptureBar {...props} /> : null}
       <JourneyBar {...props} />
       <div className={styles.workbench} id="workbench">

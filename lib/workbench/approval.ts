@@ -1,20 +1,9 @@
+import { createAuditLaunch } from "@/lib/launch";
+
 import type { Actor } from "./types";
 
 export function canonicalizeApprovedUrl(value: string) {
-  let target: URL;
-  try {
-    target = new URL(value.trim());
-  } catch {
-    throw new Error("Approval requires a complete public http or https URL.");
-  }
-  if (
-    (target.protocol !== "http:" && target.protocol !== "https:") ||
-    target.username ||
-    target.password
-  ) {
-    throw new Error("Approval requires a complete public http or https URL without credentials.");
-  }
-  return target.toString();
+  return createAuditLaunch(value).targetUrl;
 }
 
 export function assertApprovedForActor(
