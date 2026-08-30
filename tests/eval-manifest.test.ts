@@ -9,6 +9,7 @@ import { registerWorkbenchTools } from "../lib/webmcp/register";
 const registeredTools = new Set([
   "capture_public_page",
   "capture_journey_step",
+  "capture_visible_nav",
   "capture_below_fold",
   "audit_current_scope",
   "inspect_agent_surface",
@@ -118,6 +119,10 @@ test("representative eval calls execute through the registered tool surface", as
       calls.push(`journey:${url}:${label}:${actor}`);
       return commandResult("journey");
     },
+    captureVisibleNav: async (actor) => {
+      calls.push(`visible-nav:${actor}`);
+      return commandResult("visible-nav");
+    },
     captureBelowFold: async (_waitForSelector, actor) => {
       calls.push(`below-fold:${actor}`);
       return commandResult("below-fold");
@@ -175,6 +180,7 @@ test("representative eval calls execute through the registered tool surface", as
         name: "capture_journey_step",
         input: { url: "https://example.com/checkout", label: "Checkout entry" },
       },
+      { name: "capture_visible_nav", input: {} },
       { name: "capture_below_fold", input: {} },
       { name: "audit_current_scope", input: {} },
       { name: "get_board_context", input: {} },
@@ -217,6 +223,7 @@ test("representative eval calls execute through the registered tool surface", as
     assert.deepEqual(calls, [
       "capture:https://example.com/pricing:desktop:agent",
       "journey:https://example.com/checkout:Checkout entry:agent",
+      "visible-nav:agent",
       "below-fold:agent",
       "audit",
       "board:agent",

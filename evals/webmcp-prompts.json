@@ -167,6 +167,16 @@
     ]
   },
   {
+    "id": "capture-listed-visible-navigation",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The Sundae board lists uncaptured_nav from the approved page. Capture those evidence-derived same-origin routes without supplying, guessing, or crawling any URL."
+      }
+    ],
+    "expectedCall": [{ "functionName": "capture_visible_nav", "arguments": {} }]
+  },
+  {
     "id": "inspect-target-agent-interface",
     "messages": [
       {

@@ -42,6 +42,7 @@ function checkpoint(overrides: Partial<RemoteCheckpoint> = {}): RemoteCheckpoint
     ],
     preview: { applied: false },
     capture: { fullPage: false },
+    visibleNav: [],
     ...overrides,
   };
 }

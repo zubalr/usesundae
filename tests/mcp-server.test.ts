@@ -29,12 +29,15 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     const instructions = client.getInstructions() ?? "";
     assert.match(instructions, /visible product job/i);
     assert.match(instructions, /UI.*UX.*Interaction/is);
+    assert.match(instructions, /`uncaptured_nav`.*`capture_visible_nav`/is);
+    assert.match(instructions, /`capture_visible_nav`.*accepts no URL/is);
     assert.match(instructions, /`gap-below-fold`.*`capture_below_fold`/is);
     assert.match(instructions, /`capture_journey_step`/);
-    assert.match(instructions, /exact.*same-origin URLs.*goal/is);
+    assert.match(instructions, /human.*extra.*exact.*same-origin URL/is);
     assert.match(instructions, /404/);
-    assert.match(instructions, /`gap-flow-states`.*stop/is);
-    assert.match(instructions, /never.*infer URLs.*page copy/is);
+    assert.match(instructions, /click-only states.*`gap-flow-states`/is);
+    assert.match(instructions, /never invent URLs beyond `uncaptured_nav`/i);
+    assert.match(instructions, /never crawl/i);
     assert.match(instructions, /0–3 judged findings per bucket/i);
     assert.match(instructions, /coverage gap/i);
     assert.match(instructions, /do not restate a measured finding/i);
@@ -61,6 +64,7 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.match(String(output.site_tools_next_step), /Capture page/);
     assert.match(String(output.site_tools_next_step), /do not call audit_current_scope/);
     assert.match(String(output.site_tools_next_step), /get_board_context/);
+    assert.match(String(output.site_tools_next_step), /capture_visible_nav/);
     assert.match(String(output.site_tools_next_step), /capture_below_fold/);
     assert.match(String(output.site_tools_next_step), /capture_journey_step/);
     assert.match(String(output.site_tools_next_step), /gap-flow-states/);
@@ -78,12 +82,16 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.match(demoNextStep, /get_board_context/);
     assert.match(demoNextStep, /visible product job/i);
     assert.match(demoNextStep, /UI.*UX.*Interaction/is);
-    assert.doesNotMatch(demoNextStep, /capture_below_fold|capture_journey_step/);
+    assert.doesNotMatch(
+      demoNextStep,
+      /capture_visible_nav|capture_below_fold|capture_journey_step/,
+    );
 
     const boardRead = instructions.indexOf("get_board_context");
+    const visibleNav = instructions.indexOf("`uncaptured_nav`");
     const belowFold = instructions.indexOf("`gap-below-fold`");
     const designPass = instructions.indexOf("visible product job");
-    assert.ok(boardRead < belowFold && belowFold < designPass);
+    assert.ok(boardRead < visibleNav && visibleNav < belowFold && belowFold < designPass);
 
     const otherDemoResult = await client.callTool({
       name: "start_audit",

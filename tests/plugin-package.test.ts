@@ -35,12 +35,15 @@ test("the audit skill requires visible evidence and an honest fallback", () => {
   assert.match(skill, /\/demo/);
   assert.match(skill, /`audit_current_scope`/);
   assert.match(skill, /`get_board_context`/);
+  assert.match(skill, /`uncaptured_nav`.*`capture_visible_nav`/is);
+  assert.match(skill, /`capture_visible_nav`.*accepts no URL/is);
   assert.match(skill, /`gap-below-fold`.*`capture_below_fold`/is);
   assert.match(skill, /`capture_journey_step`/);
-  assert.match(skill, /exact.*same-origin URLs.*user.*goal/is);
+  assert.match(skill, /human.*extra.*exact.*same-origin URL/is);
   assert.match(skill, /404/);
-  assert.match(skill, /`gap-flow-states`.*stop/is);
-  assert.match(skill, /Never.*infer URLs.*page copy/is);
+  assert.match(skill, /click-only states.*`gap-flow-states`/is);
+  assert.match(skill, /Never invent URLs beyond `uncaptured_nav`/);
+  assert.match(skill, /crawl/i);
   assert.match(skill, /Name the product job in one line/i);
   assert.match(skill, /\*\*UI\*\*/);
   assert.match(skill, /\*\*UX\*\*/);
@@ -56,9 +59,10 @@ test("the audit skill requires visible evidence and an honest fallback", () => {
   assert.doesNotMatch(skill, /Gemini|Google Cloud/i);
 
   const boardRead = skill.indexOf("`get_board_context`");
+  const visibleNav = skill.indexOf("`uncaptured_nav`");
   const belowFold = skill.indexOf("`gap-below-fold`");
   const designPass = skill.indexOf("Name the product job in one line");
-  assert.ok(boardRead < belowFold && belowFold < designPass);
+  assert.ok(boardRead < visibleNav && visibleNav < belowFold && belowFold < designPass);
 });
 
 test("the package maps the registered Sundae app", () => {

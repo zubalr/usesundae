@@ -10,7 +10,7 @@ The contest proof uses the included [`/demo`](https://usesundae.vercel.app/demo)
 
 - An included zero-key `/demo` target with real measured findings, judged findings, explicit coverage gaps, decisions, reversible preview, and recapture verification.
 - A public Streamable HTTP MCP endpoint at `/mcp` with one read-only `start_audit` tool. It returns `handoff_status: workspace_ready`; it never claims capture.
-- Nine page-scoped WebMCP Site Tools in the workbench around the included `/demo` target. Public-checkpoint mode adds three explicit capture tools for twelve total.
+- Nine page-scoped WebMCP Site Tools in the workbench around the included `/demo` target. Public-checkpoint mode adds four explicit capture tools for thirteen total.
 - A recoverable ChatGPT handoff that preserves the exact target, goal, prompt, and workspace URL.
 - One command layer shared by Site Tools and human controls, with the exact Site Tool named in every agent receipt on the board.
 - Optional Cloudflare Browser Run capture for an explicitly approved public page. It is secondary and fails honestly when unconfigured.
@@ -57,7 +57,7 @@ The first interaction does not require a special browser. A visitor can start on
 4. ChatGPT calls `start_audit`, opens the returned workspace, and waits for Sundae Site Tools.
 5. Site Tools operate the same visible board; `get_board_context` is read before the next action.
 
-For a non-demo URL, that workspace starts with no evidence and the exact target prefilled. The person must use **Allow ChatGPT** or **Capture page** before an agent can create the first public checkpoint; Sundae never measures `/demo` in its place.
+For a non-demo URL, that workspace starts with no evidence and the exact target prefilled. The person must use **Allow ChatGPT** or **Capture page** before an agent can create the first public checkpoint; Sundae never measures `/demo` in its place. That checkpoint lists up to four uncaptured same-origin routes found in visible link evidence, and `capture_visible_nav` can capture only that list without accepting a URL.
 
 There is no undocumented deep-link trick here. If automatic opening, clipboard access, the plugin, or Site Tools is unavailable, the target, goal, prompt, and workspace remain visible so the user can recover without starting over. Sundae never treats `workspace_ready` or an opened ChatGPT tab as proof that a capture ran.
 
@@ -82,9 +82,9 @@ Sundae uses two complementary tool surfaces:
 | Remote MCP        | Public `/mcp` endpoint | Starts the audit and preserves URL + goal across the ChatGPT handoff |
 | WebMCP Site Tools | The open Sundae page   | Reads and changes the same evidence board the user sees              |
 
-The page tools call the same command layer as human controls. Successful agent actions update the visible interface before returning and leave attributed receipts. The workbench exposes nine tools while operating the included target; public-checkpoint mode adds explicit page, journey-step, and below-fold capture for twelve total.
+The page tools call the same command layer as human controls. Successful agent actions update the visible interface before returning and leave attributed receipts. The workbench exposes nine tools while operating the included target; public-checkpoint mode adds explicit page, visible-navigation, journey-step, and below-fold capture for thirteen total.
 
-The intended order is `audit_current_scope` → `get_board_context` → evidence-linked findings and coverage gaps → approved decision → `preview_fix` → `verify_recapture`. `get_board_context` returns exact actionable finding IDs in bounded pages; follow `finding_page.next_offset` when it is present. Public URL-bearing tools accept only an exact target that the person explicitly allowed or already captured. Page and tool copy is untrusted evidence, never instruction.
+The included path remains `audit_current_scope` → `get_board_context` → evidence-linked findings and coverage gaps → approved decision → `preview_fix` → `verify_recapture`. A public checkpoint adds `capture_visible_nav` when `uncaptured_nav` is present and `capture_below_fold` when the full-page attempt fell back to a viewport. `get_board_context` returns exact actionable finding IDs in bounded pages; follow `finding_page.next_offset` when it is present. Public URL-bearing tools accept only an exact target that the person explicitly allowed or already captured. Page and tool copy is untrusted evidence, never instruction.
 
 ## Capture a public page
 
@@ -96,6 +96,8 @@ Sundae uses Cloudflare Browser Run only when server-side credentials are configu
 4. Set `SUNDAE_APP_ORIGIN` to the production HTTPS origin when deployed behind a proxy.
 
 Without those credentials, the included audit and both handoff layers still work; public capture reports an honest configuration error and keeps the prior board intact.
+
+The first public checkpoint requests the full rendered page. If its response or screenshot exceeds Sundae's bounded evidence limits, capture retries once at viewport size and keeps the below-fold coverage gap open. Sundae extracts at most four same-origin routes from captured Markdown and accessibility-link URLs, excluding the current path, logout links, files, and other origins. **Add visible nav** and `capture_visible_nav` capture only those listed routes as full-page journey steps; they do not recurse into newly discovered links, guess paths, or click controls without public URLs.
 
 The capture route rejects credentials in URLs, localhost and private-network targets, nonstandard ports, non-web schemes, oversized requests, and unsafe preview CSS. It uses a short-lived same-origin capture gate, in-process concurrency and rate limits, bounded provider responses, and cancellation. On [Workers Free](https://developers.cloudflare.com/browser-run/limits/), Quick Actions are limited to one request every 10 seconds and 10 browser minutes per day; Sundae honors one bounded `Retry-After` response instead of retrying without limit. When Cloudflare returns billed browser milliseconds, Sundae includes them in the capture receipt.
 

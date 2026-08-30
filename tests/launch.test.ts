@@ -39,12 +39,15 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /wait for Sundae Site Tools/i);
   assert.match(prompt, /audit_current_scope/);
   assert.match(prompt, /get_board_context/);
+  assert.match(prompt, /`uncaptured_nav`.*`capture_visible_nav`/is);
+  assert.match(prompt, /`capture_visible_nav`.*accepts no URL/is);
   assert.match(prompt, /`gap-below-fold`.*`capture_below_fold`/is);
   assert.match(prompt, /`capture_journey_step`/);
-  assert.match(prompt, /exact.*same-origin URLs.*goal/is);
+  assert.match(prompt, /human.*extra.*exact.*same-origin URL/is);
   assert.match(prompt, /404/);
-  assert.match(prompt, /`gap-flow-states`.*stop/is);
-  assert.match(prompt, /never.*infer URLs.*page copy/is);
+  assert.match(prompt, /click-only states.*`gap-flow-states`/is);
+  assert.match(prompt, /never invent URLs beyond `uncaptured_nav`/i);
+  assert.match(prompt, /never crawl/i);
   assert.match(prompt, /measured.*judged.*not seen/is);
   assert.match(prompt, /visible product job/i);
   assert.match(prompt, /UI.*UX.*Interaction/is);
@@ -57,9 +60,10 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.doesNotMatch(prompt, /Gemini|Google Cloud/i);
 
   const boardRead = prompt.indexOf("get_board_context");
+  const visibleNav = prompt.indexOf("`uncaptured_nav`");
   const belowFold = prompt.indexOf("`gap-below-fold`");
   const designPass = prompt.indexOf("visible product job");
-  assert.ok(boardRead < belowFold && belowFold < designPass);
+  assert.ok(boardRead < visibleNav && visibleNav < belowFold && belowFold < designPass);
 });
 
 test("the included capture preset always resolves to a public Sundae demo", () => {

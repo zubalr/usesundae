@@ -123,6 +123,28 @@ test("a full-page checkpoint closes the below-fold gap for one active scope", ()
   );
 });
 
+test("a viewport fallback keeps the below-fold gap open", () => {
+  const viewport = snapshot("scope-page", "viewport-finding", "Unvisited flow states");
+  viewport.gaps.unshift({
+    id: "gap-below-fold",
+    label: "Below-the-fold visuals",
+    detail: "The viewport did not show the rest of this page.",
+  });
+  const fallback = snapshot("scope-page", "fallback-finding", "Unvisited flow states");
+  fallback.gaps.unshift({
+    id: "gap-below-fold",
+    label: "Below-the-fold visuals",
+    detail: "The full-page screenshot was too large, so this evidence remains viewport-bounded.",
+  });
+
+  const merged = mergeBelowFoldSnapshot(viewport, fallback, false);
+
+  assert.equal(
+    merged.gaps.some((gap) => gap.id === "gap-below-fold"),
+    true,
+  );
+});
+
 test("a full-page checkpoint does not close below-fold coverage for another route", () => {
   const viewport = snapshot("scope-page", "viewport-finding", "Unvisited flow states");
   viewport.gaps.unshift({

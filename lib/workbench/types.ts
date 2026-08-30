@@ -51,6 +51,12 @@ export type WorkbenchCommands = {
     waitForSelector?: string,
     toolName?: string,
   ) => Promise<CommandResult>;
+  captureVisibleNav: (
+    actor: Actor,
+    signal?: AbortSignal,
+    waitForSelector?: string,
+    toolName?: string,
+  ) => Promise<CommandResult>;
   captureBelowFold: (
     waitForSelector: string | undefined,
     actor: Actor,

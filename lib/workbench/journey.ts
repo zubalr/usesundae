@@ -45,9 +45,13 @@ export function mergeJourneySnapshots(previous: AuditSnapshot, next: AuditSnapsh
   };
 }
 
-export function mergeBelowFoldSnapshot(previous: AuditSnapshot, next: AuditSnapshot) {
+export function mergeBelowFoldSnapshot(
+  previous: AuditSnapshot,
+  next: AuditSnapshot,
+  capturedFullPage = true,
+) {
   const aggregate = mergeJourneySnapshots(previous, next);
-  if (aggregate.scopeKey !== next.scopeKey) return aggregate;
+  if (!capturedFullPage || aggregate.scopeKey !== next.scopeKey) return aggregate;
   return {
     ...aggregate,
     gaps: aggregate.gaps.filter((gap) => gap.id !== "gap-below-fold"),

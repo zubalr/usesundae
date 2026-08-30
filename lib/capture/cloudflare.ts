@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { summarizeAccessibilityTree } from "./accessibility";
 import { assertPublicDnsTarget, type ResolveTarget } from "./dns-policy";
 import { MAX_CAPTURE_PROVIDER_RESPONSE_BYTES, MAX_CAPTURE_SCREENSHOT_BASE64_CHARS } from "./limits";
+import { extractVisibleNav } from "./visible-nav";
 import { readTextUpTo } from "./stream";
 import type { RemoteCaptureInput, RemoteCheckpoint } from "./types";
 import { normalizePublicTarget, sanitizePreviewCss, sanitizeWaitForSelector } from "./url-policy";
@@ -49,6 +50,8 @@ export class CaptureProviderError extends Error {
     this.name = "CaptureProviderError";
   }
 }
+
+class CaptureResponseTooLargeError extends CaptureProviderError {}
 
 export type CloudflareCaptureOptions = {
   timeoutMs?: number;
@@ -97,7 +100,7 @@ async function parseProviderResponse(response: Response): Promise<CloudflareSnap
   try {
     const text = await readTextUpTo(response.body, MAX_CAPTURE_PROVIDER_RESPONSE_BYTES);
     if (text === null) {
-      throw new CaptureProviderError(
+      throw new CaptureResponseTooLargeError(
         "The remote browser returned a response that was too large to inspect safely.",
       );
     }
@@ -282,43 +285,65 @@ export async function captureWithCloudflare(
     ? sanitizeWaitForSelector(input.waitForSelector)
     : undefined;
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/browser-rendering/snapshot`;
-  const body: Record<string, unknown> = {
-    url: target.captureUrl,
-    formats: ["screenshot", "markdown", "accessibilityTree"],
-    viewport,
-    screenshotOptions: { fullPage: input.fullPage === true },
-    gotoOptions: { waitUntil: "networkidle2", timeout: 30_000 },
-    rejectRequestPattern: PRIVATE_REQUEST_PATTERNS,
+  const snapshotBody = (fullPage: boolean) => {
+    const body: Record<string, unknown> = {
+      url: target.captureUrl,
+      formats: ["screenshot", "markdown", "accessibilityTree"],
+      viewport,
+      screenshotOptions: { fullPage },
+      gotoOptions: { waitUntil: "networkidle2", timeout: 30_000 },
+      rejectRequestPattern: PRIVATE_REQUEST_PATTERNS,
+    };
+    if (previewCss) body.addScriptTag = [{ content: previewScript(previewCss) }];
+    if (waitForSelector) body.waitForSelector = { selector: waitForSelector, timeout: 8_000 };
+    return body;
   };
-  if (previewCss) body.addScriptTag = [{ content: previewScript(previewCss) }];
-  if (waitForSelector) body.waitForSelector = { selector: waitForSelector, timeout: 8_000 };
 
   const captured = await runWithProviderTimeout(
     async (signal) => {
-      const requestSnapshot = () =>
+      const requestSnapshot = (fullPage: boolean) =>
         fetchImpl(endpoint, {
           method: "POST",
           headers: {
             authorization: `Bearer ${config.apiToken}`,
             "content-type": "application/json",
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(snapshotBody(fullPage)),
           signal,
           cache: "no-store",
         });
-      let response = await requestSnapshot();
-      const delayMs = retryAfterMs(response);
-      if (delayMs !== null) {
-        await (options?.waitForRetry ?? waitForRetry)(delayMs, signal);
-        signal.throwIfAborted();
-        response = await requestSnapshot();
+      const load = async (fullPage: boolean) => {
+        let response = await requestSnapshot(fullPage);
+        const delayMs = retryAfterMs(response);
+        if (delayMs !== null) {
+          await (options?.waitForRetry ?? waitForRetry)(delayMs, signal);
+          signal.throwIfAborted();
+          response = await requestSnapshot(fullPage);
+        }
+        return { response, payload: await parseProviderResponse(response), fullPage };
+      };
+      const requestedFullPage = input.fullPage === true;
+      let result;
+      try {
+        result = await load(requestedFullPage);
+      } catch (error) {
+        if (!requestedFullPage || !(error instanceof CaptureResponseTooLargeError)) throw error;
+        result = await load(false);
       }
-      return { response, payload: await parseProviderResponse(response) };
+      const screenshot = result.payload.result?.screenshot;
+      if (
+        result.fullPage &&
+        typeof screenshot === "string" &&
+        screenshot.length > MAX_CAPTURE_SCREENSHOT_BASE64_CHARS
+      ) {
+        result = await load(false);
+      }
+      return result;
     },
     input.signal,
     providerTimeoutMs(options),
   );
-  const { response, payload } = captured;
+  const { response, payload, fullPage } = captured;
   if (!response.ok || payload.success !== true || !payload.result) {
     throw new CaptureProviderError(
       `The remote browser could not capture this page (${response.status}).`,
@@ -339,9 +364,15 @@ export async function captureWithCloudflare(
     throw new CaptureProviderError("The remote browser did not return a usable screenshot.");
   }
 
+  const markdown = typeof payload.result.markdown === "string" ? payload.result.markdown : "";
   const accessibility = summarizeAccessibilityTree(payload.result.accessibilityTree);
+  const visibleNav = extractVisibleNav(
+    target.displayUrl,
+    markdown,
+    payload.result.accessibilityTree,
+  );
   const gaps = [
-    ...(input.fullPage
+    ...(fullPage
       ? []
       : [
           {
@@ -359,7 +390,8 @@ export async function captureWithCloudflare(
     {
       id: "gap-flow-states",
       label: "Unvisited flow states",
-      detail: "No additional journey step is covered until it is explicitly opened and captured.",
+      detail:
+        "In-page states (modals, empty or loading views, logged-in surfaces, and controls without a public URL) were not opened.",
     },
   ];
   if (accessibility.truncated) {
@@ -372,7 +404,7 @@ export async function captureWithCloudflare(
   }
 
   const browserMsUsed = readBrowserMsUsed(response.headers);
-  const viewportSize = checkpointViewportSize(screenshot, viewport, input.fullPage === true);
+  const viewportSize = checkpointViewportSize(screenshot, viewport, fullPage);
   return {
     id: `checkpoint_${randomUUID()}`,
     scopeId: target.scopeId,
@@ -387,12 +419,13 @@ export async function captureWithCloudflare(
     viewport: input.viewport,
     viewportSize,
     screenshotDataUrl: `data:image/png;base64,${screenshot}`,
-    textExcerpt: cleanText(payload.result.markdown, 4000),
+    textExcerpt: cleanText(markdown, 4000),
     accessibility,
     gaps,
+    visibleNav,
     preview: { applied: Boolean(previewCss) },
     capture: {
-      fullPage: input.fullPage === true,
+      fullPage,
       ...(waitForSelector ? { waitForSelector } : {}),
     },
     browserMsUsed,

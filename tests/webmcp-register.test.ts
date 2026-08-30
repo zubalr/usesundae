@@ -70,6 +70,11 @@ function assertSchemaContracts() {
     stringSchema(WEBMCP_INPUT_SCHEMAS.captureBelowFold, "wait_for_selector")?.maxLength,
     160,
   );
+  assert.equal(
+    stringSchema(WEBMCP_INPUT_SCHEMAS.captureVisibleNav, "wait_for_selector")?.maxLength,
+    160,
+  );
+  assert.equal(Object.hasOwn(WEBMCP_INPUT_SCHEMAS.captureVisibleNav.properties, "url"), false);
   assert.equal(Object.hasOwn(WEBMCP_INPUT_SCHEMAS.captureBelowFold.properties, "url"), false);
   const findingOffset = WEBMCP_INPUT_SCHEMAS.boardContext.properties?.finding_offset as Record<
     string,
@@ -153,6 +158,11 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       calls.push(`step:${url}:${label}:${actor}:${waitForSelector ?? "none"}`);
       return commandResult("step");
     },
+    captureVisibleNav: async (actor, _signal, waitForSelector, toolName) => {
+      recordReceiptTool(toolName);
+      calls.push(`visible-nav:${waitForSelector ?? "none"}:${actor}`);
+      return commandResult("visible-nav");
+    },
     captureBelowFold: async (waitForSelector, actor, _signal, toolName) => {
       recordReceiptTool(toolName);
       calls.push(`below-fold:${waitForSelector ?? "none"}:${actor}`);
@@ -220,6 +230,7 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       [
         "capture_public_page",
         "capture_journey_step",
+        "capture_visible_nav",
         "capture_below_fold",
         "audit_current_scope",
         "inspect_agent_surface",
@@ -268,6 +279,10 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       wait_for_selector: "#checkout",
     });
     assert.equal(calls.at(-1), "step:https://example.com/checkout:Checkout entry:agent:#checkout");
+
+    const visibleNav = registered.find(({ tool }) => tool.name === "capture_visible_nav")!.tool;
+    await visibleNav.execute({ wait_for_selector: "main" });
+    assert.equal(calls.at(-1), "visible-nav:main:agent");
 
     const belowFold = registered.find(({ tool }) => tool.name === "capture_below_fold")!.tool;
     await belowFold.execute({ wait_for_selector: "main" });

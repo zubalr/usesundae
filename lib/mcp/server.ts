@@ -15,7 +15,7 @@ const MCP_VERSION = "0.1.0";
 const DESIGN_PASS_NEXT_STEP =
   "Then name the visible product job from the captured evidence and goal, and sweep UI, UX, and Interaction before calling the design audit complete.";
 const PUBLIC_GAP_NEXT_STEP =
-  "For every approved public checkpoint, including a journey step, treat open coverage gaps as unfinished work: when `gap-below-fold` is open, call `capture_below_fold` and reread the board. If the goal names additional exact, complete same-origin URLs, ask the human to approve each exact URL in the visible controls, then call `capture_journey_step` for those URLs only, including a named 404 URL. Reread the board and repeat this gap check before the next route. Otherwise keep or record `gap-flow-states`, then stop expanding routes. Never construct or infer URLs from page copy, and never crawl.";
+  "For every approved public checkpoint, treat open coverage gaps as unfinished work. When `uncaptured_nav` is listed, call `capture_visible_nav` (it accepts no URL) and reread the board. When `gap-below-fold` is open, call `capture_below_fold` and reread the board. If the human names an extra exact same-origin URL, including a 404 URL, ask them to approve it in the visible controls, then call `capture_journey_step`. Never invent URLs beyond `uncaptured_nav`, and never crawl. Click-only states without a public URL remain `gap-flow-states`.";
 
 const corsHeaders = {
   "Access-Control-Allow-Headers": "Accept, Content-Type, MCP-Protocol-Version, MCP-Session-Id",

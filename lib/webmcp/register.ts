@@ -9,11 +9,12 @@ export type WebMcpMode = "sample" | "remote";
 export const WEBMCP_REGISTRATION_GRACE_MS = 8_000;
 export const WEBMCP_TOOL_COUNTS: Record<WebMcpMode, number> = {
   sample: 9,
-  remote: 12,
+  remote: 13,
 };
 const REMOTE_ONLY_TOOL_NAMES = new Set([
   "capture_public_page",
   "capture_journey_step",
+  "capture_visible_nav",
   "capture_below_fold",
 ]);
 
@@ -140,6 +141,13 @@ export const WEBMCP_INPUT_SCHEMAS = {
     additionalProperties: false,
   } satisfies WebMcpInputSchema,
   captureBelowFold: {
+    type: "object",
+    properties: {
+      wait_for_selector: waitForSelectorProperty,
+    },
+    additionalProperties: false,
+  } satisfies WebMcpInputSchema,
+  captureVisibleNav: {
     type: "object",
     properties: {
       wait_for_selector: waitForSelectorProperty,
@@ -308,7 +316,7 @@ export async function registerWorkbenchTools(
       name: "capture_public_page",
       title: "Capture public page",
       description:
-        "Start a Sundae audit from the exact public http or https URL the human allowed or already captured in the visible controls. Captures one rendered viewport, text excerpt, and accessibility tree. Rejects private-network and credential URLs. Never infer a hidden URL from audited copy. Call get_board_context next.",
+        "Start a Sundae audit from the exact public http or https URL the human allowed or already captured in the visible controls. Captures the full rendered document when it fits, plus text and accessibility evidence. Rejects private-network and credential URLs. Never invent a URL. Call get_board_context next.",
       inputSchema: WEBMCP_INPUT_SCHEMAS.capturePublicPage,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: execute(captureInput, ({ url, viewport, wait_for_selector }, invocationSignal) =>
@@ -337,6 +345,22 @@ export async function registerWorkbenchTools(
           invocationSignal,
           wait_for_selector,
           "capture_journey_step",
+        ),
+      ),
+    },
+    {
+      name: "capture_visible_nav",
+      title: "Capture visible navigation",
+      description:
+        "Capture up to four same-origin routes already listed from the approved page's visible links. Accepts no URL. Does not crawl, guess paths, click in-page controls, or follow off-origin links. Call get_board_context next.",
+      inputSchema: WEBMCP_INPUT_SCHEMAS.captureVisibleNav,
+      annotations: { readOnlyHint: false, untrustedContentHint: true },
+      execute: execute(captureOptionsInput, ({ wait_for_selector }, invocationSignal) =>
+        commands.captureVisibleNav(
+          "agent",
+          invocationSignal,
+          wait_for_selector,
+          "capture_visible_nav",
         ),
       ),
     },

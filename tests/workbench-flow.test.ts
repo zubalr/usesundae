@@ -221,6 +221,44 @@ test("agent board context exposes the product-job category for judged evidence",
   assert.equal(context.findings[0]?.product_job, "Help a new visitor understand the next step");
 });
 
+test("agent board context lists at most four uncaptured visible-nav routes", () => {
+  const context = buildAgentBoardContext({
+    auditGoal: "Review activation",
+    target: {
+      kind: "public_checkpoint",
+      displayUrl: "https://example.com/",
+      checkpointId: "checkpoint-root",
+      screenshotVisible: true,
+      captureExtent: "full-page",
+    },
+    viewport: "desktop",
+    state: "baseline",
+    currentFindingCount: 0,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: null,
+    retainsBaseline: false,
+    findings: [],
+    decisions: {},
+    verifications: {},
+    coverageGaps: [],
+    trailStepCount: 1,
+    uncapturedNav: ["pricing", "docs", "about", "blog", "careers"].map((path) => ({
+      url: `https://example.com/${path}?private=removed`,
+      label: path,
+    })),
+  });
+
+  assert.deepEqual(context.uncaptured_nav, [
+    { label: "pricing", path: "/pricing" },
+    { label: "docs", path: "/docs" },
+    { label: "about", path: "/about" },
+    { label: "blog", path: "/blog" },
+  ]);
+  assert.match(context.next, /capture_visible_nav/);
+  assert.doesNotMatch(JSON.stringify(context), /private=removed/);
+});
+
 test("agent board context paginates exact actionable finding ids", () => {
   const findings = [1, 2, 3, 4, 5].map(finding);
   const input = {
@@ -242,6 +280,11 @@ test("agent board context paginates exact actionable finding ids", () => {
 
   const first = buildAgentBoardContext({ ...input, findingOffset: 0 });
   const second = buildAgentBoardContext({ ...input, findingOffset: 2 });
+  const withVisibleNav = buildAgentBoardContext({
+    ...input,
+    findingOffset: 0,
+    uncapturedNav: [{ url: "https://example.com/docs", label: "Docs" }],
+  });
 
   assert.equal(first.receipt, "Evidence unchanged; visible board-read receipt added.");
   assert.deepEqual(
@@ -254,6 +297,7 @@ test("agent board context paginates exact actionable finding ids", () => {
     [findings[2]!.id, findings[3]!.id],
   );
   assert.deepEqual(second.finding_page, { offset: 2, limit: 2, total: 5, next_offset: 4 });
+  assert.match(withVisibleNav.next, /finding_offset 2.*capture_visible_nav/);
 });
 
 test("agent context keeps route provenance distinct from the active checkpoint", () => {

@@ -1,4 +1,5 @@
 import type { Viewport } from "@/lib/audit/types";
+import type { VisibleNavRoute } from "./visible-nav";
 
 export type CaptureSource = "cloudflare" | "local";
 
@@ -47,6 +48,7 @@ export type RemoteCheckpoint = {
   textExcerpt: string;
   accessibility: AccessibilitySummary;
   gaps: CaptureGap[];
+  visibleNav: VisibleNavRoute[];
   preview: { applied: boolean };
   capture: {
     fullPage: boolean;

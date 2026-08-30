@@ -121,6 +121,7 @@ export type WorkbenchViewProps = {
   auditing: boolean;
   error: string | null;
   journey: JourneyEntry[];
+  uncapturedNav: Array<{ url: string; label: string }>;
   decisionReason: string;
   judgmentDraft: JudgedFindingInput;
   gapDraft: GapDraft;
@@ -136,6 +137,7 @@ export type WorkbenchViewProps = {
   onChangeWaitForSelectorDraft: (value: string) => void;
   onApproveUrlDraft: () => void;
   onCaptureJourneyStep: (url: string, label: string) => void;
+  onCaptureVisibleNav: () => void;
   onCaptureBelowFold: () => void;
   onOpenJourneyCheckpoint: (entry: JourneyEntry) => void;
   onChangeViewport: (viewport: Viewport) => void;
@@ -195,6 +197,8 @@ function ScopeBar({
   onInspectAgentSurface,
   onShowSample,
   onCaptureBelowFold,
+  onCaptureVisibleNav,
+  uncapturedNav,
 }: WorkbenchViewProps) {
   return (
     <section className={styles.contextBar} aria-label="Audit scope">
@@ -221,6 +225,11 @@ function ScopeBar({
       {mode === "sample" ? (
         <button type="button" onClick={onInspectAgentSurface}>
           <Icon name="agent" /> Audit agent surface
+        </button>
+      ) : null}
+      {mode === "remote" && checkpoint && demoState === "baseline" && uncapturedNav.length > 0 ? (
+        <button type="button" disabled={auditing} onClick={onCaptureVisibleNav}>
+          <Icon name="spark" /> Add visible nav
         </button>
       ) : null}
       {mode === "remote" && checkpoint && demoState === "baseline" ? (
@@ -263,7 +272,7 @@ function CaptureBar({
       <div className={styles.capturePrompt}>
         <span>Public URL</span>
         <p>
-          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}First screen only; ChatGPT can add below-fold evidence for the rest. No passwords or silent crawling.`}
+          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}Full page when it fits. ChatGPT then captures visible same-origin nav (up to four routes). No passwords or silent crawling.`}
         </p>
       </div>
       <div className={styles.urlCluster}>

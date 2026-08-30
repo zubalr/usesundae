@@ -69,6 +69,17 @@ const oversizedScreenshotFetch: typeof fetch = async () =>
     meta: { finalUrl: "https://example.com/" },
   });
 
+const visibleNavFetch: typeof fetch = async () =>
+  Response.json({
+    success: true,
+    result: {
+      screenshot: "aGVsbG8=",
+      markdown: "[Pricing](https://example.com/pricing)\n[Docs](/docs)",
+      accessibilityTree: { role: "RootWebArea", name: "Product" },
+    },
+    meta: { status: 200, title: "Product", finalUrl: "https://example.com/" },
+  });
+
 const pendingProviderFetch: typeof fetch = async () => new Promise<Response>(() => undefined);
 
 const privateNavigationFetch: typeof fetch = async () =>
@@ -519,6 +530,99 @@ test("rejects an oversized screenshot result even when the response envelope fit
       return true;
     },
   );
+});
+
+test("lists visible same-origin nav from captured markdown", async () => {
+  const checkpoint = await captureWithCloudflare(
+    { accountId: "account-123", apiToken: "secret-token" },
+    { url: "https://example.com/", viewport: "desktop" },
+    visibleNavFetch,
+  );
+
+  assert.deepEqual(checkpoint.visibleNav, [
+    { url: "https://example.com/pricing", label: "Pricing" },
+    { url: "https://example.com/docs", label: "Docs" },
+  ]);
+});
+
+test("retries a too-large full-page screenshot as a viewport capture", async () => {
+  const fullPages: boolean[] = [];
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    const body = JSON.parse(String(init?.body)) as {
+      screenshotOptions?: { fullPage?: boolean };
+    };
+    fullPages.push(body.screenshotOptions?.fullPage === true);
+    if (fullPages.length === 1) {
+      return Response.json({
+        success: true,
+        result: {
+          screenshot: "A".repeat(MAX_CAPTURE_SCREENSHOT_BASE64_CHARS + 1),
+          markdown: "# Product",
+          accessibilityTree: { role: "RootWebArea", name: "Product" },
+        },
+        meta: { status: 200, title: "Product", finalUrl: "https://example.com/" },
+      });
+    }
+    return Response.json({
+      success: true,
+      result: {
+        screenshot: "aGVsbG8=",
+        markdown: "# Product",
+        accessibilityTree: { role: "RootWebArea", name: "Product" },
+      },
+      meta: { status: 200, title: "Product", finalUrl: "https://example.com/" },
+    });
+  };
+
+  const checkpoint = await captureWithCloudflare(
+    { accountId: "account-123", apiToken: "secret-token" },
+    { url: "https://example.com/", viewport: "desktop", fullPage: true },
+    fetchImpl,
+  );
+
+  assert.deepEqual(fullPages, [true, false]);
+  assert.equal(checkpoint.capture.fullPage, false);
+  assert.ok(checkpoint.gaps.some((gap) => gap.id === "gap-below-fold"));
+});
+
+test("retries an oversized full-page response as a viewport capture", async () => {
+  const fullPages: boolean[] = [];
+  const encoder = new TextEncoder();
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    const body = JSON.parse(String(init?.body)) as {
+      screenshotOptions?: { fullPage?: boolean };
+    };
+    fullPages.push(body.screenshotOptions?.fullPage === true);
+    if (fullPages.length === 1) {
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode('{"success":true,"result":{"screenshot":"'));
+            controller.enqueue(new Uint8Array(MAX_CAPTURE_PROVIDER_RESPONSE_BYTES));
+          },
+        }),
+      );
+    }
+    return Response.json({
+      success: true,
+      result: {
+        screenshot: "aGVsbG8=",
+        markdown: "# Product",
+        accessibilityTree: { role: "RootWebArea", name: "Product" },
+      },
+      meta: { status: 200, title: "Product", finalUrl: "https://example.com/" },
+    });
+  };
+
+  const checkpoint = await captureWithCloudflare(
+    { accountId: "account-123", apiToken: "secret-token" },
+    { url: "https://example.com/", viewport: "desktop", fullPage: true },
+    fetchImpl,
+  );
+
+  assert.deepEqual(fullPages, [true, false]);
+  assert.equal(checkpoint.capture.fullPage, false);
+  assert.ok(checkpoint.gaps.some((gap) => gap.id === "gap-below-fold"));
 });
 
 test("times out a provider request on the server even when fetch ignores cancellation", async () => {
