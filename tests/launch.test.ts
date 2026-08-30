@@ -39,6 +39,12 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /wait for Sundae Site Tools/i);
   assert.match(prompt, /audit_current_scope/);
   assert.match(prompt, /get_board_context/);
+  assert.match(prompt, /`gap-below-fold`.*`capture_below_fold`/is);
+  assert.match(prompt, /`capture_journey_step`/);
+  assert.match(prompt, /exact.*same-origin URLs.*goal/is);
+  assert.match(prompt, /404/);
+  assert.match(prompt, /`gap-flow-states`.*stop/is);
+  assert.match(prompt, /never.*infer URLs.*page copy/is);
   assert.match(prompt, /measured.*judged.*not seen/is);
   assert.match(prompt, /visible product job/i);
   assert.match(prompt, /UI.*UX.*Interaction/is);
@@ -49,6 +55,11 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /verify_recapture/);
   assert.match(prompt, /do not claim that an audit or capture completed/i);
   assert.doesNotMatch(prompt, /Gemini|Google Cloud/i);
+
+  const boardRead = prompt.indexOf("get_board_context");
+  const belowFold = prompt.indexOf("`gap-below-fold`");
+  const designPass = prompt.indexOf("visible product job");
+  assert.ok(boardRead < belowFold && belowFold < designPass);
 });
 
 test("the included capture preset always resolves to a public Sundae demo", () => {

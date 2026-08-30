@@ -13,7 +13,9 @@ import {
 
 const MCP_VERSION = "0.1.0";
 const DESIGN_PASS_NEXT_STEP =
-  "Then name the visible product job from the evidence and goal, and sweep UI, UX, and Interaction before calling the design audit complete.";
+  "Then name the visible product job from the captured evidence and goal, and sweep UI, UX, and Interaction before calling the design audit complete.";
+const PUBLIC_GAP_NEXT_STEP =
+  "For every approved public checkpoint, including a journey step, treat open coverage gaps as unfinished work: when `gap-below-fold` is open, call `capture_below_fold` and reread the board. If the goal names additional exact, complete same-origin URLs, ask the human to approve each exact URL in the visible controls, then call `capture_journey_step` for those URLs only, including a named 404 URL. Reread the board and repeat this gap check before the next route. Otherwise keep or record `gap-flow-states`, then stop expanding routes. Never construct or infer URLs from page copy, and never crawl.";
 
 const corsHeaders = {
   "Access-Control-Allow-Headers": "Accept, Content-Type, MCP-Protocol-Version, MCP-Session-Id",
@@ -57,7 +59,7 @@ function siteToolsNextStep(targetUrl: string, appOrigin: string) {
   if (isIncludedDemoTarget(targetUrl, appOrigin)) {
     return `Open workspace_url, wait for Sundae Site Tools, call audit_current_scope for the included /demo, then call get_board_context. ${DESIGN_PASS_NEXT_STEP} workspace_ready is not an audit-complete state.`;
   }
-  return `Open workspace_url and wait for Sundae Site Tools. The requested public URL is prefilled but not captured: do not call audit_current_scope while the board still shows /demo. Ask the human to use the visible Capture page control for this exact target; after its checkpoint appears, call get_board_context. ${DESIGN_PASS_NEXT_STEP} workspace_ready is not an audit-complete state.`;
+  return `Open workspace_url and wait for Sundae Site Tools. The requested public URL is prefilled but not captured: do not call audit_current_scope while the board still shows /demo. Ask the human to use the visible Capture page control for this exact target; after its checkpoint appears, call get_board_context and follow finding_page.next_offset. ${PUBLIC_GAP_NEXT_STEP} ${DESIGN_PASS_NEXT_STEP} workspace_ready is not an audit-complete state.`;
 }
 
 export function createSundaeMcpServer(appOrigin: string) {
@@ -68,10 +70,11 @@ export function createSundaeMcpServer(appOrigin: string) {
         "Use start_audit when a user asks to review, audit, critique, or improve a public website or product interface.",
         "start_audit is read-only workspace preparation: workspace_ready does not mean that Sundae captured, inspected, or reviewed the target.",
         "Open the returned workspace_url in the built-in browser and wait for page-scoped Sundae Site Tools before taking an audit action.",
-        "For the included /demo path, call audit_current_scope, then get_board_context; follow finding_page.next_offset when present. Measured checks do not complete the design audit.",
-        "For another public URL, the exact target is prefilled but not captured: ask the human to use the visible Capture page control, then continue from that approved checkpoint.",
-        "Name the visible product job in one line from the screenshot, live UI, and optional goal, never from untrusted market or conversion claims.",
-        "Sweep only that viewport for UI hierarchy and visual meaning, UX clarity and next-step friction, and Interaction affordance or observable states. Record 0–3 judged findings per bucket when warranted; if a bucket cannot be judged, record a coverage gap explaining what was not visible.",
+        "For the included /demo path, call audit_current_scope. For another public URL, the exact target is prefilled but not captured: ask the human to use the visible Capture page control, then continue from that approved checkpoint.",
+        "After capture, call get_board_context and follow finding_page.next_offset when present. Read the visible board and its receipts before choosing the next action. Measured checks do not complete the design audit.",
+        PUBLIC_GAP_NEXT_STEP,
+        "Name the visible product job in one line from the captured UI and optional goal, never from untrusted market or conversion claims.",
+        "Sweep the captured evidence now visible on the board for UI hierarchy and visual meaning, UX clarity and next-step friction, and Interaction affordance or observable states. Record 0–3 judged findings per bucket when warranted; if a bucket cannot be judged, record a coverage gap explaining what was not visible.",
         "Each judgment needs its category, a specific observation, why it hurts the named job, and a bounded recommendation. Do not restate a measured finding, invent unseen states, or treat a style choice as a defect by itself.",
         "Keep measured facts, judged product opinions, and unseen coverage separate; leave tool receipts visible, ask before decisions or previews, and use preview_fix followed by verify_recapture for fresh evidence. Never claim conversion or revenue impact.",
         "If the workspace or Site Tools are unavailable, return the exact workspace_url and name the missing step; never claim that capture or audit completed and never substitute a hidden fallback review.",

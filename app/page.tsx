@@ -133,8 +133,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className={styles.methodIntro}>
               <h2 id="method-title">ChatGPT and the human share one audit board.</h2>
               <p>
-                The remote tool prepares the workspace. Page-scoped Site Tools perform visible
-                actions, update the same state as human controls, and leave receipts behind.
+                The remote tool prepares the workspace; page-scoped Site Tools let ChatGPT critique
+                visible UI, UX, and Interaction for the product&apos;s job, update the same board as
+                human controls, and keep what was not seen there as coverage gaps with receipts.
               </p>
             </div>
             <ol className={styles.methodSteps}>

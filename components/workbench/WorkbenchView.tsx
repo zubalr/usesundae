@@ -263,7 +263,7 @@ function CaptureBar({
       <div className={styles.capturePrompt}>
         <span>Public URL</span>
         <p>
-          {auditGoal ? `Goal · ${auditGoal}` : "One public page. No passwords or silent crawling."}
+          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}First screen only; ChatGPT can add below-fold evidence for the rest. No passwords or silent crawling.`}
         </p>
       </div>
       <div className={styles.urlCluster}>

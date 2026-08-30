@@ -29,6 +29,12 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     const instructions = client.getInstructions() ?? "";
     assert.match(instructions, /visible product job/i);
     assert.match(instructions, /UI.*UX.*Interaction/is);
+    assert.match(instructions, /`gap-below-fold`.*`capture_below_fold`/is);
+    assert.match(instructions, /`capture_journey_step`/);
+    assert.match(instructions, /exact.*same-origin URLs.*goal/is);
+    assert.match(instructions, /404/);
+    assert.match(instructions, /`gap-flow-states`.*stop/is);
+    assert.match(instructions, /never.*infer URLs.*page copy/is);
     assert.match(instructions, /0–3 judged findings per bucket/i);
     assert.match(instructions, /coverage gap/i);
     assert.match(instructions, /do not restate a measured finding/i);
@@ -55,6 +61,9 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.match(String(output.site_tools_next_step), /Capture page/);
     assert.match(String(output.site_tools_next_step), /do not call audit_current_scope/);
     assert.match(String(output.site_tools_next_step), /get_board_context/);
+    assert.match(String(output.site_tools_next_step), /capture_below_fold/);
+    assert.match(String(output.site_tools_next_step), /capture_journey_step/);
+    assert.match(String(output.site_tools_next_step), /gap-flow-states/);
     assert.match(String(output.site_tools_next_step), /not.*complete/i);
 
     const demoResult = await client.callTool({
@@ -69,6 +78,12 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.match(demoNextStep, /get_board_context/);
     assert.match(demoNextStep, /visible product job/i);
     assert.match(demoNextStep, /UI.*UX.*Interaction/is);
+    assert.doesNotMatch(demoNextStep, /capture_below_fold|capture_journey_step/);
+
+    const boardRead = instructions.indexOf("get_board_context");
+    const belowFold = instructions.indexOf("`gap-below-fold`");
+    const designPass = instructions.indexOf("visible product job");
+    assert.ok(boardRead < belowFold && belowFold < designPass);
 
     const otherDemoResult = await client.callTool({
       name: "start_audit",
