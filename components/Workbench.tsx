@@ -27,6 +27,7 @@ import { boundedText } from "@/lib/text";
 import { assertApprovedForActor, canonicalizeApprovedUrl } from "@/lib/workbench/approval";
 import {
   assertSameJourneyOrigin,
+  capturedJourneyLabels,
   mergeBelowFoldSnapshot,
   mergeJourneySnapshots,
 } from "@/lib/workbench/journey";
@@ -659,7 +660,9 @@ export function Workbench({
       if (routes.length === 0) {
         throw new Error("No uncaptured visible navigation routes remain on this board.");
       }
-      const capturedLabels: string[] = [];
+      const previousCheckpointIds = new Set(
+        journeyRef.current.map(({ checkpointId }) => checkpointId),
+      );
       const routeWaitSelector = waitForSelector ?? "";
       const operationEpoch = beginRemoteOperation();
       let failure: Error | null = null;
@@ -675,7 +678,6 @@ export function Workbench({
             toolName,
             operationEpoch,
           );
-          capturedLabels.push(route.label);
         }
       } catch (cause) {
         if (cause instanceof Error && cause.name === "AbortError") throw cause;
@@ -687,6 +689,7 @@ export function Workbench({
         remoteUrlRef.current,
         ...journeyRef.current.map((step) => step.displayUrl),
       ]);
+      const capturedLabels = capturedJourneyLabels(previousCheckpointIds, journeyRef.current);
       if (failure) {
         return {
           ok: false,
