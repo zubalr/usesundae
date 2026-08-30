@@ -173,9 +173,21 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
       detail: "This state was not observed. ".repeat(20),
     })),
     trailStepCount: 12,
+    uncapturedNav: Array.from({ length: 4 }, (_, index) => ({
+      url: `https://example.com/${"long-route/".repeat(10)}${index}?private=removed`,
+      label: `${hostileCopy}${index}`,
+    })),
   });
-  const result = createToolResult(context);
+  const wrappedContext = {
+    ...context,
+    tool_name: "get_board_context",
+    actor: "agent",
+    status: "success",
+    elapsed_ms: 12,
+  };
+  const result = createToolResult(wrappedContext);
   const text = result.content[0]!.text;
+  const wrappedBytes = Buffer.byteLength(JSON.stringify(wrappedContext), "utf8");
   const payload = JSON.parse(text) as {
     truncated?: boolean;
     target: { checkpoint_id: string };
@@ -190,13 +202,18 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
   };
 
   assert.ok(Buffer.byteLength(text, "utf8") <= MAX_TOOL_TEXT_BYTES);
+  assert.ok(
+    wrappedBytes <= MAX_TOOL_TEXT_BYTES,
+    `The complete board context and receipt metadata used ${wrappedBytes} bytes.`,
+  );
   assert.notEqual(payload.truncated, true);
   assert.equal(payload.findings[0]?.id, selected.id.slice(0, 120));
   assert.equal(payload.findings[0]?.checkpoint_id.startsWith("checkpoint_9_"), true);
   assert.equal(payload.findings[0]?.evidence_role, "retained_baseline");
   assert.equal(payload.target.checkpoint_id.startsWith("checkpoint_"), true);
-  assert.equal(payload.findings.length, 2);
+  assert.equal(payload.findings.length, 1);
   assert.equal(payload.coverage_gaps.length, 3);
+  assert.equal(context.uncaptured_nav.length, 4);
 });
 
 test("agent board context exposes the product-job category for judged evidence", () => {
@@ -256,12 +273,7 @@ test("agent board context lists at most four uncaptured visible-nav routes", () 
     })),
   });
 
-  assert.deepEqual(context.uncaptured_nav, [
-    { label: "pricing", path: "/pricing" },
-    { label: "docs", path: "/docs" },
-    { label: "about", path: "/about" },
-    { label: "blog", path: "/blog" },
-  ]);
+  assert.deepEqual(context.uncaptured_nav, ["/pricing", "/docs", "/about", "/blog"]);
   assert.match(context.next, /capture_visible_nav/);
   assert.doesNotMatch(JSON.stringify(context), /private=removed/);
 });
@@ -309,7 +321,13 @@ test("agent board context paginates exact actionable finding ids", () => {
     [findings[2]!.id, findings[3]!.id],
   );
   assert.deepEqual(second.finding_page, { offset: 2, limit: 2, total: 5, next_offset: 4 });
-  assert.match(withVisibleNav.next, /finding_offset 2.*capture_visible_nav/);
+  assert.deepEqual(withVisibleNav.finding_page, {
+    offset: 0,
+    limit: 1,
+    total: 5,
+    next_offset: 1,
+  });
+  assert.match(withVisibleNav.next, /finding_offset 1.*capture_visible_nav/);
 });
 
 test("agent context keeps route provenance distinct from the active checkpoint", () => {

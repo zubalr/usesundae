@@ -90,19 +90,20 @@ function agentFindingPage(
   findings: Finding[],
   selectedFindingId: string | null,
   requestedOffset = 0,
+  pageSize = AGENT_FINDING_PAGE_SIZE,
 ) {
   const selected = findings.find(({ id }) => id === selectedFindingId);
   const ordered = selected
     ? [selected, ...findings.filter(({ id }) => id !== selected.id)]
     : findings;
   const offset = Math.min(Math.max(0, Math.trunc(requestedOffset)), ordered.length);
-  const pageFindings = ordered.slice(offset, offset + AGENT_FINDING_PAGE_SIZE);
+  const pageFindings = ordered.slice(offset, offset + pageSize);
   const nextOffset = offset + pageFindings.length;
   return {
     findings: pageFindings,
     page: {
       offset,
-      limit: AGENT_FINDING_PAGE_SIZE,
+      limit: pageSize,
       total: ordered.length,
       next_offset: nextOffset < ordered.length ? nextOffset : null,
     },
@@ -110,12 +111,13 @@ function agentFindingPage(
 }
 
 export function buildAgentBoardContext(input: AgentBoardContextInput) {
+  const uncapturedNav = (input.uncapturedNav ?? []).slice(0, 4);
   const findingPage = agentFindingPage(
     input.findings,
     input.selectedFindingId,
     input.findingOffset,
+    uncapturedNav.length > 0 ? 1 : AGENT_FINDING_PAGE_SIZE,
   );
-  const uncapturedNav = (input.uncapturedNav ?? []).slice(0, 4);
   const nextFindingOffset = findingPage.page.next_offset;
   return {
     ok: true,
@@ -146,10 +148,7 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
     })),
     finding_page: findingPage.page,
     coverage_gaps: input.coverageGaps.slice(0, 3).map(({ label }) => agentText(label, 10)),
-    uncaptured_nav: uncapturedNav.map((route) => ({
-      label: agentText(route.label, 16),
-      path: agentText(routePath(route.url), 32),
-    })),
+    uncaptured_nav: uncapturedNav.map((route) => agentText(routePath(route.url), 32)),
     next:
       nextFindingOffset !== null
         ? `Next: get_board_context finding_offset ${nextFindingOffset}${uncapturedNav.length > 0 ? ", then capture_visible_nav." : ", or focus_finding."}`
