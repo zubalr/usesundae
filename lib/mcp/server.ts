@@ -5,8 +5,10 @@ import { z } from "zod";
 import {
   buildWorkspaceUrl,
   createAuditLaunch,
+  isIncludedDemoTarget,
   MAX_AUDIT_GOAL_LENGTH,
   MAX_PUBLIC_URL_LENGTH,
+  resolvePublicDemoUrl,
 } from "@/lib/launch";
 
 const MCP_VERSION = "0.1.0";
@@ -49,15 +51,25 @@ function internalMcpError() {
   );
 }
 
+function siteToolsNextStep(targetUrl: string, appOrigin: string) {
+  if (isIncludedDemoTarget(targetUrl, appOrigin)) {
+    return "Open workspace_url, wait for Sundae Site Tools, call audit_current_scope for the included /demo, then call get_board_context before the next action. workspace_ready is not an audit-complete state.";
+  }
+  return "Open workspace_url and wait for Sundae Site Tools. The requested public URL is prefilled but not captured: do not call audit_current_scope while the board still shows /demo. Ask the human to use the visible Capture page control for this exact target; after its checkpoint appears, call get_board_context before the next action. workspace_ready is not an audit-complete state.";
+}
+
 export function createSundaeMcpServer(appOrigin: string) {
   const server = new McpServer(
     { name: "sundae", version: MCP_VERSION },
     {
       instructions: [
         "Use start_audit when a user asks to review, audit, critique, or improve a public website or product interface.",
-        "The tool prepares an exact Sundae workspace; it does not itself capture or inspect the target.",
-        "In a host that can open the returned workspace and expose page-scoped WebMCP tools, open it, wait for Sundae Site Tools, and use those tools for evidence-backed review.",
-        "Never claim an audit or capture completed when the workspace or Site Tools were unavailable.",
+        "start_audit is read-only workspace preparation: workspace_ready does not mean that Sundae captured, inspected, or reviewed the target.",
+        "Open the returned workspace_url in the built-in browser and wait for page-scoped Sundae Site Tools before taking an audit action.",
+        "For the included /demo path, call audit_current_scope, then get_board_context; follow finding_page.next_offset when present before choosing what to do next.",
+        "For another public URL, the exact target is prefilled but not captured: ask the human to use the visible Capture page control, then continue from that approved checkpoint.",
+        "Keep measured facts, judged product opinions, and unseen coverage separate; leave tool receipts visible, ask before decisions or previews, and use preview_fix followed by verify_recapture for fresh evidence.",
+        "If the workspace or Site Tools are unavailable, return the exact workspace_url and name the missing step; never claim that capture or audit completed and never substitute a hidden fallback review.",
       ].join(" "),
     },
   );
@@ -67,7 +79,7 @@ export function createSundaeMcpServer(appOrigin: string) {
     {
       title: "Start a Sundae product audit",
       description:
-        "Prepare an exact Sundae workspace for an evidence-backed UI and UX audit of a public website. Use for requests to review, critique, improve, or find design problems in a site or web product.",
+        "Prepare an exact Sundae workspace for an evidence-backed UI and UX audit of a public website. This read-only handoff does not capture or inspect the target; page-scoped Sundae Site Tools operate the visible board after the workspace opens.",
       inputSchema: {
         url: z
           .string()
@@ -105,14 +117,13 @@ export function createSundaeMcpServer(appOrigin: string) {
           display_url: launch.displayUrl,
           goal: launch.goal,
           handoff_status: "workspace_ready" as const,
-          site_tools_next_step:
-            "Open workspace_url in a host browser that exposes Sundae Site Tools, then capture only the user-approved public scope.",
+          site_tools_next_step: siteToolsNextStep(launch.targetUrl, appOrigin),
         };
         return {
           content: [
             {
               type: "text" as const,
-              text: `Sundae workspace ready: ${structuredContent.workspace_url}\n\nOpen it before claiming any audit evidence was captured.`,
+              text: `Sundae workspace ready: ${structuredContent.workspace_url}\n\nThis handoff did not capture or review the page. Open the workspace, wait for Sundae Site Tools, and follow site_tools_next_step before making any audit-complete claim.`,
             },
           ],
           structuredContent,
@@ -128,13 +139,8 @@ export function createSundaeMcpServer(appOrigin: string) {
   return server;
 }
 
-export function resolveSundaeAppOrigin(requestUrl: string, configuredOrigin?: string) {
-  const candidate = configuredOrigin?.trim() || new URL(requestUrl).origin;
-  const parsed = new URL(candidate);
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    throw new Error("SUNDAE_APP_ORIGIN must be an http or https origin.");
-  }
-  return parsed.origin;
+export function resolveSundaeAppOrigin(configuredOrigin?: string) {
+  return new URL(resolvePublicDemoUrl(configuredOrigin)).origin;
 }
 
 export async function handleSundaeMcpRequest(request: Request, configuredOrigin?: string) {
@@ -152,7 +158,7 @@ export async function handleSundaeMcpRequest(request: Request, configuredOrigin?
 
   let appOrigin: string;
   try {
-    appOrigin = resolveSundaeAppOrigin(request.url, configuredOrigin);
+    appOrigin = resolveSundaeAppOrigin(configuredOrigin);
   } catch {
     return internalMcpError();
   }

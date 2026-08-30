@@ -14,10 +14,6 @@ import {
 } from "@/lib/launch";
 import styles from "./AuditLauncher.module.css";
 
-type AuditLauncherProps = {
-  sponsoredAvailable: boolean;
-};
-
 type HandoffReceipt = {
   prompt: string;
   workspaceUrl: string;
@@ -32,7 +28,7 @@ function revealFeedback(target: { current: HTMLElement | null }) {
   requestAnimationFrame(() => target.current?.focus());
 }
 
-export function AuditLauncher({ sponsoredAvailable }: AuditLauncherProps) {
+export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) {
   const { targetUrl, setTargetUrl, goal, setGoal } = useAuditIntent();
   const [error, setError] = useState("");
   const [handoff, setHandoff] = useState<HandoffReceipt | null>(null);
@@ -40,7 +36,7 @@ export function AuditLauncher({ sponsoredAvailable }: AuditLauncherProps) {
   const handoffRef = useRef<HTMLElement>(null);
 
   function prepareLaunch() {
-    const launch = createAuditLaunch(targetUrl, goal);
+    const launch = createAuditLaunch(targetUrl.trim() || includedDemoUrl, goal);
     return {
       launch,
       workspaceUrl: buildWorkspaceUrl(window.location.origin, launch),
@@ -52,21 +48,6 @@ export function AuditLauncher({ sponsoredAvailable }: AuditLauncherProps) {
     setHandoff(null);
     try {
       window.location.assign(prepareLaunch().workspaceUrl);
-    } catch (cause) {
-      setError(errorMessage(cause));
-      revealFeedback(errorRef);
-    }
-  }
-
-  function openSponsoredAudit() {
-    setError("");
-    setHandoff(null);
-    try {
-      prepareLaunch();
-      document.getElementById("sponsored-audit")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
     } catch (cause) {
       setError(errorMessage(cause));
       revealFeedback(errorRef);
@@ -113,17 +94,16 @@ export function AuditLauncher({ sponsoredAvailable }: AuditLauncherProps) {
     >
       <div className={styles.fields}>
         <label className={styles.urlField}>
-          <span>Public product URL</span>
+          <span>Public product URL · optional</span>
           <input
             type="url"
             value={targetUrl}
             maxLength={MAX_PUBLIC_URL_LENGTH}
             onChange={(event) => setTargetUrl(event.target.value)}
-            placeholder="https://your-product.com"
+            placeholder="Leave blank for the included /demo"
             autoComplete="url"
             autoCapitalize="none"
             spellCheck={false}
-            required
           />
         </label>
         <label className={styles.goalField}>
@@ -148,25 +128,17 @@ export function AuditLauncher({ sponsoredAvailable }: AuditLauncherProps) {
 
       <div className={styles.actions}>
         <button className={styles.chatGptAction} type="submit">
-          <Icon name="agent" /> Continue with ChatGPT
+          <Icon name="agent" /> Continue in ChatGPT
         </button>
         <button className={styles.workbenchAction} type="button" onClick={openWorkbench}>
-          <Icon name="focus" /> Open evidence workbench
+          <Icon name="focus" /> Open visible workbench
         </button>
-        {sponsoredAvailable ? (
-          <button className={styles.sponsoredAction} type="button" onClick={openSponsoredAudit}>
-            <Icon name="spark" /> Use one complimentary review
-          </button>
-        ) : null}
       </div>
 
       <p className={styles.controlNote}>
-        ChatGPT uses your connected plan. The workbench is the transparent fallback: capture,
-        findings, decisions, and fresh verification stay visibly separate.
+        Zero-key contest path: leave the URL blank. ChatGPT opens the included /demo, waits for
+        Sundae Site Tools, and operates the same evidence board you can control by hand below.
       </p>
-      {!sponsoredAvailable ? (
-        <p className={styles.comingSoon}>Complimentary full-page review · coming soon</p>
-      ) : null}
 
       {handoff ? (
         <section

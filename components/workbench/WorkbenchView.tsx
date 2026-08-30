@@ -16,18 +16,19 @@ import { DECISION_OPTIONS, DECISION_VALUES, type Decision } from "@/lib/workbenc
 import { type EvidenceBoardDescription, verificationLabel } from "@/lib/workbench/evidence";
 import {
   activityActorLabel,
+  activityTitle,
   type Activity,
   type VisibleFinding,
   type WorkbenchCommands,
 } from "@/lib/workbench/types";
 import {
   registerWorkbenchTools,
+  WEBMCP_REGISTRATION_GRACE_MS,
   WEBMCP_TOOL_COUNTS,
   type WebMcpStatus,
 } from "@/lib/webmcp/register";
 import { DemoViewport } from "@/components/DemoViewport";
 import { Icon } from "@/components/Icons";
-import { resolvePublicDemoUrl } from "@/lib/launch";
 import styles from "@/components/Workbench.module.css";
 
 export type TargetMode = "sample" | "remote";
@@ -62,11 +63,19 @@ function WebMcpIndicator({ commands, mode }: { commands: WorkbenchCommands; mode
 
   useEffect(() => {
     const controller = new AbortController();
+    const fallback = window.setTimeout(
+      () => setStatus("unavailable"),
+      WEBMCP_REGISTRATION_GRACE_MS,
+    );
     setStatus("checking");
     registerWorkbenchTools(commands, controller.signal, mode)
       .then((ready) => setStatus(ready ? "ready" : "unavailable"))
-      .catch(() => setStatus("error"));
-    return () => controller.abort();
+      .catch(() => setStatus("error"))
+      .finally(() => window.clearTimeout(fallback));
+    return () => {
+      window.clearTimeout(fallback);
+      controller.abort();
+    };
   }, [commands, mode]);
 
   const label =
@@ -90,6 +99,7 @@ function WebMcpIndicator({ commands, mode }: { commands: WorkbenchCommands; mode
 
 export type WorkbenchViewProps = {
   mode: TargetMode;
+  includedDemoUrl: string;
   auditGoal: string;
   viewport: Viewport;
   demoState: DemoState;
@@ -142,12 +152,15 @@ export type WorkbenchViewProps = {
   onVerifyRecapture: (findingId: string) => void;
 };
 
-function AuditTopbar({ commands, auditing, mode, onAudit }: WorkbenchViewProps) {
-  const auditLabel = auditing
-    ? "Capturing…"
-    : mode === "remote"
-      ? "Recapture page"
-      : "Audit live target";
+function AuditTopbar({ commands, auditing, mode, checkpoint, onAudit }: WorkbenchViewProps) {
+  const awaitingCapture = mode === "remote" && !checkpoint;
+  const auditLabel = awaitingCapture
+    ? "Awaiting capture"
+    : auditing
+      ? "Capturing…"
+      : mode === "remote"
+        ? "Recapture page"
+        : "Audit live target";
 
   return (
     <header className={styles.topbar}>
@@ -158,7 +171,12 @@ function AuditTopbar({ commands, auditing, mode, onAudit }: WorkbenchViewProps) 
       </a>
       <div className={styles.topbarActions}>
         <WebMcpIndicator commands={commands} mode={mode} />
-        <button className={styles.auditButton} type="button" disabled={auditing} onClick={onAudit}>
+        <button
+          className={styles.auditButton}
+          type="button"
+          disabled={auditing || awaitingCapture}
+          onClick={onAudit}
+        >
           <Icon name="audit" />
           {auditLabel}
         </button>
@@ -205,7 +223,7 @@ function ScopeBar({
           <Icon name="agent" /> Audit agent surface
         </button>
       ) : null}
-      {mode === "remote" && demoState === "baseline" ? (
+      {mode === "remote" && checkpoint && demoState === "baseline" ? (
         <button type="button" disabled={auditing} onClick={onCaptureBelowFold}>
           <Icon name="focus" /> Add below-fold
         </button>
@@ -221,6 +239,8 @@ function ScopeBar({
 
 function CaptureBar({
   mode,
+  includedDemoUrl,
+  checkpoint,
   auditGoal,
   urlDraft,
   waitForSelectorDraft,
@@ -275,7 +295,7 @@ function CaptureBar({
         <button
           type="button"
           className={styles.presetUrl}
-          onClick={() => onChangeUrlDraft(resolvePublicDemoUrl(window.location.origin))}
+          onClick={() => onChangeUrlDraft(includedDemoUrl)}
           aria-label="Fill the included Sundae demo target without capturing"
         >
           included /demo
@@ -292,12 +312,12 @@ function CaptureBar({
           </button>
         ) : null}
         <button type="submit" disabled={auditing || !hasUrl}>
-          <Icon name="focus" /> {mode === "remote" ? "New audit" : "Capture page"}
+          <Icon name="focus" /> {mode === "remote" && checkpoint ? "New audit" : "Capture page"}
         </button>
         {mode === "remote" ? (
           <button
             type="button"
-            disabled={auditing || !hasUrl}
+            disabled={auditing || !hasUrl || !checkpoint}
             onClick={() => onCaptureJourneyStep(urlDraft, `Step ${journey.length + 1}`)}
           >
             <Icon name="spark" /> Add step
@@ -350,15 +370,24 @@ function ProductPane({
   onScheduleAudit,
   onFocusFinding,
 }: WorkbenchViewProps) {
+  const awaitingCapture = mode === "remote" && !checkpoint;
   return (
     <section className={styles.productPane} aria-labelledby="live-product-title">
       <div className={styles.paneHead}>
         <div>
-          <h1 id="live-product-title">{mode === "remote" ? "Rendered product" : "Live product"}</h1>
+          <h1 id="live-product-title">
+            {awaitingCapture
+              ? "Public capture ready"
+              : mode === "remote"
+                ? "Rendered product"
+                : "Live product"}
+          </h1>
           <p>
-            {mode === "remote"
-              ? "Screenshot, text, and accessibility evidence from one bounded checkpoint."
-              : "Measured directly from the rendered document in this browser."}
+            {awaitingCapture
+              ? "The exact target is prefilled above. Capture it before Sundae creates evidence."
+              : mode === "remote"
+                ? "Screenshot, text, and accessibility evidence from one bounded checkpoint."
+                : "Measured directly from the rendered document in this browser."}
           </p>
         </div>
         <div className={styles.viewportSwitch} role="group" aria-label="Audit viewport">
@@ -366,7 +395,7 @@ function ProductPane({
             type="button"
             data-active={viewport === "mobile"}
             aria-pressed={viewport === "mobile"}
-            disabled={auditing}
+            disabled={auditing || awaitingCapture}
             onClick={() => onChangeViewport("mobile")}
           >
             <Icon name="mobile" /> Mobile
@@ -375,7 +404,7 @@ function ProductPane({
             type="button"
             data-active={viewport === "desktop"}
             aria-pressed={viewport === "desktop"}
-            disabled={auditing}
+            disabled={auditing || awaitingCapture}
             onClick={() => onChangeViewport("desktop")}
           >
             <Icon name="desktop" /> Desktop
@@ -388,6 +417,7 @@ function ProductPane({
         viewport={viewport}
         demoState={demoState}
         checkpoint={mode === "remote" ? checkpoint : null}
+        pending={awaitingCapture}
         findings={visibleFindings}
         selectedId={selected?.id ?? null}
         auditing={auditing}
@@ -398,14 +428,18 @@ function ProductPane({
       <div className={styles.frameFoot}>
         <span>
           <i />{" "}
-          {mode === "remote"
-            ? "Cloudflare Browser Run checkpoint"
-            : "Same-origin WebMCP contract fixture"}
+          {awaitingCapture
+            ? "No checkpoint yet"
+            : mode === "remote"
+              ? "Cloudflare Browser Run checkpoint"
+              : "Same-origin WebMCP contract fixture"}
         </span>
         <span>
-          {mode === "remote"
-            ? "Public render · query and fragment hidden on board"
-            : "No cloud credentials needed for sample"}
+          {awaitingCapture
+            ? "Human approval required before agent capture"
+            : mode === "remote"
+              ? "Public render · query and fragment hidden on board"
+              : "No cloud credentials needed for sample"}
         </span>
       </div>
       {error ? (
@@ -845,7 +879,7 @@ function ActivityReceipts({ activity, activityLimit }: WorkbenchViewProps) {
               )}
             </span>
             <div>
-              <b>{entry.action}</b>
+              <b>{activityTitle(entry)}</b>
               <p>{entry.detail}</p>
             </div>
             <time dateTime={entry.at}>{shortTime(entry.at)}</time>

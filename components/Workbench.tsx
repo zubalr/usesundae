@@ -12,10 +12,11 @@ import {
   snapshotFromCheckpoint,
   type JudgedFindingInput,
 } from "@/lib/audit/remote";
-import { auditWebMcpTools } from "@/lib/audit/tools";
+import { auditWebMcpTools, normalizeRuntimeToolContract } from "@/lib/audit/tools";
 import type { AuditSnapshot, CoverageGap, DemoState, Finding, Viewport } from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { DEMO_TOOL_CONTRACTS } from "@/lib/demo/tools";
+import { resolveInitialTargetMode, resolvePublicDemoUrl } from "@/lib/launch";
 import { boundedText } from "@/lib/text";
 import { assertApprovedForActor, canonicalizeApprovedUrl } from "@/lib/workbench/approval";
 import {
@@ -103,6 +104,7 @@ const severityRank = { high: 0, medium: 1, low: 2 } as const;
 type WorkbenchProps = {
   initialUrl?: string;
   auditGoal?: string;
+  includedDemoUrl?: string;
 };
 
 function compareFindingsBySeverity(first: Finding, second: Finding) {
@@ -166,11 +168,14 @@ function resolveWaitForSelector(requested: string | undefined, fallback?: string
   return requested.trim() || undefined;
 }
 
-export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
-  const { goal: liveAuditGoal, sponsoredResult, setSponsoredResult } = useAuditIntent();
-  const currentAuditGoal = sponsoredResult
-    ? sponsoredResult.session.goal
-    : liveAuditGoal || auditGoal;
+export function Workbench({
+  initialUrl = "",
+  auditGoal = "",
+  includedDemoUrl = resolvePublicDemoUrl(),
+}: WorkbenchProps) {
+  const initialMode: TargetMode = resolveInitialTargetMode(initialUrl, includedDemoUrl);
+  const { goal: liveAuditGoal } = useAuditIntent();
+  const currentAuditGoal = liveAuditGoal || auditGoal;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const activitySequence = useRef(0);
   const activityRef = useRef<Activity[]>([]);
@@ -178,7 +183,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   const auditWaiters = useRef<AuditWaiter[]>([]);
   const auditTimerRef = useRef<number | null>(null);
   const auditEndTimerRef = useRef<number | null>(null);
-  const modeRef = useRef<TargetMode>("sample");
+  const modeRef = useRef<TargetMode>(initialMode);
   const viewportRef = useRef<Viewport>("mobile");
   const demoStateRef = useRef<DemoState>("baseline");
   const baselineRef = useRef<SnapshotMap>({});
@@ -200,9 +205,8 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   const latestOperationRef = useRef(new LatestOperation());
   const auditCountRef = useRef(0);
   const inspectorRef = useRef<HTMLElement>(null);
-  const importedSponsoredIdRef = useRef<string | null>(null);
 
-  const [mode, setMode] = useState<TargetMode>("sample");
+  const [mode, setMode] = useState<TargetMode>(initialMode);
   const [viewport, setViewport] = useState<Viewport>("mobile");
   const [demoState, setDemoState] = useState<DemoState>("baseline");
   const [urlDraft, setUrlDraft] = useState(initialUrl);
@@ -216,7 +220,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   const [verification, setVerification] = useState<Record<string, VerificationReceipt>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activity, setActivity] = useState<Activity[]>([]);
-  const [auditing, setAuditing] = useState(true);
+  const [auditing, setAuditing] = useState(initialMode === "sample");
   const [error, setError] = useState<string | null>(null);
   const [journey, setJourney] = useState<JourneyEntry[]>([]);
   const [decisionReason, setDecisionReason] = useState("");
@@ -239,18 +243,22 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
     setDecisionReason(selectedId ? (decisionsRef.current[selectedId]?.reason ?? "") : "");
   }, [selectedId]);
 
-  const pushActivity = useCallback((actor: Actor, action: string, detail: string) => {
-    const entry: Activity = {
-      id: `${Date.now()}-${activitySequence.current++}`,
-      actor,
-      action,
-      detail,
-      at: nowIso(),
-    };
-    activityRef.current = [entry, ...activityRef.current].slice(0, MAX_ACTIVITY_RECEIPTS);
-    setActivity(activityRef.current);
-    return entry;
-  }, []);
+  const pushActivity = useCallback(
+    (actor: Actor, action: string, detail: string, toolName?: string) => {
+      const entry: Activity = {
+        id: `${Date.now()}-${activitySequence.current++}`,
+        actor,
+        action,
+        detail,
+        at: nowIso(),
+        ...(toolName ? { toolName } : {}),
+      };
+      activityRef.current = [entry, ...activityRef.current].slice(0, MAX_ACTIVITY_RECEIPTS);
+      setActivity(activityRef.current);
+      return entry;
+    },
+    [],
+  );
 
   const invalidateVerification = useCallback((findings: AuditSnapshot["findings"]) => {
     const next = invalidateVerificationForFindings(verificationRef.current, findings);
@@ -399,57 +407,6 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
     return latestOperationRef.current.begin();
   }, []);
 
-  useEffect(() => {
-    if (!sponsoredResult || importedSponsoredIdRef.current === sponsoredResult.checkpoint.id)
-      return;
-    const nextCheckpoint = sponsoredResult.checkpoint;
-    const snapshot = sponsoredResult.snapshot;
-    const publicUrl = nextCheckpoint.target.displayUrl;
-    const captureUrl = sponsoredResult.session.captureUrl;
-
-    beginRemoteOperation();
-    resetEvidence();
-    modeRef.current = "remote";
-    viewportRef.current = nextCheckpoint.viewport;
-    demoStateRef.current = snapshot.demoState;
-    remoteUrlRef.current = captureUrl;
-    fullPageRef.current = nextCheckpoint.capture.fullPage;
-    waitForSelectorRef.current = nextCheckpoint.capture.waitForSelector;
-    checkpointRef.current = nextCheckpoint;
-    checkpointRecordsRef.current.set(nextCheckpoint.id, {
-      checkpoint: nextCheckpoint,
-      captureUrl,
-    });
-    approvedUrlsRef.current = new Set([captureUrl]);
-    baselineCheckpointRef.current = { [nextCheckpoint.viewport]: nextCheckpoint };
-    setMode("remote");
-    setViewport(nextCheckpoint.viewport);
-    setDemoState(snapshot.demoState);
-    setCheckpoint(nextCheckpoint);
-    setUrlDraft(publicUrl);
-    setWaitForSelectorDraft(nextCheckpoint.capture.waitForSelector ?? "");
-    setError(null);
-    setAuditing(false);
-    commitSnapshot(snapshot);
-
-    const firstStep: JourneyEntry = {
-      checkpointId: nextCheckpoint.id,
-      scopeId: nextCheckpoint.scopeId,
-      label: nextCheckpoint.title || "Sponsored review",
-      displayUrl: publicUrl,
-      capturedAt: nextCheckpoint.capturedAt,
-      findingCount: snapshot.findings.length,
-    };
-    journeyRef.current = [firstStep];
-    setJourney(journeyRef.current);
-    importedSponsoredIdRef.current = nextCheckpoint.id;
-    pushActivity(
-      "system",
-      "Imported sponsored review",
-      `${publicUrl} · ${nextCheckpoint.viewport} · ${snapshot.findings.length} evidence-linked findings`,
-    );
-  }, [beginRemoteOperation, commitSnapshot, pushActivity, resetEvidence, sponsoredResult]);
-
   const assertCurrentOperation = useCallback((epoch: number, signal?: AbortSignal) => {
     latestOperationRef.current.assertCurrent(epoch, signal);
   }, []);
@@ -461,6 +418,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       actor: Actor,
       signal?: AbortSignal,
       waitForSelector?: string,
+      toolName?: string,
     ): Promise<CommandResult> => {
       const cleanUrl = url.trim();
       if (!cleanUrl) throw new Error("Enter the public page URL you want to audit.");
@@ -473,7 +431,6 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       });
       assertCurrentOperation(operationEpoch, signal);
 
-      setSponsoredResult(null);
       resetEvidence();
       modeRef.current = "remote";
       viewportRef.current = nextViewport;
@@ -514,6 +471,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         actor,
         "Captured public page",
         `${nextCheckpoint.target.displayUrl} · ${nextViewport} · ${nextCheckpoint.id}${browserMs.suffix}`,
+        toolName,
       );
       return {
         ok: true,
@@ -534,7 +492,6 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       fetchRemote,
       pushActivity,
       resetEvidence,
-      setSponsoredResult,
     ],
   );
 
@@ -545,6 +502,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       actor: Actor,
       signal?: AbortSignal,
       waitForSelector?: string,
+      toolName?: string,
     ): Promise<CommandResult> => {
       if (modeRef.current !== "remote" || !checkpointRef.current) {
         throw new Error("Start a public-page audit before appending a journey step.");
@@ -600,6 +558,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         actor,
         "Captured journey step",
         `${cleanLabel} · ${nextCheckpoint.target.displayUrl} · ${nextCheckpoint.id}${browserMs.suffix}`,
+        toolName,
       );
       return {
         ok: true,
@@ -620,6 +579,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       waitForSelector: string | undefined,
       actor: Actor,
       signal?: AbortSignal,
+      toolName?: string,
     ): Promise<CommandResult> => {
       if (modeRef.current !== "remote" || !checkpointRef.current) {
         throw new Error("Start a public-page audit before adding below-fold evidence.");
@@ -675,6 +635,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         actor,
         "Captured below fold",
         `${nextCheckpoint.target.displayUrl} · full page · ${nextCheckpoint.id}${browserMs.suffix}`,
+        toolName,
       );
       return {
         ok: true,
@@ -696,6 +657,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       actor: Actor,
       signal?: AbortSignal,
       waitForSelector?: string,
+      toolName?: string,
     ): Promise<CommandResult> => {
       signal?.throwIfAborted();
       if (modeRef.current === "sample") {
@@ -705,6 +667,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
           actor,
           "Measured live target",
           `${snapshot.findings.length} findings · ${snapshot.viewportSize.width}×${snapshot.viewportSize.height} · ${snapshot.demoState}`,
+          toolName,
         );
         return {
           ok: true,
@@ -764,6 +727,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         actor,
         "Recaptured public page",
         `${nextCheckpoint.target.displayUrl} · ${nextCheckpoint.id}${browserMs.suffix}`,
+        toolName,
       );
       return {
         ok: true,
@@ -846,7 +810,10 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
     }
     const runtimeStatus =
       targetDocument?.documentElement.dataset.sundaeWebmcpFixture ?? "unavailable";
-    const tools = runtimeTools.length > 0 ? runtimeTools : DEMO_TOOL_CONTRACTS;
+    const tools =
+      runtimeTools.length > 0
+        ? runtimeTools.map(normalizeRuntimeToolContract)
+        : DEMO_TOOL_CONTRACTS;
     const source =
       runtimeTools.length > 0
         ? "runtime getTools()"
@@ -860,7 +827,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   }, []);
 
   const inspectAgentSurface = useCallback(
-    async (actor: Actor): Promise<CommandResult> => {
+    async (actor: Actor, toolName?: string): Promise<CommandResult> => {
       if (modeRef.current === "remote") {
         const gap = {
           id: `gap-remote-webmcp-${Date.now()}`,
@@ -873,6 +840,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
           actor,
           "Named agent-surface gap",
           "Remote tool contracts were not exposed by this checkpoint.",
+          toolName,
         );
         return {
           ok: true,
@@ -888,6 +856,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         actor,
         "Inspected agent surface",
         `${tools.length} target tools via ${source} · ${additions.length} new findings`,
+        toolName,
       );
       return {
         ok: true,
@@ -898,6 +867,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
           name: tool.name,
           description: tool.description,
           annotations: tool.annotations,
+          schema_inspection: tool.schemaInspection ?? "inspectable",
         })),
         findings: additions.map((finding) => ({
           id: finding.id,
@@ -910,7 +880,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   );
 
   const recordVisualFinding = useCallback(
-    async (input: JudgedFindingInput, actor: Actor): Promise<CommandResult> => {
+    async (input: JudgedFindingInput, actor: Actor, toolName?: string): Promise<CommandResult> => {
       if (demoStateRef.current !== "baseline")
         throw new Error(
           "Record judgments on a baseline checkpoint, then preview and verify separately.",
@@ -950,7 +920,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         };
       }
       appendFindings([finding]);
-      pushActivity(actor, "Recorded visual judgment", `${finding.id} · ${finding.title}`);
+      pushActivity(actor, "Recorded visual judgment", `${finding.id} · ${finding.title}`, toolName);
       return {
         ok: true,
         receipt: `Added ${finding.id} as a judged finding linked to the current evidence.`,
@@ -966,7 +936,12 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   );
 
   const recordCoverageGap = useCallback(
-    async (label: string, detail: string, actor: Actor): Promise<CommandResult> => {
+    async (
+      label: string,
+      detail: string,
+      actor: Actor,
+      toolName?: string,
+    ): Promise<CommandResult> => {
       const cleanLabel = boundedText(label, 100);
       const cleanDetail = boundedText(detail, 300);
       if (!cleanLabel || !cleanDetail)
@@ -977,7 +952,12 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         detail: cleanDetail,
       };
       const added = appendGap(gap);
-      pushActivity(actor, added ? "Recorded coverage gap" : "Confirmed coverage gap", cleanLabel);
+      pushActivity(
+        actor,
+        added ? "Recorded coverage gap" : "Confirmed coverage gap",
+        cleanLabel,
+        toolName,
+      );
       return {
         ok: true,
         receipt: added
@@ -1029,7 +1009,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   );
 
   const getBoardContext = useCallback(
-    (actor: Actor): CommandResult => {
+    (actor: Actor, findingOffset?: number, toolName?: string): CommandResult => {
       const baseline = baselineRef.current[viewportRef.current];
       pushActivity(
         actor,
@@ -1037,6 +1017,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         baseline
           ? `${baseline.findings.length} findings · ${baseline.gaps.length} named gaps`
           : "No checkpoint is available yet.",
+        toolName,
       );
       if (!baseline)
         return { ok: false, receipt: "The active scope has not produced a checkpoint yet." };
@@ -1071,13 +1052,14 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         verifications: verificationRef.current,
         coverageGaps: baseline.gaps,
         trailStepCount: journeyRef.current.length,
+        findingOffset,
       });
     },
     [currentAuditGoal, pushActivity],
   );
 
   const focusFinding = useCallback(
-    async (findingId: string, actor: Actor): Promise<CommandResult> => {
+    async (findingId: string, actor: Actor, toolName?: string): Promise<CommandResult> => {
       const finding = visibleFindingById(findingId);
       if (!finding) throw new Error(`Finding ${findingId} is not present on the current board.`);
       const activatedCheckpoint =
@@ -1091,7 +1073,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       selectedRef.current = finding.id;
       setSelectedId(finding.id);
       setDecisionReason(decisionsRef.current[finding.id]?.reason ?? "");
-      pushActivity(actor, "Focused finding", `${finding.id} · ${finding.title}`);
+      pushActivity(actor, "Focused finding", `${finding.id} · ${finding.title}`, toolName);
       window.setTimeout(() => {
         document
           .getElementById(`finding-${finding.id}`)
@@ -1118,6 +1100,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       decision: Decision,
       reason: string,
       actor: Actor,
+      toolName?: string,
     ): Promise<CommandResult> => {
       const finding = visibleFindingById(findingId);
       if (!finding) throw new Error(`Finding ${findingId} is not present on the board.`);
@@ -1129,7 +1112,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       setDecisionReason(cleanReason);
       selectedRef.current = findingId;
       setSelectedId(findingId);
-      pushActivity(actor, `Decision: ${decision}`, `${finding.id} · ${cleanReason}`);
+      pushActivity(actor, `Decision: ${decision}`, `${finding.id} · ${cleanReason}`, toolName);
       return {
         ok: true,
         receipt: `Recorded a reversible ${decision} decision for ${finding.id}.`,
@@ -1213,6 +1196,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       actor: Actor,
       signal?: AbortSignal,
       waitForSelector?: string,
+      toolName?: string,
     ): Promise<CommandResult> => {
       if (modeRef.current === "remote") {
         const css = previewCss?.trim();
@@ -1245,6 +1229,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
           actor,
           "Rendered CSS preview",
           `${nextCheckpoint.id} · source website unchanged`,
+          toolName,
         );
         return {
           ok: true,
@@ -1266,6 +1251,12 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
 
       if (demoStateRef.current === "improved") {
         const snapshot = currentRef.current[viewportRef.current];
+        pushActivity(
+          actor,
+          "Confirmed preview",
+          "The included reversible improvement was already visible.",
+          toolName,
+        );
         return {
           ok: true,
           receipt: "The reversible improvement is already visible.",
@@ -1284,6 +1275,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
             actor,
             "Previewed improvement",
             "Applied the included target's local improved state; no external product was edited.",
+            toolName,
           );
         },
         rollback: () => {
@@ -1322,6 +1314,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       actor: Actor,
       signal?: AbortSignal,
       waitForSelector?: string,
+      toolName?: string,
     ): Promise<CommandResult> => {
       signal?.throwIfAborted();
       const baseline = baselineRef.current[viewportRef.current];
@@ -1380,6 +1373,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
         actor,
         "Verified by recapture",
         `${fixed} fixed · ${stillOpen} still open · ${unverified} unverified${browserMs.suffix}`,
+        toolName,
       );
       return {
         ok: true,
@@ -1462,7 +1456,6 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
 
   const showSample = useCallback(() => {
     beginRemoteOperation();
-    setSponsoredResult(null);
     resetEvidence();
     modeRef.current = "sample";
     viewportRef.current = "mobile";
@@ -1478,7 +1471,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
       "Opened included target",
       "Switched to the WebMCP-ready live sample; no remote browser required.",
     );
-  }, [beginRemoteOperation, pushActivity, resetEvidence, setSponsoredResult]);
+  }, [beginRemoteOperation, pushActivity, resetEvidence]);
 
   const changeViewport = useCallback(
     (next: Viewport) => {
@@ -1635,6 +1628,7 @@ export function Workbench({ initialUrl = "", auditGoal = "" }: WorkbenchProps) {
   return (
     <WorkbenchView
       mode={mode}
+      includedDemoUrl={includedDemoUrl}
       auditGoal={currentAuditGoal}
       viewport={viewport}
       demoState={demoState}

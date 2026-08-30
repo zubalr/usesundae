@@ -12,8 +12,6 @@
     "lint": "oxlint",
     "lint:tokens": "node scripts/lint-tokens.mjs",
     "check": "npm run typecheck && npm run lint && npm run lint:tokens && npm test",
-    "gate:check": "WRANGLER_SEND_METRICS=false WRANGLER_LOG_PATH=cloudflare/redemption-gate/.wrangler/wrangler.log wrangler deploy --dry-run --config cloudflare/redemption-gate/wrangler.jsonc",
-    "gate:deploy": "WRANGLER_SEND_METRICS=false WRANGLER_LOG_PATH=cloudflare/redemption-gate/.wrangler/wrangler.log wrangler deploy --config cloudflare/redemption-gate/wrangler.jsonc",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "tokens:sync": "node scripts/sync-tokens-doc.mjs"
@@ -32,7 +30,6 @@
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.2",
-    "wrangler": "^4.127.1"
+    "typescript": "^5.9.2"
   }
 }

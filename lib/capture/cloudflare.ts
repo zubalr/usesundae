@@ -288,7 +288,6 @@ export async function captureWithCloudflare(
     viewport,
     screenshotOptions: { fullPage: input.fullPage === true },
     gotoOptions: { waitUntil: "networkidle2", timeout: 30_000 },
-    allowRequestPattern: ["/^https?:\\/\\//i"],
     rejectRequestPattern: PRIVATE_REQUEST_PATTERNS,
   };
   if (previewCss) body.addScriptTag = [{ content: previewScript(previewCss) }];

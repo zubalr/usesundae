@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { auditWebMcpTools } from "../lib/audit/tools";
+import { auditWebMcpTools, normalizeRuntimeToolContract } from "../lib/audit/tools";
 import {
   demoWebMcpReadyMessage,
   DEMO_TOOL_CONTRACTS,
@@ -48,6 +48,49 @@ test("the included target keeps an inspectable read-only contract defect", () =>
       "sundae_lab_archive_workflow-closed-schema",
     ],
   );
+});
+
+test("normalizes object and serialized runtime schemas before auditing them", () => {
+  const closedSchema = { type: "object", properties: {}, additionalProperties: false } as const;
+
+  for (const inputSchema of [closedSchema, JSON.stringify(closedSchema)]) {
+    const tool = normalizeRuntimeToolContract({
+      name: "sundae_lab_get_workflow_summary",
+      description:
+        "Read the visible controlled-fixture workflow summary without changing product state.",
+      inputSchema,
+      annotations: { readOnlyHint: true },
+    });
+
+    assert.equal(tool.schemaInspection, "inspectable");
+    assert.equal(tool.inputSchema?.additionalProperties, false);
+    assert.equal(
+      auditWebMcpTools([tool], "desktop").some((finding) =>
+        finding.auditId.endsWith("-closed-schema"),
+      ),
+      false,
+    );
+  }
+});
+
+test("marks malformed or oversized runtime schemas uninspectable without inventing a defect", () => {
+  for (const inputSchema of ["{not-json", JSON.stringify("not-an-object"), "x".repeat(20_000)]) {
+    const tool = normalizeRuntimeToolContract({
+      name: "sundae_lab_get_workflow_summary",
+      description:
+        "Read the visible controlled-fixture workflow summary without changing product state.",
+      inputSchema,
+      annotations: { readOnlyHint: true },
+    });
+
+    assert.equal(tool.schemaInspection, "not_inspectable");
+    assert.equal(
+      auditWebMcpTools([tool], "desktop").some((finding) =>
+        finding.auditId.endsWith("-closed-schema"),
+      ),
+      false,
+    );
+  }
 });
 
 test("the nested fixture status does not imply the workbench lost Site Tools", () => {

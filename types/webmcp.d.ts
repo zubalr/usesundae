@@ -33,7 +33,8 @@ declare global {
     ) => Promise<WebMcpToolResult>;
   };
 
-  type RegisteredWebMcpTool = Omit<WebMcpTool, "execute"> & {
+  type RegisteredWebMcpTool = Omit<WebMcpTool, "execute" | "inputSchema"> & {
+    inputSchema?: WebMcpInputSchema | string;
     origin?: string;
     window?: Window;
   };

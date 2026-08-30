@@ -10,7 +10,7 @@ import {
   verificationLabel,
 } from "../lib/workbench/evidence";
 import { createToolResult, MAX_TOOL_TEXT_BYTES } from "../lib/webmcp/result";
-import { activityActorLabel } from "../lib/workbench/types";
+import { activityActorLabel, activityTitle } from "../lib/workbench/types";
 
 function finding(index: number): Finding {
   return {
@@ -190,6 +190,41 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
   assert.equal(payload.coverage_gaps.length, 3);
 });
 
+test("agent board context paginates exact actionable finding ids", () => {
+  const findings = [1, 2, 3, 4, 5].map(finding);
+  const input = {
+    auditGoal: "Review activation",
+    target: { kind: "included_live_target" as const, path: "/demo", screenshotVisible: true },
+    viewport: "mobile" as const,
+    state: "baseline" as const,
+    currentFindingCount: findings.length,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: null,
+    retainsBaseline: false,
+    findings,
+    decisions: {},
+    verifications: {},
+    coverageGaps: [],
+    trailStepCount: 0,
+  };
+
+  const first = buildAgentBoardContext({ ...input, findingOffset: 0 });
+  const second = buildAgentBoardContext({ ...input, findingOffset: 2 });
+
+  assert.equal(first.receipt, "Evidence unchanged; visible board-read receipt added.");
+  assert.deepEqual(
+    first.findings.map(({ id }) => id),
+    [findings[0]!.id, findings[1]!.id],
+  );
+  assert.deepEqual(first.finding_page, { offset: 0, limit: 2, total: 5, next_offset: 2 });
+  assert.deepEqual(
+    second.findings.map(({ id }) => id),
+    [findings[2]!.id, findings[3]!.id],
+  );
+  assert.deepEqual(second.finding_page, { offset: 2, limit: 2, total: 5, next_offset: 4 });
+});
+
 test("agent context keeps route provenance distinct from the active checkpoint", () => {
   const routeA = { ...finding(1), checkpointId: "checkpoint-route-a", scopeKey: "scope-a" };
   const routeB = { ...finding(2), checkpointId: "checkpoint-route-b", scopeKey: "scope-b" };
@@ -226,4 +261,11 @@ test("activity actors have explicit accessible labels", () => {
   assert.equal(activityActorLabel("human"), "Human action");
   assert.equal(activityActorLabel("agent"), "Agent action");
   assert.equal(activityActorLabel("system"), "System action");
+  assert.equal(
+    activityTitle({
+      action: "Read evidence board",
+      toolName: "get_board_context",
+    }),
+    "Read evidence board · get_board_context",
+  );
 });
