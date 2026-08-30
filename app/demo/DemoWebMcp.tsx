@@ -8,6 +8,7 @@ import {
   DEMO_WEBMCP_STATUS_MESSAGES,
   DEMO_WORKFLOW_NAMES,
 } from "@/lib/demo/tools";
+import { WEBMCP_REGISTRATION_GRACE_MS } from "@/lib/webmcp/register";
 import styles from "./demo.module.css";
 
 type FixtureStatus = "checking" | "ready" | "unavailable" | "error";
@@ -58,6 +59,10 @@ export function DemoWebMcp() {
 
     const controller = new AbortController();
     let active = true;
+    const fallback = window.setTimeout(() => {
+      setStatus("unavailable");
+      setStatusMessage(DEMO_WEBMCP_STATUS_MESSAGES.unavailable);
+    }, WEBMCP_REGISTRATION_GRACE_MS);
     const toolHandlers: Record<string, (input: Record<string, unknown>) => WebMcpToolResult> = {
       sundae_lab_get_workflow_summary: () => {
         const visible = visibleWorkflowRows().length;
@@ -122,12 +127,14 @@ export function DemoWebMcp() {
           await context.registerTool(tool, { signal: controller.signal });
         }
         if (active) {
+          window.clearTimeout(fallback);
           setStatus("ready");
           setStatusMessage(demoWebMcpReadyMessage(tools.length));
         }
       } catch (error) {
         if (!controller.signal.aborted) controller.abort(error);
         if (active) {
+          window.clearTimeout(fallback);
           setStatus("error");
           setStatusMessage(DEMO_WEBMCP_STATUS_MESSAGES.error);
           setReceipt("WebMCP registration did not complete; no hidden fixture action was taken.");
@@ -137,6 +144,7 @@ export function DemoWebMcp() {
 
     return () => {
       active = false;
+      window.clearTimeout(fallback);
       controller.abort();
     };
   }, []);

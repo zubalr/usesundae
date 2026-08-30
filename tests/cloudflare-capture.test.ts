@@ -133,7 +133,7 @@ test("requests a bounded multi-format snapshot and returns a redacted checkpoint
   assert.deepEqual(body.viewport, { width: 390, height: 844, deviceScaleFactor: 2 });
   assert.equal(Array.isArray(body.rejectRequestPattern), true);
   assert.match(JSON.stringify(body.rejectRequestPattern), /localhost/);
-  assert.deepEqual(body.allowRequestPattern, ["/^https?:\\/\\//i"]);
+  assert.equal("allowRequestPattern" in body, false);
   const rejected = (body.rejectRequestPattern as string[]).map((pattern) => {
     const delimiter = pattern.lastIndexOf("/");
     return new RegExp(pattern.slice(1, delimiter), pattern.slice(delimiter + 1));

@@ -18,6 +18,7 @@ type DemoViewportProps = {
   viewport: Viewport;
   demoState: DemoState;
   checkpoint: RemoteCheckpoint | null;
+  pending: boolean;
   findings: VisibleFinding[];
   selectedId: string | null;
   auditing: boolean;
@@ -30,6 +31,7 @@ export function DemoViewport({
   viewport,
   demoState,
   checkpoint,
+  pending,
   findings,
   selectedId,
   auditing,
@@ -70,7 +72,13 @@ export function DemoViewport({
           className={styles.canvas}
           style={{ width: size.width, height: size.height, transform: `scale(${scale})` }}
         >
-          {checkpoint ? (
+          {pending ? (
+            <div className={styles.pendingCapture} role="status">
+              <span>Capture required</span>
+              <strong>The requested page has not been inspected.</strong>
+              <p>Approve the prefilled target or use Capture page before evidence appears.</p>
+            </div>
+          ) : checkpoint ? (
             <img
               className={styles.captureImage}
               src={checkpoint.screenshotDataUrl}

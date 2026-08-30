@@ -25,6 +25,7 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     );
     assert.equal(tools.tools[0]?.annotations?.readOnlyHint, true);
     assert.equal(tools.tools[0]?.annotations?.destructiveHint, false);
+    assert.match(tools.tools[0]?.description ?? "", /does not capture|workspace only/i);
 
     const result = await client.callTool({
       name: "start_audit",
@@ -42,8 +43,32 @@ test("publishes one read-only audit entry tool with truthful workspace output", 
     assert.equal(workspace.searchParams.get("url"), "https://example.com/signup?plan=pro");
     assert.equal(workspace.searchParams.get("goal"), "Review signup clarity");
     assert.equal(workspace.hash, "#workbench");
+    assert.equal(output.handoff_status, "workspace_ready");
     assert.match(String(output.site_tools_next_step), /Site Tools/i);
-    assert.match(String(output.site_tools_next_step), /host browser/i);
+    assert.match(String(output.site_tools_next_step), /wait/i);
+    assert.match(String(output.site_tools_next_step), /Capture page/);
+    assert.match(String(output.site_tools_next_step), /do not call audit_current_scope/);
+    assert.match(String(output.site_tools_next_step), /get_board_context/);
+    assert.match(String(output.site_tools_next_step), /not.*complete/i);
+
+    const demoResult = await client.callTool({
+      name: "start_audit",
+      arguments: { url: "https://sundae.example/demo" },
+    });
+    assert.ok("structuredContent" in demoResult && demoResult.structuredContent);
+    const demoOutput = demoResult.structuredContent as Record<string, unknown>;
+    const demoNextStep = String(demoOutput.site_tools_next_step);
+    assert.match(demoNextStep, /call audit_current_scope/);
+    assert.doesNotMatch(demoNextStep, /do not call audit_current_scope/);
+    assert.match(demoNextStep, /get_board_context/);
+
+    const otherDemoResult = await client.callTool({
+      name: "start_audit",
+      arguments: { url: "https://usesundae.vercel.app/demo" },
+    });
+    assert.ok("structuredContent" in otherDemoResult && otherDemoResult.structuredContent);
+    const otherDemoOutput = otherDemoResult.structuredContent as Record<string, unknown>;
+    assert.match(String(otherDemoOutput.site_tools_next_step), /do not call audit_current_scope/);
   } finally {
     await client.close();
     await server.close();
@@ -93,13 +118,9 @@ test("the HTTP seam handles preflight and rejects unsupported methods with CORS"
   assert.equal(unsupported.headers.get("cache-control"), "no-store");
 });
 
-test("uses only the configured application origin", () => {
-  assert.equal(
-    resolveSundaeAppOrigin("https://request.example/mcp", "https://sundae.example/path"),
-    "https://sundae.example",
-  );
-  assert.throws(
-    () => resolveSundaeAppOrigin("https://request.example/mcp", "file:///tmp/sundae"),
-    /http or https/i,
-  );
+test("uses only a configured or fixed canonical application origin", () => {
+  assert.equal(resolveSundaeAppOrigin("https://sundae.example/path"), "https://sundae.example");
+  assert.equal(resolveSundaeAppOrigin(), "https://usesundae.vercel.app");
+  assert.throws(() => resolveSundaeAppOrigin("http://sundae.example"), /public HTTPS/i);
+  assert.throws(() => resolveSundaeAppOrigin("https://localhost:3000"), /public|standard/i);
 });

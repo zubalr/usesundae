@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+
+import { buildPublicDemoWorkspacePath } from "@/lib/launch";
 import styles from "./demo.module.css";
 import { DemoWebMcp } from "./DemoWebMcp";
 
@@ -30,6 +33,9 @@ function PulseMark() {
 
 export default async function DemoPage({ searchParams }: DemoPageProps) {
   const query = await searchParams;
+  if (!query.state) {
+    redirect(buildPublicDemoWorkspacePath(process.env.SUNDAE_APP_ORIGIN));
+  }
   const improved = query.state === "improved";
   const stateClass = improved ? styles.improved : styles.baseline;
 

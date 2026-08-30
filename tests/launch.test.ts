@@ -3,9 +3,12 @@ import test from "node:test";
 
 import {
   buildChatGptHandoffPrompt,
+  buildPublicDemoWorkspacePath,
   buildWorkspaceUrl,
   createAuditLaunch,
+  isIncludedDemoTarget,
   MAX_AUDIT_GOAL_LENGTH,
+  resolveInitialTargetMode,
   resolvePublicDemoUrl,
 } from "../lib/launch";
 
@@ -30,14 +33,59 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.equal(workspace.searchParams.get("url"), launch.targetUrl);
   assert.equal(workspace.searchParams.get("goal"), launch.goal);
   assert.equal(workspace.hash, "#workbench");
+  assert.match(prompt, /start_audit/);
   assert.match(prompt, /Open this exact Sundae workspace/);
   assert.ok(prompt.includes(workspaceUrl));
+  assert.match(prompt, /wait for Sundae Site Tools/i);
+  assert.match(prompt, /audit_current_scope/);
+  assert.match(prompt, /get_board_context/);
+  assert.match(prompt, /measured.*judged.*not seen/is);
+  assert.match(prompt, /preview_fix/);
+  assert.match(prompt, /verify_recapture/);
   assert.match(prompt, /do not claim that an audit or capture completed/i);
+  assert.doesNotMatch(prompt, /Gemini|Google Cloud/i);
 });
 
 test("the included capture preset always resolves to a public Sundae demo", () => {
-  assert.equal(resolvePublicDemoUrl("http://localhost:3000"), "https://usesundae.vercel.app/demo");
-  assert.equal(resolvePublicDemoUrl("https://sundae.example"), "https://sundae.example/demo");
+  assert.equal(resolvePublicDemoUrl(), "https://usesundae.vercel.app/demo");
+  assert.equal(
+    resolvePublicDemoUrl("https://sundae.example/settings"),
+    "https://sundae.example/demo",
+  );
+  assert.equal(
+    buildPublicDemoWorkspacePath(),
+    "/?url=https%3A%2F%2Fusesundae.vercel.app%2Fdemo&goal=#workbench",
+  );
+  assert.equal(
+    buildPublicDemoWorkspacePath("https://sundae.example/settings"),
+    "/?url=https%3A%2F%2Fsundae.example%2Fdemo&goal=#workbench",
+  );
+  assert.equal(isIncludedDemoTarget("https://usesundae.vercel.app/demo"), true);
+  assert.equal(isIncludedDemoTarget("https://example.com/demo"), false);
+  assert.equal(isIncludedDemoTarget("https://sundae.example/demo", "https://sundae.example"), true);
+
+  const customDemo = createAuditLaunch("https://sundae.example/demo");
+  assert.equal(
+    new URL(buildWorkspaceUrl("https://sundae.example", customDemo)).searchParams.get("demo"),
+    null,
+  );
+  assert.equal(resolveInitialTargetMode(""), "sample");
+  assert.equal(resolveInitialTargetMode("https://usesundae.vercel.app/demo"), "sample");
+  assert.equal(
+    resolveInitialTargetMode("https://sundae.example/demo", "https://sundae.example"),
+    "sample",
+  );
+  assert.equal(resolveInitialTargetMode("https://example.com"), "remote");
+  assert.throws(() => resolvePublicDemoUrl("http://sundae.example"), /public HTTPS/i);
+  assert.throws(() => resolvePublicDemoUrl("https://localhost:3000"), /public|standard/i);
+});
+
+test("keeps the public demo redirect relative instead of trusting request host headers", () => {
+  const location = buildPublicDemoWorkspacePath();
+
+  assert.equal(location.startsWith("/"), true);
+  assert.equal(location.startsWith("//"), false);
+  assert.doesNotMatch(location, /attacker\.example/);
 });
 
 test("rejects unsafe or unsupported launch targets", () => {

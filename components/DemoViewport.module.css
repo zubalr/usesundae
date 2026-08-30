@@ -44,6 +44,37 @@
   background: #ffffff;
 }
 
+.pendingCapture {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  gap: var(--space-s);
+  padding: var(--space-xl);
+  background: var(--evidence-surface-raised);
+  color: var(--evidence-text-primary);
+  text-align: center;
+}
+
+.pendingCapture span {
+  color: var(--evidence-accent-strong);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}
+
+.pendingCapture strong {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+}
+
+.pendingCapture p {
+  margin: var(--space-none);
+  color: var(--evidence-text-secondary);
+}
+
 .overlay {
   position: absolute;
   inset: 0;

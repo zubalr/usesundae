@@ -5,8 +5,40 @@ export type AuditedToolContract = {
   title?: string;
   description?: string;
   inputSchema?: WebMcpInputSchema;
+  schemaInspection?: "inspectable" | "not_inspectable";
   annotations?: WebMcpTool["annotations"];
 };
+
+type RuntimeToolContract = Omit<AuditedToolContract, "inputSchema" | "schemaInspection"> & {
+  inputSchema?: unknown;
+};
+
+const MAX_RUNTIME_SCHEMA_BYTES = 8_192;
+
+function objectSchema(value: unknown): value is WebMcpInputSchema {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseRuntimeSchema(value: string) {
+  if (new TextEncoder().encode(value).byteLength > MAX_RUNTIME_SCHEMA_BYTES) return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeRuntimeToolContract(tool: RuntimeToolContract): AuditedToolContract {
+  const { inputSchema, ...contract } = tool;
+  if (inputSchema === undefined) return { ...contract, schemaInspection: "inspectable" };
+  const candidate = typeof inputSchema === "string" ? parseRuntimeSchema(inputSchema) : inputSchema;
+  const inspectable = objectSchema(candidate);
+  return {
+    ...contract,
+    inputSchema: inspectable ? candidate : undefined,
+    schemaInspection: inspectable ? "inspectable" : "not_inspectable",
+  };
+}
 
 // Tool annotations are hints to an agent, so a contract that calls itself
 // read-only must not use mutating language in either its name or description.
@@ -83,7 +115,10 @@ export function auditWebMcpTools(
       );
     }
 
-    if (tool.inputSchema?.additionalProperties !== false) {
+    if (
+      tool.schemaInspection !== "not_inspectable" &&
+      tool.inputSchema?.additionalProperties !== false
+    ) {
       findings.push(
         contractFinding(tool, viewport, "closed-schema", {
           severity: "medium",

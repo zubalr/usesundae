@@ -15,7 +15,12 @@ export type Activity = {
   action: string;
   detail: string;
   at: string;
+  toolName?: string;
 };
+
+export function activityTitle(activity: Pick<Activity, "action" | "toolName">) {
+  return activity.toolName ? `${activity.action} · ${activity.toolName}` : activity.action;
+}
 
 export type VerificationReceipt = {
   status: Verification;
@@ -36,6 +41,7 @@ export type WorkbenchCommands = {
     actor: Actor,
     signal?: AbortSignal,
     waitForSelector?: string,
+    toolName?: string,
   ) => Promise<CommandResult>;
   captureJourneyStep: (
     url: string,
@@ -43,39 +49,54 @@ export type WorkbenchCommands = {
     actor: Actor,
     signal?: AbortSignal,
     waitForSelector?: string,
+    toolName?: string,
   ) => Promise<CommandResult>;
   captureBelowFold: (
     waitForSelector: string | undefined,
     actor: Actor,
     signal?: AbortSignal,
+    toolName?: string,
   ) => Promise<CommandResult>;
   auditCurrentScope: (
     actor: Actor,
     signal?: AbortSignal,
     waitForSelector?: string,
+    toolName?: string,
   ) => Promise<CommandResult>;
-  inspectAgentSurface: (actor: Actor) => Promise<CommandResult>;
-  getBoardContext: (actor: Actor) => CommandResult;
-  recordVisualFinding: (input: JudgedFindingInput, actor: Actor) => Promise<CommandResult>;
-  recordCoverageGap: (label: string, detail: string, actor: Actor) => Promise<CommandResult>;
-  focusFinding: (findingId: string, actor: Actor) => Promise<CommandResult>;
+  inspectAgentSurface: (actor: Actor, toolName?: string) => Promise<CommandResult>;
+  getBoardContext: (actor: Actor, findingOffset?: number, toolName?: string) => CommandResult;
+  recordVisualFinding: (
+    input: JudgedFindingInput,
+    actor: Actor,
+    toolName?: string,
+  ) => Promise<CommandResult>;
+  recordCoverageGap: (
+    label: string,
+    detail: string,
+    actor: Actor,
+    toolName?: string,
+  ) => Promise<CommandResult>;
+  focusFinding: (findingId: string, actor: Actor, toolName?: string) => Promise<CommandResult>;
   setFindingDecision: (
     findingId: string,
     decision: Decision,
     reason: string,
     actor: Actor,
+    toolName?: string,
   ) => Promise<CommandResult>;
   previewFix: (
     previewCss: string | undefined,
     actor: Actor,
     signal?: AbortSignal,
     waitForSelector?: string,
+    toolName?: string,
   ) => Promise<CommandResult>;
   verifyRecapture: (
     findingId: string | undefined,
     actor: Actor,
     signal?: AbortSignal,
     waitForSelector?: string,
+    toolName?: string,
   ) => Promise<CommandResult>;
 };
 

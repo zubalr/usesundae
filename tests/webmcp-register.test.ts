@@ -71,6 +71,13 @@ function assertSchemaContracts() {
     160,
   );
   assert.equal(Object.hasOwn(WEBMCP_INPUT_SCHEMAS.captureBelowFold.properties, "url"), false);
+  const findingOffset = WEBMCP_INPUT_SCHEMAS.boardContext.properties?.finding_offset as Record<
+    string,
+    unknown
+  >;
+  assert.equal(findingOffset.type, "integer");
+  assert.equal(findingOffset.minimum, 0);
+  assert.equal(findingOffset.maximum, 100);
   assert.equal(stringSchema(WEBMCP_INPUT_SCHEMAS.finding, "finding_id")?.maxLength, 120);
   for (const [key, maxLength] of [
     ["title", 140],
@@ -103,7 +110,11 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
   const auditWaits: Array<string | undefined> = [];
   const verifySignals: Array<AbortSignal | undefined> = [];
   const verifyWaits: Array<string | undefined> = [];
-  const boardActors: string[] = [];
+  const boardRequests: Array<{ actor: string; offset: number | undefined }> = [];
+  const receiptTools: string[] = [];
+  const recordReceiptTool = (toolName?: string) => {
+    if (toolName) receiptTools.push(toolName);
+  };
   let cancelAuditAfterHandler = false;
   let auditCancellation: AbortController | undefined;
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
@@ -119,47 +130,60 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
   });
 
   const commands = {
-    capturePublicPage: async (url, viewport, actor, _signal, waitForSelector) => {
+    capturePublicPage: async (url, viewport, actor, _signal, waitForSelector, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`capture:${url}:${viewport}:${actor}:${waitForSelector ?? "none"}`);
       return commandResult("capture");
     },
-    captureJourneyStep: async (url, label, actor, _signal, waitForSelector) => {
+    captureJourneyStep: async (url, label, actor, _signal, waitForSelector, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`step:${url}:${label}:${actor}:${waitForSelector ?? "none"}`);
       return commandResult("step");
     },
-    captureBelowFold: async (waitForSelector, actor) => {
+    captureBelowFold: async (waitForSelector, actor, _signal, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`below-fold:${waitForSelector ?? "none"}:${actor}`);
       return commandResult("below-fold");
     },
-    auditCurrentScope: async (_actor, signal, waitForSelector) => {
+    auditCurrentScope: async (_actor, signal, waitForSelector, toolName) => {
+      recordReceiptTool(toolName);
       auditSignals.push(signal);
       auditWaits.push(waitForSelector);
       if (cancelAuditAfterHandler)
         auditCancellation?.abort(new Error("Cancelled after audit handler."));
       return commandResult("audit");
     },
-    inspectAgentSurface: async () => commandResult("agent-surface"),
-    getBoardContext: (actor) => {
-      boardActors.push(actor);
+    inspectAgentSurface: async (_actor, toolName) => {
+      recordReceiptTool(toolName);
+      return commandResult("agent-surface");
+    },
+    getBoardContext: (actor, offset, toolName) => {
+      recordReceiptTool(toolName);
+      boardRequests.push({ actor, offset });
       return { ok: true, receipt: "context", findings: [] };
     },
-    recordVisualFinding: async ({ title, severity }, actor) => {
+    recordVisualFinding: async ({ title, severity }, actor, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`finding:${title}:${severity}:${actor}`);
       return commandResult("finding");
     },
-    recordCoverageGap: async (label, detail, actor) => {
+    recordCoverageGap: async (label, detail, actor, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`gap:${label}:${detail}:${actor}`);
       return commandResult("gap");
     },
-    focusFinding: async (id) => {
+    focusFinding: async (id, _actor, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`focus:${id}`);
       return commandResult("focus");
     },
-    setFindingDecision: async (id, decision) => {
+    setFindingDecision: async (id, decision, _reason, _actor, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`decision:${id}:${decision}`);
       return commandResult("decision");
     },
-    previewFix: async (css, _actor, signal, waitForSelector) => {
+    previewFix: async (css, _actor, signal, waitForSelector, toolName) => {
+      recordReceiptTool(toolName);
       calls.push(`preview:${css ?? "none"}:${waitForSelector ?? "none"}`);
       if (!signal) return commandResult("preview");
       await new Promise<void>((_resolve, reject) => {
@@ -167,7 +191,8 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
       });
       return commandResult("preview");
     },
-    verifyRecapture: async (_findingId, _actor, signal, waitForSelector) => {
+    verifyRecapture: async (_findingId, _actor, signal, waitForSelector, toolName) => {
+      recordReceiptTool(toolName);
       verifySignals.push(signal);
       verifyWaits.push(waitForSelector);
       return commandResult("verify");
@@ -201,6 +226,16 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     const boardTool = registered.find(({ tool }) => tool.name === "get_board_context")?.tool;
     assert.equal(boardTool?.annotations?.readOnlyHint, false);
     assert.equal(boardTool?.annotations?.untrustedContentHint, true);
+    const auditTool = registered.find(({ tool }) => tool.name === "audit_current_scope")?.tool;
+    const previewTool = registered.find(({ tool }) => tool.name === "preview_fix")?.tool;
+    const verifyTool = registered.find(({ tool }) => tool.name === "verify_recapture")?.tool;
+    assert.match(auditTool?.description ?? "", /first.*Site Tool|Site Tools.*first/i);
+    assert.match(auditTool?.description ?? "", /\/demo/);
+    assert.match(boardTool?.description ?? "", /after.*capture|after.*audit/i);
+    assert.match(boardTool?.description ?? "", /next action/i);
+    assert.match(boardTool?.description ?? "", /visible.*receipt/i);
+    assert.match(previewTool?.description ?? "", /board|decision/i);
+    assert.match(verifyTool?.description ?? "", /after.*preview/i);
     assertToolContracts(registered);
     assertSchemaContracts();
 
@@ -233,8 +268,11 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     assert.equal(auditWaits[0], "main");
 
     const board = registered.find(({ tool }) => tool.name === "get_board_context")!.tool;
-    await board.execute({});
-    assert.deepEqual(boardActors, ["agent"]);
+    await board.execute({ finding_offset: 4 });
+    assert.deepEqual(boardRequests, [{ actor: "agent", offset: 4 }]);
+
+    const inspect = registered.find(({ tool }) => tool.name === "inspect_agent_surface")!.tool;
+    await inspect.execute({});
 
     auditCancellation = new AbortController();
     cancelAuditAfterHandler = true;
@@ -299,6 +337,11 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     assert.ok(verifySignals[0]);
     assert.equal(verifyWaits[0], "main");
 
+    assert.deepEqual(
+      [...new Set(receiptTools)].toSorted(),
+      registered.map(({ tool }) => tool.name).toSorted(),
+    );
+
     controller.abort();
     assert.equal(registered[0]?.signal?.aborted, true);
   } finally {
@@ -344,6 +387,7 @@ test("sample mode registers only tools that operate on the included target", asy
     const schemaKeys = (name: string) =>
       Object.keys(tools.find((tool) => tool.name === name)?.inputSchema?.properties ?? {});
     assert.deepEqual(schemaKeys("audit_current_scope"), []);
+    assert.deepEqual(schemaKeys("get_board_context"), ["finding_offset"]);
     assert.deepEqual(schemaKeys("preview_fix"), []);
     assert.deepEqual(schemaKeys("verify_recapture"), ["finding_id"]);
   } finally {

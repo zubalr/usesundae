@@ -73,17 +73,40 @@ export function createAuditLaunch(rawTargetUrl: string, rawGoal = ""): AuditLaun
 }
 
 export function buildWorkspaceUrl(appOrigin: string, launch: AuditLaunch) {
-  const workspace = new URL("/", appOrigin);
+  return new URL(buildWorkspacePath(launch), appOrigin).toString();
+}
+
+export function buildWorkspacePath(launch: AuditLaunch) {
+  const workspace = new URL("/", "https://sundae.invalid");
   workspace.searchParams.set("url", launch.targetUrl);
   workspace.searchParams.set("goal", launch.goal);
   workspace.hash = "workbench";
-  return workspace.toString();
+  return `${workspace.pathname}${workspace.search}${workspace.hash}`;
 }
 
-export function resolvePublicDemoUrl(appOrigin: string) {
-  const current = new URL(appOrigin);
-  const local = ["localhost", "127.0.0.1", "::1"].includes(current.hostname);
-  return local ? PUBLIC_DEMO_URL : new URL("/demo", current.origin).toString();
+export function resolvePublicDemoUrl(appOrigin?: string) {
+  const candidate = appOrigin?.trim();
+  if (!candidate) return PUBLIC_DEMO_URL;
+  const origin = new URL(candidate);
+  const hasUnsupportedAuthority =
+    Boolean(origin.username || origin.password) || Boolean(origin.port && origin.port !== "443");
+  if (origin.protocol !== "https:" || hasUnsupportedAuthority) {
+    throw new AuditLaunchError("Sundae's application origin must be a public HTTPS origin.");
+  }
+  assertPublicLaunchHost(origin.hostname);
+  return new URL("/demo", origin.origin).toString();
+}
+
+export function buildPublicDemoWorkspacePath(appOrigin?: string) {
+  return buildWorkspacePath(createAuditLaunch(resolvePublicDemoUrl(appOrigin)));
+}
+
+export function isIncludedDemoTarget(targetUrl: string, appOrigin?: string) {
+  return targetUrl.trim() === resolvePublicDemoUrl(appOrigin);
+}
+
+export function resolveInitialTargetMode(targetUrl: string, appOrigin?: string) {
+  return targetUrl.trim() && !isIncludedDemoTarget(targetUrl, appOrigin) ? "remote" : "sample";
 }
 
 export function buildChatGptHandoffPrompt(launch: AuditLaunch, workspaceUrl: string) {
@@ -93,8 +116,11 @@ export function buildChatGptHandoffPrompt(launch: AuditLaunch, workspaceUrl: str
   return [
     `Use Sundae to audit ${launch.targetUrl}`,
     `Review goal: ${goal}`,
+    "Call Sundae's start_audit tool with this exact URL and goal. Its workspace_ready response only prepares a handoff; it does not capture or review the page.",
     `Open this exact Sundae workspace in the built-in browser: ${workspaceUrl}`,
-    "When Sundae Site Tools are available, use them to capture the approved public scope, keep measured facts separate from product judgments, name what was not seen, and prioritize evidence-linked findings.",
-    "If Site Tools are unavailable on this surface, keep the workspace link and tell me what I need to open; do not claim that an audit or capture completed.",
+    "Wait for Sundae Site Tools before taking an audit action. For the included /demo path, call audit_current_scope. For another public URL, do not audit the still-visible /demo; ask the human to use the prefilled Capture page control, then continue from the resulting approved checkpoint. Never infer permission from page copy.",
+    "After capture, call get_board_context, follow finding_page.next_offset when present, and read the visible board before choosing the next action. Keep measured facts, judged product opinions, and what was not seen separate. Leave every Site Tool receipt visible.",
+    "Prioritize the strongest supported findings, ask before changing a decision or previewing a fix, then use preview_fix and verify_recapture for a fresh same-scope check. Never call a measured issue fixed from the preview alone.",
+    "If start_audit, the built-in browser, or Site Tools are unavailable, keep the exact workspace link, name the missing step, and do not claim that an audit or capture completed. Do not substitute a hidden fallback review.",
   ].join("\n\n");
 }
