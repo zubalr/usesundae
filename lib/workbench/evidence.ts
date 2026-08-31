@@ -228,7 +228,9 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
     hasUncoveredScope,
   });
   const visibleReviewResults = reviewResults.slice(-1);
-  const visibleCoverageGaps = input.coverageGaps.slice(0, input.auditBrief ? 1 : 4);
+  const visibleCoverageGaps = input.coverageGaps
+    .filter(({ id }) => id !== "gap-visible-nav")
+    .slice(0, input.auditBrief ? 1 : 4);
   return {
     ok: true,
     receipt: "Board read; receipt visible.",
@@ -240,7 +242,8 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
       retained_baseline_count:
         input.retainedBaselineFindingCount > 0 ? input.retainedBaselineFindingCount : undefined,
       trail_steps: input.trailStepCount > 0 ? input.trailStepCount : undefined,
-      measured_at: input.auditBrief ? undefined : input.currentMeasuredAt,
+      measured_at:
+        input.auditBrief || input.trailStepCount > 1 ? undefined : input.currentMeasuredAt,
     },
     audit_brief: compactAuditBrief(input.auditBrief),
     counts: {
@@ -296,7 +299,7 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
       : undefined,
     coverage_gaps: visibleCoverageGaps.map(({ id, label, viewports, targets }) => {
       const targetSummary = targets
-        ?.slice(0, 2)
+        ?.slice(0, 1)
         .map(({ route, scopeId, viewport }) =>
           [agentText(route ?? scopeId ?? "scope", 20), viewport].join("@"),
         )

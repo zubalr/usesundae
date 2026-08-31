@@ -429,10 +429,22 @@ test("multi-route public board keeps finding pagination inside the WebMCP budget
         detail: "In-page states were not opened.",
         targets: gapTargets,
       },
+      {
+        id: "gap-visible-nav",
+        label: "Visible navigation routes",
+        detail: "One evidence-derived same-origin route remains uncaptured.",
+        targets: gapTargets.slice(0, 1),
+      },
     ],
     trailStepCount: routes.length,
+    uncapturedNav: [
+      {
+        url: "https://developer.chrome.com/docs/automation-and-testing",
+        label: "Automation and testing",
+      },
+    ],
     coverage: {
-      openGapCount: 3,
+      openGapCount: 4,
       hasUncoveredScope: true,
       openGaps: [],
       surfaces: routes.map((route, index) => ({
@@ -466,16 +478,20 @@ test("multi-route public board keeps finding pagination inside the WebMCP budget
     findings?: unknown[];
     finding_page?: { offset: number; limit: number; total: number; next_offset: number | null };
     coverage?: { surface_count: number };
+    coverage_gaps?: string[];
+    uncaptured_nav?: string[];
   };
 
   assert.ok(
-    serializedBytes <= MAX_TOOL_TEXT_BYTES,
+    serializedBytes <= MAX_TOOL_TEXT_BYTES - 64,
     `The multi-route board used ${serializedBytes} bytes before the result envelope.`,
   );
   assert.notEqual(payload.truncated, true);
   assert.equal(payload.findings?.length, 1);
   assert.deepEqual(payload.finding_page, { offset: 0, limit: 1, total: 7, next_offset: 1 });
   assert.equal(payload.coverage?.surface_count, 5);
+  assert.equal(payload.coverage_gaps?.length, 3);
+  assert.deepEqual(payload.uncaptured_nav, ["/docs/automation-and-testing"]);
 });
 
 test("agent board context exposes the product-job category for judged evidence", () => {
