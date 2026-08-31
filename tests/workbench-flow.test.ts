@@ -366,6 +366,118 @@ test("mutated review board keeps actionable structure inside the WebMCP budget",
   assert.ok(payload.coverage);
 });
 
+test("multi-route public board keeps finding pagination inside the WebMCP budget", () => {
+  const routes = [
+    "/docs/ai/webmcp/imperative-api",
+    "/docs",
+    "/docs/web-platform",
+    "/docs/capabilities",
+    "/docs/automation-and-testing",
+  ];
+  const findings = Array.from({ length: 7 }, (_, index) => ({
+    ...finding(index),
+    id: `mobile:accessible-name:scope_${"a".repeat(32)}-${index}-interactive-summary`,
+    checkpointId: `checkpoint_${index}_${"b".repeat(32)}`,
+    scopeKey: `scope_${index}_${"c".repeat(32)}`,
+    title:
+      index < 3
+        ? `${index + 2} interactive controls have no accessible name`
+        : "The page hierarchy is not exposed clearly",
+  }));
+  const gapTargets = routes.map((route, index) => ({
+    checkpointId: `checkpoint_${index}_${"b".repeat(32)}`,
+    scopeId: `scope_${index}_${"c".repeat(32)}`,
+    route,
+    viewport: "mobile" as const,
+  }));
+  const context = buildAgentBoardContext({
+    auditGoal: "Bounded content capture matrix",
+    target: {
+      kind: "public_checkpoint",
+      displayUrl: "https://developer.chrome.com/docs/ai/webmcp/imperative-api",
+      checkpointId: `checkpoint_${"d".repeat(36)}`,
+      scopeId: `scope_${"e".repeat(32)}`,
+      screenshotVisible: true,
+      captureExtent: "full-page",
+    },
+    viewport: "mobile",
+    state: "baseline",
+    currentFindingCount: findings.length,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: findings[1]!.id,
+    retainsBaseline: false,
+    findings,
+    decisions: {},
+    verifications: {},
+    coverageGaps: [
+      {
+        id: "gap-a11y-tree-truncated",
+        label: "Accessibility tree truncated",
+        detail: "The accessibility tree exceeded the safe traversal budget.",
+        targets: gapTargets.filter((_, index) => index !== 3),
+      },
+      {
+        id: "gap-motion",
+        label: "Motion beyond load",
+        detail: "Motion was not observed.",
+        targets: gapTargets,
+      },
+      {
+        id: "gap-flow-states",
+        label: "Unvisited flow states",
+        detail: "In-page states were not opened.",
+        targets: gapTargets,
+      },
+    ],
+    trailStepCount: routes.length,
+    coverage: {
+      openGapCount: 3,
+      hasUncoveredScope: true,
+      openGaps: [],
+      surfaces: routes.map((route, index) => ({
+        checkpointId: `checkpoint_${index}_${"b".repeat(32)}`,
+        scopeId: `scope_${index}_${"c".repeat(32)}`,
+        route,
+        finalUrl: `https://developer.chrome.com${route}`,
+        label: index === 0 ? "Entry" : "Documentation route",
+        surfaceType: index === 0 ? "entry" : "docs/support",
+        viewport: "mobile",
+        state: "settled render",
+        captureExtent: "full-page",
+        evidenceTypes: ["screenshot", "text", "accessibility"],
+        motion: "not_seen",
+        interaction: "not_seen",
+        status: "observed",
+        capturedAt: "2030-01-01T10:00:00.000Z",
+      })),
+    },
+  });
+  const wrapped = {
+    ...context,
+    tool_name: "get_board_context",
+    actor: "agent",
+    status: "success",
+    elapsed_ms: 8,
+  };
+  const serializedBytes = Buffer.byteLength(JSON.stringify(wrapped), "utf8");
+  const payload = JSON.parse(createToolResult(wrapped).content[0]!.text) as {
+    truncated?: boolean;
+    findings?: unknown[];
+    finding_page?: { offset: number; limit: number; total: number; next_offset: number | null };
+    coverage?: { surface_count: number };
+  };
+
+  assert.ok(
+    serializedBytes <= MAX_TOOL_TEXT_BYTES,
+    `The multi-route board used ${serializedBytes} bytes before the result envelope.`,
+  );
+  assert.notEqual(payload.truncated, true);
+  assert.equal(payload.findings?.length, 1);
+  assert.deepEqual(payload.finding_page, { offset: 0, limit: 1, total: 7, next_offset: 1 });
+  assert.equal(payload.coverage?.surface_count, 5);
+});
+
 test("agent board context exposes the product-job category for judged evidence", () => {
   const judged = finding(5);
   const context = buildAgentBoardContext({

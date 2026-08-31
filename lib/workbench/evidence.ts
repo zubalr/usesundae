@@ -195,7 +195,8 @@ function nextBoardAction({
 
 export function buildAgentBoardContext(input: AgentBoardContextInput) {
   const uncapturedNav = (input.uncapturedNav ?? []).slice(0, 4);
-  const canFitSecondFinding = !input.auditBrief && uncapturedNav.length === 0;
+  const canFitSecondFinding =
+    !input.auditBrief && uncapturedNav.length === 0 && input.trailStepCount < 2;
   const findingPage = agentFindingPage(
     input.findings,
     input.selectedFindingId,
