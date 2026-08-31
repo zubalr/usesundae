@@ -47,12 +47,13 @@ test("readiness presentation tolerates registration-only hosts and stale registr
     pathFromRoot("components", "workbench", "WorkbenchView.tsx"),
     "utf8",
   );
-  const presentation = `${launcher}\n${workbench}`;
 
-  assert.doesNotMatch(
-    presentation,
-    /modelContext\.(?:getTools|addEventListener|removeEventListener)/,
-  );
+  assert.doesNotMatch(launcher, /modelContext\.(?:getTools|addEventListener|removeEventListener)/);
+  assert.match(workbench, /confirmedWorkbenchToolCount/);
+  assert.match(workbench, /describeHostToolCount/);
+  assert.match(workbench, /Agent tool calls:/);
+  assert.doesNotMatch(workbench, /\$\{expectedCount\}\/\$\{expectedCount\} registered/);
+  assert.doesNotMatch(workbench, /page tools ready/);
   assert.match(
     workbench,
     /registerWorkbenchTools[\s\S]*?report\(ready \? "ready" : "unavailable"\)/,
@@ -62,7 +63,6 @@ test("readiness presentation tolerates registration-only hosts and stale registr
     workbench,
     /toolRegistration\.mode === props\.mode \? toolRegistration\.status : "checking"/,
   );
-  assert.match(workbench, /toolStatus === "ready"[\s\S]*?registered/);
 });
 
 test("the demo route resolves to the complete workbench rather than the bare fixture", () => {
@@ -72,6 +72,18 @@ test("the demo route resolves to the complete workbench rather than the bare fix
   assert.match(demoPage, /if \(!query\.state\)[\s\S]*?redirect\(/);
   assert.ok(demoPage.indexOf("redirect(") < demoPage.indexOf("const improved"));
   assert.match(demoPage, /<DemoWebMcp/);
+});
+
+test("the workbench mount measurement is a baseline that no agent produced", () => {
+  const controller = readFileSync(pathFromRoot("components", "Workbench.tsx"), "utf8");
+
+  assert.match(controller, /Baseline measurement · no agent tool has run yet/);
+  assert.match(controller, /countAgentToolCalls\(activityRef\.current\) === 0/);
+  assert.match(controller, /contentDocument\?\.readyState === "complete"\) scheduleAudit/);
+  assert.match(controller, /onScheduleAudit=\{\(\) => scheduleAudit\(\)\}/);
+  assert.match(controller, /committedSystemBaselineRef/);
+  assert.match(controller, /shouldScheduleSystemAudit\(/);
+  assert.doesNotMatch(controller, /didMountAudit|onLoadFired/);
 });
 
 test("the workbench accepts bare domains and contains desktop pane scrolling", () => {

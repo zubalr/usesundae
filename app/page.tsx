@@ -108,7 +108,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     title="Sundae Lab controlled demo preview"
                     tabIndex={-1}
                     aria-hidden="true"
-                    sandbox="allow-same-origin"
+                    sandbox="allow-same-origin allow-scripts"
                     scrolling="no"
                   />
                   <div className={styles.fixtureLabel} aria-hidden="true">

@@ -39,6 +39,16 @@ export function countRegisteredWorkbenchTools(tools: readonly RegisteredWebMcpTo
   return tools.filter(({ name }) => WEBMCP_TOOL_NAME_SET.has(name)).length;
 }
 
+export async function confirmedWorkbenchToolCount() {
+  const host = globalThis.document?.modelContext;
+  if (!host?.getTools) return null;
+  try {
+    return countRegisteredWorkbenchTools(await host.getTools());
+  } catch {
+    return null;
+  }
+}
+
 const emptyInput = z.object({}).strict();
 const waitForSelectorInput = z.string().trim().min(1).max(160).optional();
 const publicUrlInput = z

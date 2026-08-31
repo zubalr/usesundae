@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "lint:tokens": "node scripts/lint-tokens.mjs",
-    "check": "npm run typecheck && npm run lint && npm run lint:tokens && npm test",
+    "check": "npm run typecheck && npm run lint && npm run lint:tokens && npm run format:check && npm test && npm run build",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "tokens:sync": "node scripts/sync-tokens-doc.mjs"

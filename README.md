@@ -6,7 +6,25 @@ Sundae uses page-hosted WebMCP Site Tools to make the open audit page the shared
 
 **A person and their ChatGPT agent audit the same live page together: the agent measures and organizes evidence through WebMCP, the person governs judgment, and Sundae verifies every claimed fix.**
 
-[Open Sundae](https://usesundae.vercel.app/) to prepare a workspace, or go straight to the guaranteed [published `/demo` workspace](https://usesundae.vercel.app/demo). The demo needs no login, connector, hosted auditor model, capture-provider key, or plugin. In ChatGPT Desktop, open the built-in browser and paste the exact workspace URL; Site Tools are discovered automatically from that page.
+[Open Sundae](https://usesundae.vercel.app/) to prepare a workspace, or go straight to the guaranteed [published `/demo` workspace](https://usesundae.vercel.app/demo). The demo needs no login, connector, hosted auditor model, capture-provider key, or plugin. In the ChatGPT desktop app, open the built-in browser on **GPT-5.6 Sol** or **GPT-5.6 Terra** and paste the exact workspace URL; Site Tools are discovered automatically from that page. **GPT-5.6 Luna has WebMCP disabled** and will not discover them.
+
+## Challenge work added during the submission period
+
+Sundae did not exist before this challenge. The submission period opened on August 25, 2026; this repository was created on August 29, 2026, and every commit in its history falls inside the submission window. There is no prior work to separate from challenge work — all of it is challenge work.
+
+| Date   | Commit                          | Challenge work                                                               | Scale                   |
+| ------ | ------------------------------- | ---------------------------------------------------------------------------- | ----------------------- |
+| Aug 29 | `cdb508e`                       | Initial public release: workbench, WebMCP adapter, controlled fixture, tests | 87 files, +17,936       |
+| Aug 29 | `a439599`                       | Harden the production WebMCP audit loop                                      | 12 files, +371/−69      |
+| Aug 29 | `6ed0675`                       | Guarded public capture: HMAC gate, rate limits, SSRF and DNS policy          | 52 files, +7,404/−715   |
+| Aug 30 | `4b6a93a`                       | Refocus the product on the WebMCP contest loop                               | 53 files, +1,403/−6,941 |
+| Aug 30 | `5a907ee`                       | Structure audits by visible product job                                      | 20 files, +288/−22      |
+| Aug 30 | `e585331`                       | Evidence-derived public navigation capture                                   | 24 files, +776/−96      |
+| Aug 30 | `712fdf5`                       | Page-native WebMCP audit workspace                                           | 34 files, +911/−2,128   |
+| Aug 30 | `386a1d0`…`926fcff` (7 commits) | Navigation capture atomicity, honest partial reporting, receipt alignment    | 19 files, +203/−58      |
+| Aug 31 | `a3040a6`                       | Audit brief, review results, product-job categories                          | 33 files, +2,509/−240   |
+| Aug 31 | `0cb3518`                       | Shared WebMCP product review surface                                         | 33 files, +2,401/−797   |
+| Aug 31 | `4311342`, `b82c32e`            | Multi-route board context, bounded partial navigation                        | 4 files, +138/−6        |
 
 ## Why WebMCP
 
@@ -22,15 +40,17 @@ Without WebMCP, this workflow collapses into a screenshot conversation, a hidden
 
 ## Judge path
 
-1. Open `https://usesundae.vercel.app/demo` in ChatGPT Desktop's built-in browser.
-2. Confirm **11 page tools ready** in the Sundae top bar.
-3. Ask ChatGPT to call `audit_current_scope`, then `get_board_context`.
-4. Have it inspect the controlled target's agent surface and focus the strongest supported finding.
-5. ChatGPT asks before changing the decision or starting a preview.
-6. Accept with a visible reason, run `preview_fix`, then `verify_recapture`.
-7. Confirm the same board shows the fresh measurement, verification state, and tool-named receipts.
+**Requires the ChatGPT desktop app** (latest version) with model **GPT-5.6 Sol** or **GPT-5.6 Terra**. Per OpenAI's Site tools documentation, **GPT-5.6 Luna has WebMCP disabled** and will not discover Site Tools. Site tools are also unavailable in Enterprise and Edu workspaces.
 
-An ordinary browser still provides deterministic measurement and every human control. It does not pretend an agent is present; the UI says **Human controls ready** and explains how to open the exact workspace in ChatGPT Desktop.
+1. In the ChatGPT desktop app, open the built-in browser at `https://usesundae.vercel.app/demo`.
+2. Click **Site tools** in the browser address bar. You should see **11 Sundae tools**. If the panel is empty, check the model first.
+3. Ask: _"Audit this page with its Site Tools. Keep measurements, judgment, and what you did not see separate, and ask me before any decision or preview."_
+4. Watch the board: measured evidence and receipts appear as tools run, and the **Agent tool calls** counter in the top bar increments.
+5. ChatGPT asks before changing a decision or starting a preview.
+6. Accept a finding with a visible reason, then let it run `preview_fix` and `verify_recapture`.
+7. Confirm the board shows the fresh measurement, the verification state, and tool-named receipts.
+
+Without WebMCP — an ordinary browser, or an unsupported model — Sundae still provides every deterministic measurement and every human control. It does not pretend an agent is present: the top bar reads **Human controls ready** and the **Agent tool calls** counter stays at 0.
 
 ## Evidence contract
 
@@ -45,7 +65,15 @@ Sundae deliberately separates:
 
 ChatGPT performs the design critique through Site Tools using visible screenshot and page evidence. Sundae stores the category and product-job tag; it does not auto-classify an industry or call a server-side model.
 
+On `/demo`, `preview_fix` renders a **pre-authored improved variant** of the controlled fixture — Sundae does not claim the agent wrote the fix. What is real is the re-measurement: the improved state genuinely repairs the measured accessible-name, tap-target, contrast, and horizontal-overflow findings, and `verify_recapture` proves it by fresh measurement rather than by assertion. On a public checkpoint the agent supplies bounded CSS itself.
+
 ## Page-hosted tool surface
+
+**The five tools a judge will see**
+
+`audit_current_scope` → `get_board_context` → `record_visual_finding` → `set_finding_decision` → `verify_recapture`
+
+**Supporting tools**
 
 The included `/demo` registers eleven Sundae workbench tools:
 
@@ -62,6 +90,8 @@ The included `/demo` registers eleven Sundae workbench tools:
 | `set_finding_decision`  | Record the person's reversible decision and reason    |
 | `preview_fix`           | Render a reversible local preview                     |
 | `verify_recapture`      | Re-measure the same scope before calling a fact fixed |
+
+ChatGPT's built-in browser does not discover tools registered inside iframes. Sundae's 11 tools are registered at the top level, so the count shown in **Site tools** is exact. The audited fixture's own tools live inside the iframe — which is why `inspect_agent_surface` exists: Sundae reads contracts the host itself cannot reach.
 
 A public workspace adds four bounded capture commands, for 15 tools total:
 
@@ -100,7 +130,7 @@ npm run check
 npm run build
 ```
 
-`npm run check` runs TypeScript, Oxlint, the product token gate, and the full test suite. The interface uses the repository token contract and keeps the cyclomatic-complexity ceiling ratcheted.
+`npm run check` runs TypeScript, Oxlint, the product token gate, format checking, the full test suite, and the production build. The interface uses the repository token contract and keeps the cyclomatic-complexity ceiling ratcheted.
 
 Key paths:
 

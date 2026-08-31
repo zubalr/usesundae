@@ -24,13 +24,13 @@
     "messages": [
       {
         "role": "user",
-        "content": "Open the evidence for mobile:contrast:helper-copy on the shared board."
+        "content": "Open the evidence for mobile:contrast:workflow-helper on the shared board."
       }
     ],
     "expectedCall": [
       {
         "functionName": "focus_finding",
-        "arguments": { "finding_id": "mobile:contrast:helper-copy" }
+        "arguments": { "finding_id": "mobile:contrast:workflow-helper" }
       }
     ]
   },
@@ -39,14 +39,14 @@
     "messages": [
       {
         "role": "user",
-        "content": "Accept mobile:contrast:helper-copy because the measured 3.25:1 text contrast is below the stated 4.5:1 threshold."
+        "content": "Accept mobile:contrast:workflow-helper because the measured 3.25:1 text contrast is below the stated 4.5:1 threshold."
       }
     ],
     "expectedCall": [
       {
         "functionName": "set_finding_decision",
         "arguments": {
-          "finding_id": "mobile:contrast:helper-copy",
+          "finding_id": "mobile:contrast:workflow-helper",
           "decision": "accepted",
           "reason": "Measured 3.25:1 text contrast is below the stated 4.5:1 threshold."
         }
@@ -68,14 +68,14 @@
     "messages": [
       {
         "role": "user",
-        "content": "Reopen mobile:contrast:helper-copy so the team can reconsider it, and explain that the evidence remains on the board."
+        "content": "Reopen mobile:contrast:workflow-helper so the team can reconsider it, and explain that the evidence remains on the board."
       }
     ],
     "expectedCall": [
       {
         "functionName": "set_finding_decision",
         "arguments": {
-          "finding_id": "mobile:contrast:helper-copy",
+          "finding_id": "mobile:contrast:workflow-helper",
           "decision": "open",
           "reason": "Reopened for reconsideration; the existing evidence remains attached."
         }

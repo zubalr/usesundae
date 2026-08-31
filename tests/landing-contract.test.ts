@@ -179,7 +179,7 @@ test("the controlled fixture cannot scroll away from its evidence pins", () => {
 
   assert.match(
     landing,
-    /src="\/demo\?state=baseline"[\s\S]{0,180}sandbox="allow-same-origin"[\s\S]{0,80}scrolling="no"/,
+    /src="\/demo\?state=baseline"[\s\S]{0,180}sandbox="allow-same-origin allow-scripts"[\s\S]{0,80}scrolling="no"/,
   );
   assert.match(viewport, /className=\{styles\.frame\}[\s\S]{0,320}scrolling="no"/);
   assert.match(viewportStyles, /\.frame\s*\{[\s\S]*?pointer-events:\s*none;/);
@@ -198,4 +198,12 @@ test("the README leads with the shared page and documents both tool surfaces", (
   assert.match(readme, /published `\/demo` workspace/);
   assert.match(readme, /included `\/demo` registers eleven Sundae workbench tools/);
   assert.match(readme, /15 tools total/);
+  assert.match(readme, /Challenge work added during the submission period/);
+  assert.match(readme, /Sundae did not exist before this challenge/);
+  assert.match(readme, /GPT-5\.6 Sol/);
+  assert.match(readme, /GPT-5\.6 Terra/);
+  assert.match(readme, /GPT-5\.6 Luna has WebMCP disabled/);
+  assert.match(readme, /The five tools a judge will see/);
+  assert.match(readme, /pre-authored improved variant/);
+  assert.match(readme, /does not discover tools registered inside iframes/);
 });

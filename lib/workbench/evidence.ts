@@ -10,6 +10,7 @@ import type {
   Viewport,
 } from "@/lib/audit/types";
 import { boundedText } from "@/lib/text";
+import { MAX_TOOL_TEXT_BYTES } from "@/lib/webmcp/result";
 import type { CoverageGapTarget, CoverageSummary } from "./coverage";
 import type { Decision } from "./decisions";
 import type { VerificationReceipt } from "./types";
@@ -42,6 +43,12 @@ export function describeAgentAuthority(
     scope: checkpoint.id,
     scopeTitle: checkpoint.scopeId,
   };
+}
+
+export function describeHostToolCount(expectedCount: number, confirmedCount: number | null) {
+  return confirmedCount === null
+    ? `${expectedCount} expected · not confirmed by host`
+    : `${confirmedCount}/${expectedCount} confirmed by host`;
 }
 
 type AgentBoardTarget =
@@ -77,7 +84,20 @@ type AgentBoardContextInput = {
   coverage?: CoverageSummary;
 };
 
-const AGENT_FINDING_PAGE_SIZE = 2;
+const AGENT_FINDING_PAGE_SIZE = 5;
+const AGENT_FINDING_TITLE_BYTES = 90;
+const BOARD_RESULT_ENVELOPE_BYTES = 80;
+const CEREMONY_KEYS = [
+  "coverage",
+  "coverage_gaps",
+  "audit_brief",
+  "review_results_omitted",
+  "review_results",
+] as const;
+
+function jsonBytes(value: unknown) {
+  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+}
 
 function agentText(value: string, maximumBytes: number) {
   let text = boundedText(value, maximumBytes);
@@ -86,6 +106,18 @@ function agentText(value: string, maximumBytes: number) {
     text = text.slice(0, -1);
   }
   return text;
+}
+
+function agentTitle(value: string, maximumBytes: number) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const encoder = new TextEncoder();
+  const fits = (text: string) =>
+    encoder.encode(JSON.stringify(text)).byteLength - 2 <= maximumBytes;
+  if (fits(normalized)) return normalized;
+  let text = normalized;
+  while (text && !fits(text)) text = text.slice(0, -1);
+  const boundary = text.lastIndexOf(" ");
+  return boundary > 0 ? text.slice(0, boundary) : "";
 }
 
 function routePath(url: string) {
@@ -141,12 +173,12 @@ function agentFindingPage(
 function compactAuditBrief(brief?: AuditBrief | null) {
   if (!brief) return undefined;
   return {
-    category: agentText(brief.productCategory, 24),
-    audience: agentText(brief.audience, 20),
-    product_job: agentText(brief.productJob, 32),
-    visible_proposition: agentText(brief.visibleProposition, 32),
-    primary_action: agentText(brief.primaryAction, 24),
-    audit_goal: brief.auditGoal ? agentText(brief.auditGoal, 24) : undefined,
+    category: agentText(brief.productCategory, 32),
+    audience: agentText(brief.audience, 32),
+    product_job: agentText(brief.productJob, 48),
+    visible_proposition: agentText(brief.visibleProposition, 56),
+    primary_action: agentText(brief.primaryAction, 32),
+    audit_goal: brief.auditGoal ? agentText(brief.auditGoal, 32) : undefined,
     confidence: brief.confidence,
     evidence_refs: brief.evidenceRefs.slice(0, 2).map((ref) => agentText(ref, 24)),
     evidence_refs_omitted: Math.max(0, brief.evidenceRefs.length - 2) || undefined,
@@ -195,13 +227,11 @@ function nextBoardAction({
 
 export function buildAgentBoardContext(input: AgentBoardContextInput) {
   const uncapturedNav = (input.uncapturedNav ?? []).slice(0, 4);
-  const canFitSecondFinding =
-    !input.auditBrief && uncapturedNav.length === 0 && input.trailStepCount < 2;
   const findingPage = agentFindingPage(
     input.findings,
     input.selectedFindingId,
     input.findingOffset,
-    1 + Number(canFitSecondFinding),
+    AGENT_FINDING_PAGE_SIZE,
   );
   const nextFindingOffset = findingPage.page.next_offset;
   const reviewResults = input.reviewResults ?? [];
@@ -231,7 +261,8 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
   const visibleCoverageGaps = input.coverageGaps
     .filter(({ id }) => id !== "gap-visible-nav")
     .slice(0, input.auditBrief ? 1 : 4);
-  return {
+  const budget = MAX_TOOL_TEXT_BYTES - BOARD_RESULT_ENVELOPE_BYTES;
+  const payload = {
     ok: true,
     receipt: "Board read; receipt visible.",
     target: compactAgentTarget(input.target),
@@ -245,7 +276,6 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
       measured_at:
         input.auditBrief || input.trailStepCount > 1 ? undefined : input.currentMeasuredAt,
     },
-    audit_brief: compactAuditBrief(input.auditBrief),
     counts: {
       findings: input.findings.length,
       strengths: strengths.length,
@@ -260,7 +290,7 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
         finding.productJob && !input.auditBrief ? agentText(finding.productJob, 48) : undefined,
       confidence: finding.confidence,
       severity: finding.severity,
-      title: agentText(finding.title, 20),
+      title: agentTitle(finding.title, AGENT_FINDING_TITLE_BYTES),
       decision:
         input.decisions[finding.id]?.decision === "open"
           ? undefined
@@ -274,6 +304,12 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
       evidence_role: input.retainsBaseline && !input.auditBrief ? "retained_baseline" : undefined,
     })),
     finding_page: findingPage.page,
+    uncaptured_nav:
+      uncapturedNav.length > 0
+        ? uncapturedNav.map((route) => agentText(routePath(route.url), 32))
+        : undefined,
+    unread: { findings: nextFindingOffset !== null, scope: hasUncoveredScope },
+    next,
     review_results:
       visibleReviewResults.length > 0
         ? visibleReviewResults.map(
@@ -283,6 +319,18 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
         : undefined,
     review_results_omitted:
       Math.max(0, reviewResults.length - visibleReviewResults.length) || undefined,
+    audit_brief: compactAuditBrief(input.auditBrief),
+    coverage_gaps: visibleCoverageGaps.map(({ id, label, viewports, targets }) => {
+      const targetSummary = targets
+        ?.slice(0, 1)
+        .map(({ route, scopeId, viewport }) =>
+          [agentText(route ?? scopeId ?? "scope", 20), viewport].join("@"),
+        )
+        .join(",");
+      return [agentText(id, 20), agentText(label, 16), targetSummary ?? viewports?.join(",")]
+        .filter(Boolean)
+        .join("|");
+    }),
     coverage: input.coverage
       ? {
           surface_count: input.coverage.surfaces.length,
@@ -297,24 +345,12 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
           })),
         }
       : undefined,
-    coverage_gaps: visibleCoverageGaps.map(({ id, label, viewports, targets }) => {
-      const targetSummary = targets
-        ?.slice(0, 1)
-        .map(({ route, scopeId, viewport }) =>
-          [agentText(route ?? scopeId ?? "scope", 20), viewport].join("@"),
-        )
-        .join(",");
-      return [agentText(id, 20), agentText(label, 16), targetSummary ?? viewports?.join(",")]
-        .filter(Boolean)
-        .join("|");
-    }),
-    uncaptured_nav:
-      uncapturedNav.length > 0
-        ? uncapturedNav.map((route) => agentText(routePath(route.url), 32))
-        : undefined,
-    unread: { findings: nextFindingOffset !== null, scope: hasUncoveredScope },
-    next,
   };
+  for (const key of CEREMONY_KEYS) {
+    if (jsonBytes(payload) <= budget) break;
+    (payload as Record<string, unknown>)[key] = undefined;
+  }
+  return payload;
 }
 
 function findingCount(count: number, role?: "current" | "retained baseline") {
@@ -326,8 +362,11 @@ export function describeEvidenceBoard(
   current: AuditSnapshot | undefined,
   activeState: DemoState,
   viewport: Viewport,
+  agentToolCallCount?: number,
 ): EvidenceBoardDescription {
   const baselineCount = baseline?.findings.length ?? 0;
+  const measuredBaseline =
+    agentToolCallCount === 0 && activeState === "baseline" && current?.demoState === activeState;
 
   if (!baseline) {
     return {
@@ -357,9 +396,11 @@ export function describeEvidenceBoard(
   const currentCount = current.findings.length;
   const retainsBaseline = activeState === "improved" || current !== baseline;
   return {
-    summary: retainsBaseline
-      ? `${findingCount(currentCount, "current")} · ${findingCount(baselineCount, "retained baseline")}`
-      : `${findingCount(currentCount, "current")} from a fresh ${viewport} measurement`,
+    summary: measuredBaseline
+      ? "Baseline measurement · no agent tool has run yet"
+      : retainsBaseline
+        ? `${findingCount(currentCount, "current")} · ${findingCount(baselineCount, "retained baseline")}`
+        : `${findingCount(currentCount, "current")} from a fresh ${viewport} measurement`,
     currentCount,
     baselineCount,
     retainsBaseline,

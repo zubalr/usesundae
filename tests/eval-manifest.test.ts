@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 
 import evals from "../evals/webmcp-prompts.json";
+import { findingIdentity } from "../lib/audit/measurements";
+import type { FindingRule, Viewport } from "../lib/audit/types";
 import type { WorkbenchCommands } from "../lib/workbench/types";
 import { registerWorkbenchTools } from "../lib/webmcp/register";
 
@@ -38,6 +42,43 @@ test("the WebMCP eval manifest only expects registered tools", () => {
         registeredTools.has(call.functionName),
         true,
         `${entry.id} references ${call.functionName}`,
+      );
+    }
+  }
+});
+
+test("eval finding ids match ids the included fixture can generate", () => {
+  const fixtureSource = readFileSync(join(process.cwd(), "app", "demo", "page.tsx"), "utf8");
+  const fixtureElementIds = [...fixtureSource.matchAll(/\bid="([A-Za-z0-9_-]+)"/g)].map(
+    (match) => match[1]!,
+  );
+  assert.ok(fixtureElementIds.includes("workflow-helper"));
+  const rules: FindingRule[] = [
+    "accessible-name",
+    "tap-target",
+    "contrast",
+    "horizontal-overflow",
+    "agent-surface",
+  ];
+  const viewports: Viewport[] = ["mobile", "desktop"];
+  const generated = new Set<string>();
+  for (const viewport of viewports) {
+    generated.add(findingIdentity(viewport, "horizontal-overflow", "document-overflow"));
+    for (const elementId of fixtureElementIds) {
+      for (const rule of rules) {
+        generated.add(findingIdentity(viewport, rule, elementId));
+      }
+    }
+  }
+  for (const entry of evals) {
+    for (const call of entry.expectedCall) {
+      if (!("finding_id" in call.arguments)) continue;
+      const findingId = call.arguments.finding_id;
+      assert.equal(typeof findingId, "string", `${entry.id} finding_id must be a string`);
+      assert.equal(
+        generated.has(String(findingId)),
+        true,
+        `${entry.id} references ${findingId}, which the fixture does not generate`,
       );
     }
   }

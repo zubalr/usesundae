@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { WorkbenchCommands } from "../lib/workbench/types";
 import {
+  confirmedWorkbenchToolCount,
   countRegisteredWorkbenchTools,
   registerWorkbenchTools,
   WEBMCP_INPUT_SCHEMAS,
@@ -32,6 +33,38 @@ test("runtime counts include only Sundae workbench tools", () => {
   ] as RegisteredWebMcpTool[];
 
   assert.equal(countRegisteredWorkbenchTools(tools), WEBMCP_TOOL_COUNTS.sample);
+});
+
+test("confirmed workbench tool counts come from the host getTools query", async () => {
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {},
+  });
+  try {
+    assert.equal(await confirmedWorkbenchToolCount(), null);
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: {
+        modelContext: {
+          marker: true,
+          async getTools() {
+            if (this == null || !("marker" in this)) {
+              throw new Error("getTools must be called as a host method");
+            }
+            return [
+              { name: "audit_current_scope", description: "Measure" },
+              { name: "sundae_lab_archive_workflow", description: "Nested" },
+            ];
+          },
+        },
+      },
+    });
+    assert.equal(await confirmedWorkbenchToolCount(), 1);
+  } finally {
+    if (originalDocument) Object.defineProperty(globalThis, "document", originalDocument);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
 });
 
 const commandResult = (receipt: string) => Promise.resolve({ ok: true, receipt });

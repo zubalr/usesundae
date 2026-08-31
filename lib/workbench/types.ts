@@ -18,6 +18,10 @@ export type Activity = {
   toolName?: string;
 };
 
+export function countAgentToolCalls(activity: readonly Pick<Activity, "actor">[]) {
+  return activity.filter(({ actor }) => actor === "agent").length;
+}
+
 export function activityTitle(activity: Pick<Activity, "action" | "toolName">) {
   return activity.toolName ? `${activity.action} · ${activity.toolName}` : activity.action;
 }

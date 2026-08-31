@@ -59,14 +59,20 @@ import {
   invalidateVerificationForFindings,
 } from "@/lib/workbench/evidence";
 import { evaluatePreviewAuthority } from "@/lib/workbench/preview-authority";
+import {
+  committedSystemBaselineKey,
+  shouldCommitMeasuredSnapshot,
+  shouldScheduleSystemAudit,
+} from "@/lib/workbench/system-baseline";
 import { runReversibleTransition } from "@/lib/workbench/transition";
-import type {
-  Activity,
-  Actor,
-  CommandResult,
-  VerificationReceipt,
-  VisibleFinding,
-  WorkbenchCommands,
+import {
+  countAgentToolCalls,
+  type Activity,
+  type Actor,
+  type CommandResult,
+  type VerificationReceipt,
+  type VisibleFinding,
+  type WorkbenchCommands,
 } from "@/lib/workbench/types";
 import { type JourneyEntry, type TargetMode, WorkbenchView } from "./workbench/WorkbenchView";
 
@@ -267,6 +273,7 @@ export function Workbench({
   const reviewResultSequence = useRef(0);
   const auditWaiters = useRef<AuditWaiter[]>([]);
   const auditTimerRef = useRef<number | null>(null);
+  const committedSystemBaselineRef = useRef<string | null>(null);
   const auditEndTimerRef = useRef<number | null>(null);
   const modeRef = useRef<TargetMode>(initialMode);
   const viewportRef = useRef<Viewport>("mobile");
@@ -435,7 +442,9 @@ export function Workbench({
           replaceBaseline && previous
             ? mergeJourneySnapshots(previous, measuredSnapshot)
             : measuredSnapshot;
-        commitSnapshot(snapshot, { replaceBaseline });
+        if (shouldCommitMeasuredSnapshot(snapshot.demoState, snapshot.findings.length)) {
+          commitSnapshot(snapshot, { replaceBaseline });
+        }
         return snapshot;
       } catch (cause) {
         const message =
@@ -468,6 +477,7 @@ export function Workbench({
   );
 
   const resetEvidence = useCallback(() => {
+    committedSystemBaselineRef.current = null;
     baselineRef.current = {};
     currentRef.current = {};
     baselineCheckpointRef.current = {};
@@ -963,16 +973,24 @@ export function Workbench({
       if (modeRef.current === "sample") {
         const snapshot = await measureFrame();
         signal?.throwIfAborted();
-        pushActivity(
-          actor,
-          "Measured live target",
-          `${snapshot.findings.length} findings · ${snapshot.viewportSize.width}×${snapshot.viewportSize.height} · ${snapshot.demoState}`,
-          toolName,
-        );
+        const scopeId = snapshot.scopeKey ?? `included:/demo:${snapshot.viewport}`;
+        committedSystemBaselineRef.current =
+          committedSystemBaselineKey(scopeId, snapshot.demoState, snapshot.findings.length) ??
+          committedSystemBaselineRef.current;
+        if (shouldCommitMeasuredSnapshot(snapshot.demoState, snapshot.findings.length)) {
+          pushActivity(
+            actor,
+            actor === "system" && countAgentToolCalls(activityRef.current) === 0
+              ? "Baseline measurement · no agent tool has run yet"
+              : "Measured live target",
+            `${snapshot.findings.length} findings · ${snapshot.viewportSize.width}×${snapshot.viewportSize.height} · ${snapshot.demoState}`,
+            toolName,
+          );
+        }
         return {
           ok: true,
           receipt: `Measured the ${snapshot.demoState} ${snapshot.viewport} live target in this browser.`,
-          scope_id: snapshot.scopeKey ?? `included:/demo:${snapshot.viewport}`,
+          scope_id: scopeId,
           scope: snapshot.viewport,
           state: snapshot.demoState,
           finding_count: snapshot.findings.length,
@@ -2002,6 +2020,19 @@ export function Workbench({
       if (auditTimerRef.current !== null) window.clearTimeout(auditTimerRef.current);
       auditTimerRef.current = window.setTimeout(() => {
         auditTimerRef.current = null;
+        const document = iframeRef.current?.contentDocument;
+        if (
+          !shouldScheduleSystemAudit({
+            committedKey: committedSystemBaselineRef.current,
+            readyState: document?.readyState,
+            demoStateAttr: document
+              ?.querySelector("[data-demo-state]")
+              ?.getAttribute("data-demo-state"),
+            scopeId: `included:/demo:${viewportRef.current}`,
+          })
+        ) {
+          return;
+        }
         runVisibleCommand(auditCurrentScope("system"));
       }, delay);
     },
@@ -2093,6 +2124,11 @@ export function Workbench({
       return;
     }
     pushActivity("human", "Reset preview", "Returned the included target to its baseline state.");
+    const baselineSnapshot = baselineRef.current[viewportRef.current];
+    currentRef.current = baselineSnapshot
+      ? { ...currentRef.current, [viewportRef.current]: baselineSnapshot }
+      : currentRef.current;
+    setCurrentSnapshots(currentRef.current);
     if (demoState === "baseline") scheduleAudit(0);
   }, [demoState, pushActivity, scheduleAudit]);
 
@@ -2185,7 +2221,13 @@ export function Workbench({
     visibleFindings.find((finding) => finding.id === selectedId) ?? visibleFindings[0] ?? null;
   const measuredCount = visibleFindings.filter((finding) => finding.truth === "measured").length;
   const judgedCount = visibleFindings.filter((finding) => finding.truth === "judged").length;
-  const evidenceBoard = describeEvidenceBoard(baseline, current, demoState, viewport);
+  const evidenceBoard = describeEvidenceBoard(
+    baseline,
+    current,
+    demoState,
+    viewport,
+    countAgentToolCalls(activity),
+  );
   const coverage = deriveCoverageSummary({
     mode,
     baseline,

@@ -28,6 +28,7 @@ import {
 import { DECISION_OPTIONS, DECISION_VALUES, type Decision } from "@/lib/workbench/decisions";
 import {
   describeAgentAuthority,
+  describeHostToolCount,
   type EvidenceBoardDescription,
   verificationLabel,
 } from "@/lib/workbench/evidence";
@@ -35,11 +36,13 @@ import { evaluatePreviewAuthority } from "@/lib/workbench/preview-authority";
 import {
   activityActorLabel,
   activityTitle,
+  countAgentToolCalls,
   type Activity,
   type VisibleFinding,
   type WorkbenchCommands,
 } from "@/lib/workbench/types";
 import {
+  confirmedWorkbenchToolCount,
   registerWorkbenchTools,
   WEBMCP_REGISTRATION_GRACE_MS,
   WEBMCP_TOOL_COUNTS,
@@ -74,11 +77,13 @@ function WebMcpIndicator({
   commands,
   mode,
   status,
+  hostToolCount,
   onStatusChange,
 }: {
   commands: WorkbenchCommands;
   mode: TargetMode;
   status: WebMcpStatus;
+  hostToolCount: number | null;
   onStatusChange: Dispatch<SetStateAction<ToolRegistrationState>>;
 }) {
   useEffect(() => {
@@ -100,7 +105,9 @@ function WebMcpIndicator({
   }, [commands, mode, onStatusChange]);
 
   const label =
-    status === "ready" ? `${WEBMCP_TOOL_COUNTS[mode]} page tools ready` : webMcpLabels[status];
+    status === "ready"
+      ? describeHostToolCount(WEBMCP_TOOL_COUNTS[mode], hostToolCount)
+      : webMcpLabels[status];
   return (
     <div
       className={styles.webmcpStatus}
@@ -124,9 +131,8 @@ function AgentAuthority({
   current,
   urlDraft,
   draftApproved,
-  toolStatus,
-}: WorkbenchViewProps & { toolStatus: WebMcpStatus }) {
-  const expectedCount = WEBMCP_TOOL_COUNTS[mode];
+  hostToolCount,
+}: WorkbenchViewProps & { hostToolCount: number | null }) {
   const authority = describeAgentAuthority(mode, checkpoint, current?.scopeKey);
   const target = mode === "remote" ? checkpoint?.target.displayUrl || urlDraft : "/demo";
   const approval =
@@ -151,11 +157,7 @@ function AgentAuthority({
         </div>
         <div>
           <dt>Tools</dt>
-          <dd>
-            {toolStatus === "ready"
-              ? `${expectedCount}/${expectedCount} registered`
-              : `${webMcpLabels[toolStatus]} · ${expectedCount} expected`}
-          </dd>
+          <dd>{describeHostToolCount(WEBMCP_TOOL_COUNTS[mode], hostToolCount)}</dd>
         </div>
         <div>
           <dt>Approval</dt>
@@ -246,11 +248,14 @@ function AuditTopbar({
   auditing,
   mode,
   checkpoint,
+  activity,
   onAudit,
   toolStatus,
+  hostToolCount,
   onToolStatusChange,
 }: WorkbenchViewProps & {
   toolStatus: WebMcpStatus;
+  hostToolCount: number | null;
   onToolStatusChange: Dispatch<SetStateAction<ToolRegistrationState>>;
 }) {
   const awaitingCapture = mode === "remote" && !checkpoint;
@@ -261,6 +266,7 @@ function AuditTopbar({
       : mode === "remote"
         ? "Recapture page"
         : "Audit live target";
+  const agentToolCalls = countAgentToolCalls(activity);
 
   return (
     <header className={styles.topbar}>
@@ -270,10 +276,14 @@ function AuditTopbar({
         <span className={styles.brandCopy}>Evidence for human + agent</span>
       </a>
       <div className={styles.topbarActions}>
+        <p className={styles.agentCallCount} aria-live="polite">
+          Agent tool calls: {agentToolCalls}
+        </p>
         <WebMcpIndicator
           commands={commands}
           mode={mode}
           status={toolStatus}
+          hostToolCount={hostToolCount}
           onStatusChange={onToolStatusChange}
         />
         <button
@@ -1526,13 +1536,33 @@ export function WorkbenchView(props: WorkbenchViewProps) {
     mode: props.mode,
     status: "checking",
   });
+  const [hostToolCount, setHostToolCount] = useState<number | null>(null);
   const toolStatus = toolRegistration.mode === props.mode ? toolRegistration.status : "checking";
+
+  useEffect(() => {
+    if (toolStatus !== "ready") {
+      setHostToolCount(null);
+      return;
+    }
+    let cancelled = false;
+    void confirmedWorkbenchToolCount().then((count) => {
+      if (!cancelled && count !== null) setHostToolCount(count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [toolStatus]);
 
   return (
     <section className={styles.app} data-mode={props.mode} aria-label="Sundae audit workbench">
-      <AuditTopbar {...props} toolStatus={toolStatus} onToolStatusChange={setToolRegistration} />
+      <AuditTopbar
+        {...props}
+        toolStatus={toolStatus}
+        hostToolCount={hostToolCount}
+        onToolStatusChange={setToolRegistration}
+      />
       <ScopeBar {...props} />
-      <AgentAuthority {...props} toolStatus={toolStatus} />
+      <AgentAuthority {...props} hostToolCount={hostToolCount} />
       {props.mode === "remote" ? <CaptureBar {...props} /> : null}
       <JourneyBar {...props} />
       <div className={styles.workbench} id="workbench">

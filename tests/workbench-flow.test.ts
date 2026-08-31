@@ -7,11 +7,17 @@ import {
   buildVerificationReceipts,
   describeAgentAuthority,
   describeEvidenceBoard,
+  describeHostToolCount,
   invalidateVerificationForFindings,
   verificationLabel,
 } from "../lib/workbench/evidence";
+import {
+  committedSystemBaselineKey,
+  shouldCommitMeasuredSnapshot,
+  shouldScheduleSystemAudit,
+} from "../lib/workbench/system-baseline";
 import { createToolResult, MAX_TOOL_TEXT_BYTES } from "../lib/webmcp/result";
-import { activityActorLabel, activityTitle } from "../lib/workbench/types";
+import { activityActorLabel, activityTitle, countAgentToolCalls } from "../lib/workbench/types";
 
 function finding(index: number): Finding {
   return {
@@ -41,6 +47,75 @@ const baseline: AuditSnapshot = {
   findings: [1, 2, 3, 4, 5].map(finding),
   gaps: [],
 };
+
+test("a system baseline is committed when the iframe is already complete at mount", () => {
+  const scopeId = "included:/demo:mobile";
+  const missedOnLoad = shouldScheduleSystemAudit({
+    committedKey: null,
+    readyState: "complete",
+    demoStateAttr: "baseline",
+    scopeId,
+  });
+  assert.equal(missedOnLoad, true);
+  assert.equal(committedSystemBaselineKey(scopeId, "baseline", 8), `${scopeId}|baseline`);
+
+  const afterCommit = shouldScheduleSystemAudit({
+    committedKey: committedSystemBaselineKey(scopeId, "baseline", 8),
+    readyState: "complete",
+    demoStateAttr: "baseline",
+    scopeId,
+  });
+  assert.equal(afterCommit, false);
+  assert.equal(shouldCommitMeasuredSnapshot("baseline", 8), true);
+
+  const loadingIframe = shouldScheduleSystemAudit({
+    committedKey: null,
+    readyState: "loading",
+    demoStateAttr: null,
+    scopeId,
+  });
+  assert.equal(loadingIframe, false);
+
+  const completeButEmpty = shouldScheduleSystemAudit({
+    committedKey: null,
+    readyState: "complete",
+    demoStateAttr: null,
+    scopeId,
+  });
+  assert.equal(completeButEmpty, false);
+  assert.equal(committedSystemBaselineKey(scopeId, "baseline", 0), null);
+  assert.equal(shouldCommitMeasuredSnapshot("baseline", 0), false);
+  assert.equal(shouldCommitMeasuredSnapshot("improved", 0), true);
+
+  assert.equal(
+    shouldScheduleSystemAudit({
+      committedKey: committedSystemBaselineKey(scopeId, "baseline", 8),
+      readyState: "complete",
+      demoStateAttr: "baseline",
+      scopeId: "included:/demo:desktop",
+    }),
+    true,
+  );
+  assert.equal(
+    shouldScheduleSystemAudit({
+      committedKey: committedSystemBaselineKey(scopeId, "baseline", 8),
+      readyState: "complete",
+      demoStateAttr: "improved",
+      scopeId,
+    }),
+    true,
+  );
+});
+
+test("pre-tool board exposes no agent receipt and no completed-registration claim", () => {
+  const board = describeEvidenceBoard(baseline, baseline, "baseline", "mobile", 0);
+  assert.equal(board.summary, "Baseline measurement · no agent tool has run yet");
+  assert.equal(countAgentToolCalls([{ actor: "system" }, { actor: "human" }]), 0);
+  assert.equal(countAgentToolCalls([{ actor: "agent" }, { actor: "system" }]), 1);
+  assert.equal(describeHostToolCount(11, null), "11 expected · not confirmed by host");
+  assert.doesNotMatch(describeHostToolCount(11, null), /registered/);
+  assert.equal(describeHostToolCount(11, 11), "11/11 confirmed by host");
+});
 
 test("agent authority keeps pre-capture public scope honest", () => {
   assert.deepEqual(describeAgentAuthority("remote", null), {
@@ -235,7 +310,7 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
   assert.equal(payload.findings[0]?.checkpoint_id.startsWith("checkpoint_9_"), true);
   assert.equal(payload.findings[0]?.evidence_role, "retained_baseline");
   assert.equal(payload.target.checkpoint_id.startsWith("checkpoint_"), true);
-  assert.equal(payload.findings.length, 1);
+  assert.equal(payload.findings.length, 5);
   assert.equal(payload.coverage_gaps.length, 4);
   assert.match(payload.coverage_gaps[0]!, /^gap-/);
   assert.equal(context.uncaptured_nav?.length, 4);
@@ -364,6 +439,17 @@ test("mutated review board keeps actionable structure inside the WebMCP budget",
   assert.ok(payload.counts);
   assert.ok(payload.findings);
   assert.ok(payload.coverage);
+  const brief = payload.audit_brief as {
+    audience?: string;
+    product_job?: string;
+    visible_proposition?: string;
+  };
+  assert.equal(brief?.audience, "Product operations lead");
+  assert.equal(brief?.product_job, "Find workflows that need attention");
+  assert.equal(
+    brief?.visible_proposition,
+    "See workflow exceptions and act on the strongest signal",
+  );
 });
 
 test("multi-route public board keeps finding pagination inside the WebMCP budget", () => {
@@ -487,8 +573,8 @@ test("multi-route public board keeps finding pagination inside the WebMCP budget
     `The multi-route board used ${serializedBytes} bytes before the result envelope.`,
   );
   assert.notEqual(payload.truncated, true);
-  assert.equal(payload.findings?.length, 1);
-  assert.deepEqual(payload.finding_page, { offset: 0, limit: 1, total: 7, next_offset: 1 });
+  assert.equal(payload.findings?.length, 5);
+  assert.deepEqual(payload.finding_page, { offset: 0, limit: 5, total: 7, next_offset: 5 });
   assert.equal(payload.coverage?.surface_count, 5);
   assert.equal(payload.coverage_gaps?.length, 3);
   assert.deepEqual(payload.uncaptured_nav, ["/docs/automation-and-testing"]);
@@ -623,6 +709,7 @@ test("agent board context orients with the brief, positive results, and honest c
     },
   });
 
+  assert.equal(context.audit_brief?.audience, "Product operations lead");
   assert.equal(context.audit_brief?.product_job, "Find workflows needing attention");
   assert.equal(context.audit_brief?.visible_proposition, "See exceptions in one place");
   assert.equal(context.audit_brief?.audit_goal, "Review activation");
@@ -851,7 +938,7 @@ test("agent context never applies another route's below-fold gap to the active r
 });
 
 test("agent board context paginates exact actionable finding ids", () => {
-  const findings = [1, 2, 3, 4, 5].map(finding);
+  const findings = Array.from({ length: 10 }, (_, index) => finding(index));
   const input = {
     auditGoal: "Review activation",
     target: {
@@ -885,21 +972,54 @@ test("agent board context paginates exact actionable finding ids", () => {
   assert.equal(first.receipt, "Board read; receipt visible.");
   assert.deepEqual(
     first.findings.map(({ id }) => id),
-    [findings[0]!.id, findings[1]!.id],
+    findings.slice(0, 5).map(({ id }) => id),
   );
-  assert.deepEqual(first.finding_page, { offset: 0, limit: 2, total: 5, next_offset: 2 });
+  assert.deepEqual(first.finding_page, { offset: 0, limit: 5, total: 10, next_offset: 5 });
   assert.deepEqual(
     second.findings.map(({ id }) => id),
-    [findings[2]!.id, findings[3]!.id],
+    findings.slice(2, 7).map(({ id }) => id),
   );
-  assert.deepEqual(second.finding_page, { offset: 2, limit: 2, total: 5, next_offset: 4 });
+  assert.deepEqual(second.finding_page, { offset: 2, limit: 5, total: 10, next_offset: 7 });
   assert.deepEqual(withVisibleNav.finding_page, {
     offset: 0,
-    limit: 1,
-    total: 5,
-    next_offset: 1,
+    limit: 5,
+    total: 10,
+    next_offset: 5,
   });
-  assert.match(withVisibleNav.next, /finding_offset 1/);
+  assert.match(withVisibleNav.next, /finding_offset 5/);
+});
+
+test("board context finding titles stay on word boundaries", () => {
+  const original =
+    "The primary checkout action is visually buried under dense surrounding navigation chrome on mobile";
+  const context = buildAgentBoardContext({
+    auditGoal: "Review activation",
+    target: {
+      kind: "included_live_target",
+      path: "/demo",
+      scopeId: "included:/demo:mobile",
+      screenshotVisible: true,
+    },
+    viewport: "mobile",
+    state: "baseline",
+    currentFindingCount: 1,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: null,
+    retainsBaseline: false,
+    findings: [{ ...finding(1), title: original }],
+    decisions: {},
+    verifications: {},
+    coverageGaps: [],
+    trailStepCount: 0,
+  });
+  const title = String(context.findings[0]?.title ?? "");
+  const originalWords = original.split(/\s+/);
+  const titleWords = title.split(/\s+/).filter(Boolean);
+  assert.ok(titleWords.length > 0);
+  assert.ok(Buffer.byteLength(title, "utf8") <= 90);
+  assert.deepEqual(originalWords.slice(0, titleWords.length), titleWords);
+  assert.notEqual(title, original);
 });
 
 test("agent context keeps route provenance distinct from the active checkpoint", () => {

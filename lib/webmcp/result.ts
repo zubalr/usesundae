@@ -1,4 +1,4 @@
-export const MAX_TOOL_TEXT_BYTES = 1500;
+export const MAX_TOOL_TEXT_BYTES = 4000;
 
 export type ToolResult = {
   content: Array<{ type: "text"; text: string }>;

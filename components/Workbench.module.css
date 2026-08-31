@@ -74,7 +74,16 @@
 .topbarActions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-s);
+}
+
+.agentCallCount {
+  margin: var(--space-none);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .webmcpStatus {
