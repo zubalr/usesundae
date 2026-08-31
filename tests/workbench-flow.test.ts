@@ -194,6 +194,7 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
       id: `gap-${index}`,
       label: `${hostileCopy}${index}`,
       detail: "This state was not observed. ".repeat(20),
+      viewports: ["mobile" as const],
     })),
     trailStepCount: 12,
     uncapturedNav: Array.from({ length: 4 }, (_, index) => ({
@@ -238,6 +239,131 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
   assert.equal(payload.coverage_gaps.length, 4);
   assert.match(payload.coverage_gaps[0]!, /^gap-/);
   assert.equal(context.uncaptured_nav?.length, 4);
+});
+
+test("mutated review board keeps actionable structure inside the WebMCP budget", () => {
+  const findings = Array.from({ length: 8 }, (_, index) => finding(index));
+  const context = buildAgentBoardContext({
+    auditGoal: "Review onboarding clarity",
+    target: {
+      kind: "included_live_target",
+      path: "/demo",
+      scopeId: "included:/demo:mobile",
+      screenshotVisible: true,
+    },
+    viewport: "mobile",
+    state: "improved",
+    currentFindingCount: 7,
+    retainedBaselineFindingCount: 8,
+    currentMeasuredAt: "2030-01-01T10:04:00.000Z",
+    selectedFindingId: findings[5]!.id,
+    retainsBaseline: true,
+    findings,
+    decisions: { [findings[5]!.id]: { decision: "accepted" } },
+    verifications: { [findings[5]!.id]: { status: "unverified" } },
+    coverageGaps: ["motion", "flow", "billing", "invite"].map((label, index) => ({
+      id: `gap-${label}`,
+      label: `${label} state`,
+      detail: `${label} was not observed in this scope.`,
+      viewports: ["mobile" as const],
+      targets: [
+        {
+          checkpointId: `checkpoint-${index}`,
+          scopeId: "included:/demo:mobile",
+          route: "/demo",
+          viewport: "mobile" as const,
+        },
+      ],
+    })),
+    trailStepCount: 2,
+    auditBrief: {
+      status: "provisional",
+      productCategory: "Operations dashboard",
+      audience: "Product operations lead",
+      productJob: "Find workflows that need attention",
+      visibleProposition: "See workflow exceptions and act on the strongest signal",
+      primaryAction: "Review workflows",
+      auditGoal: "Review onboarding clarity",
+      confidence: "medium",
+      evidenceRefs: ["included-live-target", "checkpoint-mobile"],
+      unresolvedQuestions: ["What happens after the primary action?"],
+      updatedAt: "2030-01-01T10:02:00.000Z",
+    },
+    reviewResults: [
+      {
+        id: "review-strength-ui-1",
+        kind: "strength",
+        category: "ui",
+        observation: "Exception counts are easy to scan.",
+        whyItSupportsJob: "Urgent work is visible.",
+        confidence: "high",
+        scopeId: "included:/demo:mobile",
+        evidenceRef: "included-live-target",
+        recordedAt: "2030-01-01T10:03:00.000Z",
+      },
+    ],
+    coverage: {
+      openGapCount: 4,
+      hasUncoveredScope: true,
+      openGaps: [],
+      surfaces: [
+        {
+          checkpointId: "included-live-target-mobile",
+          scopeId: "included:/demo:mobile",
+          route: "/demo",
+          finalUrl: "/demo",
+          label: "Included product surface · mobile",
+          surfaceType: "entry",
+          viewport: "mobile",
+          state: "baseline",
+          captureExtent: "viewport",
+          evidenceTypes: ["dom", "screenshot"],
+          motion: "not_seen",
+          interaction: "not_seen",
+          status: "observed",
+          capturedAt: "2030-01-01T10:00:00.000Z",
+        },
+        {
+          checkpointId: "included-preview",
+          scopeId: "included:/demo:mobile",
+          route: "/demo",
+          finalUrl: "/demo",
+          label: "Reversible preview",
+          surfaceType: "entry",
+          viewport: "mobile",
+          state: "improved",
+          captureExtent: "viewport",
+          evidenceTypes: ["dom", "screenshot"],
+          motion: "not_seen",
+          interaction: "not_seen",
+          status: "observed",
+          capturedAt: "2030-01-01T10:04:00.000Z",
+        },
+      ],
+    },
+  });
+  const wrapped = {
+    ...context,
+    tool_name: "get_board_context",
+    actor: "agent",
+    status: "success",
+    elapsed_ms: 8,
+  };
+  const serializedBytes = Buffer.byteLength(JSON.stringify(wrapped), "utf8");
+  const text = createToolResult(wrapped).content[0]!.text;
+  const payload = JSON.parse(text) as Record<string, unknown>;
+
+  assert.ok(
+    serializedBytes <= MAX_TOOL_TEXT_BYTES,
+    `The realistic mutated board used ${serializedBytes} bytes before the result envelope.`,
+  );
+  assert.ok(Buffer.byteLength(text, "utf8") <= MAX_TOOL_TEXT_BYTES);
+  assert.notEqual(payload.truncated, true);
+  assert.ok(payload.target);
+  assert.ok(payload.scope);
+  assert.ok(payload.counts);
+  assert.ok(payload.findings);
+  assert.ok(payload.coverage);
 });
 
 test("agent board context exposes the product-job category for judged evidence", () => {
@@ -332,6 +458,22 @@ test("agent board context orients with the brief, positive results, and honest c
     coverage: {
       openGapCount: 1,
       hasUncoveredScope: true,
+      openGaps: [
+        {
+          id: "gap-motion",
+          label: "Motion",
+          detail: "Motion was not observed.",
+          viewports: ["mobile"],
+          targets: [
+            {
+              checkpointId: "included-live-target",
+              scopeId: "included:/demo:mobile",
+              route: "/demo",
+              viewport: "mobile",
+            },
+          ],
+        },
+      ],
       surfaces: [
         {
           checkpointId: "included-live-target",
@@ -345,6 +487,7 @@ test("agent board context orients with the brief, positive results, and honest c
           captureExtent: "viewport",
           evidenceTypes: ["dom", "screenshot"],
           motion: "not_seen",
+          interaction: "not_seen",
           status: "observed",
           capturedAt: "2030-01-01T10:00:00.000Z",
         },
@@ -353,6 +496,9 @@ test("agent board context orients with the brief, positive results, and honest c
   });
 
   assert.equal(context.audit_brief?.product_job, "Find workflows needing attention");
+  assert.equal(context.audit_brief?.visible_proposition, "See exceptions in one place");
+  assert.equal(context.audit_brief?.audit_goal, "Review activation");
+  assert.deepEqual(context.audit_brief?.evidence_refs, ["included-live-target"]);
   assert.deepEqual(context.target, {
     kind: "included_live_target",
     path: "/demo",
@@ -366,6 +512,7 @@ test("agent board context orients with the brief, positive results, and honest c
     gaps: 1,
   });
   assert.equal(context.coverage?.surfaces[0]?.motion, "not_seen");
+  assert.equal(context.coverage?.surfaces[0]?.interaction, "not_seen");
   assert.equal(context.unread.findings, true);
   assert.equal(context.unread.scope, true);
   assert.match(context.next, /finding_offset/i);
@@ -467,6 +614,114 @@ test("agent board context lists at most four uncaptured visible-nav routes", () 
   assert.doesNotMatch(JSON.stringify(context), /private=removed/);
 });
 
+test("agent context keeps an inactive responsive below-fold gap open", () => {
+  const context = buildAgentBoardContext({
+    auditGoal: "Review activation",
+    target: {
+      kind: "public_checkpoint",
+      displayUrl: "https://example.com/",
+      checkpointId: "checkpoint-desktop",
+      scopeId: "scope-desktop",
+      screenshotVisible: true,
+      captureExtent: "full-page",
+    },
+    viewport: "desktop",
+    state: "baseline",
+    currentFindingCount: 0,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: null,
+    retainsBaseline: false,
+    findings: [],
+    decisions: {},
+    verifications: {},
+    coverageGaps: [
+      {
+        id: "gap-below-fold",
+        label: "Below-fold content",
+        detail: "The mobile checkpoint remained viewport-only.",
+        viewports: ["mobile"],
+      },
+    ],
+    trailStepCount: 2,
+    auditBrief: {
+      status: "provisional",
+      productCategory: "Marketing site",
+      audience: "Prospective customer",
+      productJob: "Understand the product",
+      visibleProposition: "See the product value",
+      primaryAction: "Start",
+      auditGoal: "Review activation",
+      confidence: "medium",
+      evidenceRefs: ["checkpoint-desktop"],
+      unresolvedQuestions: [],
+      updatedAt: "2030-01-01T10:00:00.000Z",
+    },
+  });
+
+  assert.equal(context.unread.scope, true);
+  assert.match(context.next, /mobile.*activate|activate.*mobile/i);
+  assert.match(context.coverage_gaps[0]!, /mobile/);
+});
+
+test("agent context never applies another route's below-fold gap to the active route", () => {
+  const context = buildAgentBoardContext({
+    auditGoal: "Review activation",
+    target: {
+      kind: "public_checkpoint",
+      displayUrl: "https://example.com/pricing",
+      checkpointId: "checkpoint-pricing",
+      scopeId: "scope-pricing",
+      screenshotVisible: true,
+      captureExtent: "full-page",
+    },
+    viewport: "desktop",
+    state: "baseline",
+    currentFindingCount: 0,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:01:00.000Z",
+    selectedFindingId: null,
+    retainsBaseline: false,
+    findings: [],
+    decisions: {},
+    verifications: {},
+    coverageGaps: [
+      {
+        id: "gap-below-fold",
+        label: "Below-fold content",
+        detail: "The root route remained viewport-only.",
+        viewports: ["desktop"],
+        targets: [
+          {
+            checkpointId: "checkpoint-root",
+            scopeId: "scope-root",
+            route: "/",
+            viewport: "desktop",
+          },
+        ],
+      },
+    ],
+    trailStepCount: 2,
+    auditBrief: {
+      status: "provisional",
+      productCategory: "Marketing site",
+      audience: "Prospective customer",
+      productJob: "Understand the product",
+      visibleProposition: "See the product value",
+      primaryAction: "Start",
+      auditGoal: "Review activation",
+      confidence: "medium",
+      evidenceRefs: ["checkpoint-root", "checkpoint-pricing"],
+      unresolvedQuestions: [],
+      updatedAt: "2030-01-01T10:01:00.000Z",
+    },
+  });
+
+  assert.doesNotMatch(context.next, /^Call capture_below_fold/);
+  assert.match(context.next, /\/.*checkpoint-root.*activate/i);
+  assert.match(context.coverage_gaps[0]!, /\/@desktop/);
+});
+
 test("agent board context paginates exact actionable finding ids", () => {
   const findings = [1, 2, 3, 4, 5].map(finding);
   const input = {
@@ -499,7 +754,7 @@ test("agent board context paginates exact actionable finding ids", () => {
     uncapturedNav: [{ url: "https://example.com/docs", label: "Docs" }],
   });
 
-  assert.equal(first.receipt, "Board read; visible receipt added.");
+  assert.equal(first.receipt, "Board read; receipt visible.");
   assert.deepEqual(
     first.findings.map(({ id }) => id),
     [findings[0]!.id, findings[1]!.id],

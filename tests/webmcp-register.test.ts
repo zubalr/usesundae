@@ -342,6 +342,7 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     const previewTool = registered.find(({ tool }) => tool.name === "preview_fix")?.tool;
     const verifyTool = registered.find(({ tool }) => tool.name === "verify_recapture")?.tool;
     const reviewTool = registered.find(({ tool }) => tool.name === "record_review_result")?.tool;
+    const findingTool = registered.find(({ tool }) => tool.name === "record_visual_finding")?.tool;
     assert.match(auditTool?.description ?? "", /first.*Site Tool|Site Tools.*first/i);
     assert.match(auditTool?.description ?? "", /\/demo/);
     assert.match(boardTool?.description ?? "", /after.*capture|after.*audit/i);
@@ -349,6 +350,9 @@ test("remote mode registers the full bounded, page-scoped tool set", async () =>
     assert.match(boardTool?.description ?? "", /visible.*receipt/i);
     assert.match(boardTool?.description ?? "", /scope_id.*evidence_ref/i);
     assert.match(reviewTool?.description ?? "", /after record_audit_brief/i);
+    assert.match(findingTool?.description ?? "", /strongest supported/i);
+    assert.match(findingTool?.description ?? "", /fewer or none/i);
+    assert.match(findingTool?.description ?? "", /severity.*confidence|confidence.*severity/i);
     assert.match(previewTool?.description ?? "", /board|decision/i);
     assert.match(verifyTool?.description ?? "", /after.*preview/i);
     assertToolContracts(registered);

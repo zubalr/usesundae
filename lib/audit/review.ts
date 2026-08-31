@@ -2,6 +2,7 @@ import { boundedText } from "@/lib/text";
 import type {
   AuditBrief,
   AuditBriefInput,
+  CoverageGap,
   Finding,
   JudgmentConfidence,
   ReviewResult,
@@ -62,12 +63,21 @@ export function validateReviewResultScope(
   input: ReviewResultInput,
   inspectedScopeIds: ReadonlySet<string>,
   evidenceRefsForScope: ReadonlySet<string>,
+  openGaps: readonly CoverageGap[] = [],
 ) {
   if (!inspectedScopeIds.has(input.scopeId)) {
     throw new Error("A review result must cite an inspected scope on the current evidence board.");
   }
   if (!evidenceRefsForScope.has(input.evidenceRef)) {
     throw new Error("A review result must cite evidence from that same inspected scope.");
+  }
+  if (input.kind !== "no_material_issue") return;
+  if (input.category !== "interaction") return;
+  const relevantGaps = openGaps.filter(({ scopeKey }) => !scopeKey || scopeKey === input.scopeId);
+  if (relevantGaps.some(({ id }) => id === "gap-motion-window" || id === "gap-flow-states")) {
+    throw new Error(
+      "Interaction was not fully inspected in this scope; keep the coverage gap instead of recording no material issue.",
+    );
   }
 }
 

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   assertSameJourneyOrigin,
+  clearVisibleNavGaps,
   mergeBelowFoldSnapshot,
   mergeJourneySnapshots,
 } from "../lib/workbench/journey";
@@ -31,7 +32,7 @@ function snapshot(scopeKey: string, id: string, gapLabel: string): AuditSnapshot
     viewportSize: { width: 1440, height: 900 },
     scopeKey,
     findings: [finding],
-    gaps: [{ id: gapLabel, label: gapLabel, detail: "Not observed." }],
+    gaps: [{ id: gapLabel, label: gapLabel, detail: "Not observed.", scopeKey }],
   };
 }
 
@@ -68,7 +69,7 @@ test("journey authorization normalizes a bare same-origin hostname", () => {
   );
 });
 
-test("journey snapshots retain route-scoped findings and deduplicate gaps", () => {
+test("journey snapshots retain route-scoped findings and gaps", () => {
   const pricing = snapshot(
     "https://example.com/pricing",
     "pricing-finding",
@@ -85,7 +86,11 @@ test("journey snapshots retain route-scoped findings and deduplicate gaps", () =
     merged.findings.map((finding) => finding.id),
     ["pricing-finding", "checkout-finding"],
   );
-  assert.equal(merged.gaps.length, 1);
+  assert.equal(merged.gaps.length, 2);
+  assert.deepEqual(
+    merged.gaps.map(({ scopeKey }) => scopeKey),
+    ["https://example.com/pricing", "https://example.com/checkout"],
+  );
   assert.equal(merged.scopeKey, undefined);
   assert.equal(merged.capturedAt, checkout.capturedAt);
 });
@@ -122,6 +127,7 @@ test("a full-page checkpoint closes the below-fold gap for one active scope", ()
     id: "gap-below-fold",
     label: "Below-the-fold visuals",
     detail: "The viewport did not show the rest of this page.",
+    scopeKey: "scope-page",
   });
   const fullPage = snapshot("scope-page", "full-page-finding", "Unvisited flow states");
 
@@ -140,12 +146,14 @@ test("a viewport fallback keeps the below-fold gap open", () => {
     id: "gap-below-fold",
     label: "Below-the-fold visuals",
     detail: "The viewport did not show the rest of this page.",
+    scopeKey: "scope-page",
   });
   const fallback = snapshot("scope-page", "fallback-finding", "Unvisited flow states");
   fallback.gaps.unshift({
     id: "gap-below-fold",
     label: "Below-the-fold visuals",
     detail: "The full-page screenshot was too large, so this evidence remains viewport-bounded.",
+    scopeKey: "scope-page",
   });
 
   const merged = mergeBelowFoldSnapshot(viewport, fallback, false);
@@ -162,16 +170,41 @@ test("a full-page checkpoint does not close below-fold coverage for another rout
     id: "gap-below-fold",
     label: "Below-the-fold visuals",
     detail: "At least one route is still viewport-bounded.",
+    scopeKey: "scope-page",
   });
   const otherRoute = snapshot("scope-other", "other-finding", "Motion beyond load");
+  otherRoute.gaps.unshift({
+    id: "gap-below-fold",
+    label: "Below-the-fold visuals",
+    detail: "The other route is still viewport-bounded.",
+    scopeKey: "scope-other",
+  });
   const journey = mergeJourneySnapshots(viewport, otherRoute);
   const fullPage = snapshot("scope-page", "full-page-finding", "Unvisited flow states");
 
   const merged = mergeBelowFoldSnapshot(journey, fullPage);
 
   assert.equal(merged.scopeKey, undefined);
+  const belowFoldScopes = merged.gaps
+    .filter((gap) => gap.id === "gap-below-fold")
+    .map((gap) => gap.scopeKey);
+  assert.deepEqual(belowFoldScopes, ["scope-other"]);
+});
+
+test("completed visible navigation closes stale gaps in every responsive checkpoint", () => {
+  const desktop = snapshot("scope-root", "desktop-root", "gap-visible-nav");
+  const mobile = {
+    ...snapshot("scope-root", "mobile-root", "gap-visible-nav"),
+    viewport: "mobile" as const,
+  };
+  const cleaned = clearVisibleNavGaps({ desktop, mobile });
+
   assert.equal(
-    merged.gaps.some((gap) => gap.id === "gap-below-fold"),
-    true,
+    cleaned.desktop?.gaps.some(({ id }) => id === "gap-visible-nav"),
+    false,
+  );
+  assert.equal(
+    cleaned.mobile?.gaps.some(({ id }) => id === "gap-visible-nav"),
+    false,
   );
 });

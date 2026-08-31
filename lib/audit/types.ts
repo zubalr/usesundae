@@ -96,6 +96,8 @@ export type CoverageGap = {
   id: string;
   label: string;
   detail: string;
+  checkpointId?: string;
+  scopeKey?: string;
 };
 
 export type AuditSnapshot = {

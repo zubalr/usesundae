@@ -74,6 +74,57 @@ test("the demo route resolves to the complete workbench rather than the bare fix
   assert.match(demoPage, /<DemoWebMcp/);
 });
 
+test("the workbench accepts bare domains and contains desktop pane scrolling", () => {
+  const workbench = readFileSync(
+    pathFromRoot("components", "workbench", "WorkbenchView.tsx"),
+    "utf8",
+  );
+  const styles = readFileSync(pathFromRoot("components", "Workbench.module.css"), "utf8");
+
+  assert.match(workbench, /type="text"[\s\S]{0,80}inputMode="url"[\s\S]{0,120}value=\{urlDraft\}/);
+  assert.match(styles, /\.app\s*\{[\s\S]*?height:\s*100dvh;[\s\S]*?overflow:\s*hidden;/);
+  assert.match(styles, /\.workbench\s*\{[\s\S]*?flex:\s*1 1 auto;/);
+  assert.match(styles, /\.productPane\s*\{[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(styles, /\.evidencePane\s*\{[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\)[\s\S]*?\.app\s*\{[\s\S]*?height:\s*auto;[\s\S]*?overflow:\s*visible;/,
+  );
+});
+
+test("agent authority values wrap instead of hiding the governance contract", () => {
+  const styles = readFileSync(pathFromRoot("components", "Workbench.module.css"), "utf8");
+  const authorityValue = styles.match(/\.authorityBar dd\s*\{(?<body>[\s\S]*?)\}/)?.groups?.body;
+
+  assert.ok(authorityValue, "Missing authority value styles");
+  assert.doesNotMatch(authorityValue, /text-overflow:\s*ellipsis/);
+  assert.match(authorityValue, /white-space:\s*normal/);
+});
+
+test("judged finding details keep exact scope and verification visible", () => {
+  const workbench = readFileSync(
+    pathFromRoot("components", "workbench", "WorkbenchView.tsx"),
+    "utf8",
+  );
+
+  assert.match(workbench, /<dt>Route<\/dt>/);
+  assert.match(workbench, /<dt>State<\/dt>/);
+  assert.match(workbench, /<dt>Viewport<\/dt>/);
+  assert.match(workbench, /<dt>Verification<\/dt>/);
+});
+
+test("public viewport capture retains the existing responsive audit", () => {
+  const controller = readFileSync(pathFromRoot("components", "Workbench.tsx"), "utf8");
+
+  assert.match(controller, /const continuesAudit\s*=/);
+  assert.match(controller, /if \(!continuesAudit\) resetEvidence\(\)/);
+  assert.match(
+    controller,
+    /baselineCheckpointRef\.current = \{[\s\S]{0,120}\[nextViewport\]: nextCheckpoint/,
+  );
+  assert.match(controller, /journeyRef\.current = continuesAudit/);
+});
+
 test("new review panels keep styled and failure-safe human controls", () => {
   const workbench = readFileSync(
     pathFromRoot("components", "workbench", "WorkbenchView.tsx"),

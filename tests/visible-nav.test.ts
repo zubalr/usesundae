@@ -5,6 +5,7 @@ import {
   capturedVisibleNavLabels,
   extractVisibleNav,
   MAX_VISIBLE_NAV_ROUTES,
+  reconcileVisibleNavGap,
   uncapturedVisibleNav,
   visibleNavGap,
   withoutVisibleNavGap,
@@ -117,5 +118,33 @@ test("uncapturedVisibleNav compares path identity and the gap helpers stay exact
       (gap) => gap.id,
     ),
     ["gap-flow-states"],
+  );
+});
+
+test("partial visible-nav capture keeps the source checkpoint as gap evidence", () => {
+  const gaps = [
+    {
+      ...visibleNavGap(2),
+      checkpointId: "checkpoint-root",
+      scopeKey: "scope-root",
+    },
+    { id: "gap-flow-states", label: "Flow states", detail: "Not observed." },
+  ];
+  const partial = reconcileVisibleNavGap(gaps, 1, {
+    checkpointId: "checkpoint-pricing",
+    scopeKey: "scope-pricing",
+  });
+
+  assert.deepEqual(
+    partial.find(({ id }) => id === "gap-visible-nav"),
+    {
+      ...visibleNavGap(1),
+      checkpointId: "checkpoint-root",
+      scopeKey: "scope-root",
+    },
+  );
+  assert.equal(
+    reconcileVisibleNavGap(partial, 0, {}).some(({ id }) => id === "gap-visible-nav"),
+    false,
   );
 });

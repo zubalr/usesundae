@@ -10,7 +10,7 @@ import type {
   Viewport,
 } from "@/lib/audit/types";
 import { boundedText } from "@/lib/text";
-import type { CoverageSummary } from "./coverage";
+import type { CoverageGapTarget, CoverageSummary } from "./coverage";
 import type { Decision } from "./decisions";
 import type { VerificationReceipt } from "./types";
 
@@ -68,7 +68,7 @@ type AgentBoardContextInput = {
   findings: Finding[];
   decisions: Record<string, { decision: Decision } | undefined>;
   verifications: Record<string, { status: Verification } | undefined>;
-  coverageGaps: CoverageGap[];
+  coverageGaps: Array<CoverageGap & { viewports?: Viewport[]; targets?: CoverageGapTarget[] }>;
   trailStepCount: number;
   uncapturedNav?: Array<{ url: string; label: string }>;
   findingOffset?: number;
@@ -141,12 +141,15 @@ function agentFindingPage(
 function compactAuditBrief(brief?: AuditBrief | null) {
   if (!brief) return undefined;
   return {
-    status: brief.status,
-    category: agentText(brief.productCategory, 32),
-    audience: agentText(brief.audience, 32),
-    product_job: agentText(brief.productJob, 48),
-    primary_action: agentText(brief.primaryAction, 32),
+    category: agentText(brief.productCategory, 24),
+    audience: agentText(brief.audience, 20),
+    product_job: agentText(brief.productJob, 32),
+    visible_proposition: agentText(brief.visibleProposition, 32),
+    primary_action: agentText(brief.primaryAction, 24),
+    audit_goal: brief.auditGoal ? agentText(brief.auditGoal, 24) : undefined,
     confidence: brief.confidence,
+    evidence_refs: brief.evidenceRefs.slice(0, 2).map((ref) => agentText(ref, 24)),
+    evidence_refs_omitted: Math.max(0, brief.evidenceRefs.length - 2) || undefined,
     unresolved_count: brief.unresolvedQuestions.length,
   };
 }
@@ -156,12 +159,14 @@ function nextBoardAction({
   uncapturedNavCount,
   hasBrief,
   hasBelowFoldGap,
+  inactiveBelowFoldTarget,
   hasUncoveredScope,
 }: {
   nextFindingOffset: number | null;
   uncapturedNavCount: number;
   hasBrief: boolean;
   hasBelowFoldGap: boolean;
+  inactiveBelowFoldTarget?: CoverageGapTarget;
   hasUncoveredScope: boolean;
 }) {
   if (nextFindingOffset !== null) {
@@ -173,6 +178,14 @@ function nextBoardAction({
   if (!hasBrief) return "Call record_audit_brief before adding product judgments.";
   if (hasBelowFoldGap) {
     return "Call capture_below_fold for the open gap, then read the board again.";
+  }
+  if (inactiveBelowFoldTarget) {
+    const target =
+      inactiveBelowFoldTarget.route ?? inactiveBelowFoldTarget.scopeId ?? "named route";
+    const checkpoint = inactiveBelowFoldTarget.checkpointId
+      ? ` checkpoint ${inactiveBelowFoldTarget.checkpointId}`
+      : " checkpoint";
+    return `The ${target} ${inactiveBelowFoldTarget.viewport}${checkpoint} remains viewport-only. Ask the person to activate that checkpoint, then read the board before calling capture_below_fold.`;
   }
   if (hasUncoveredScope) {
     return "Keep named gaps open and continue the strongest supported review sweep.";
@@ -193,7 +206,15 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
   const reviewResults = input.reviewResults ?? [];
   const strengths = reviewResults.filter(({ kind }) => kind === "strength");
   const noMaterialIssues = reviewResults.filter(({ kind }) => kind === "no_material_issue");
-  const hasBelowFoldGap = input.coverageGaps.some(({ id }) => id === "gap-below-fold");
+  const belowFoldGap = input.coverageGaps.find(({ id }) => id === "gap-below-fold");
+  const activeScopeId = input.target.scopeId;
+  const belowFoldTargets: CoverageGapTarget[] =
+    belowFoldGap?.targets ?? (belowFoldGap?.viewports ?? []).map((viewport) => ({ viewport }));
+  const hasBelowFoldGap = belowFoldTargets.some(
+    ({ scopeId, viewport }) =>
+      viewport === input.viewport && (!scopeId || !activeScopeId || scopeId === activeScopeId),
+  );
+  const inactiveBelowFoldTarget = hasBelowFoldGap ? undefined : belowFoldTargets[0];
   const hasUncoveredScope =
     uncapturedNav.length > 0 ||
     (input.coverage?.hasUncoveredScope ?? input.coverageGaps.length > 0);
@@ -202,22 +223,23 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
     uncapturedNavCount: uncapturedNav.length,
     hasBrief: Boolean(input.auditBrief),
     hasBelowFoldGap,
+    inactiveBelowFoldTarget,
     hasUncoveredScope,
   });
-  const visibleReviewResults = reviewResults.slice(-2);
-  const visibleCoverageGaps = input.coverageGaps.slice(0, 4);
+  const visibleReviewResults = reviewResults.slice(-1);
+  const visibleCoverageGaps = input.coverageGaps.slice(0, input.auditBrief ? 1 : 4);
   return {
     ok: true,
-    receipt: "Board read; visible receipt added.",
+    receipt: "Board read; receipt visible.",
     target: compactAgentTarget(input.target),
     scope: {
-      goal: input.auditGoal ? agentText(input.auditGoal, 16) : undefined,
+      goal: input.auditGoal && !input.auditBrief ? agentText(input.auditGoal, 16) : undefined,
       viewport: input.viewport,
       state: input.state,
       retained_baseline_count:
         input.retainedBaselineFindingCount > 0 ? input.retainedBaselineFindingCount : undefined,
       trail_steps: input.trailStepCount > 0 ? input.trailStepCount : undefined,
-      measured_at: input.currentMeasuredAt,
+      measured_at: input.auditBrief ? undefined : input.currentMeasuredAt,
     },
     audit_brief: compactAuditBrief(input.auditBrief),
     counts: {
@@ -245,7 +267,7 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
           : input.verifications[finding.id]?.status,
       measurement: finding.measurement ? agentText(finding.measurement.value, 20) : undefined,
       checkpoint_id: finding.checkpointId ? agentText(finding.checkpointId, 40) : undefined,
-      evidence_role: input.retainsBaseline ? "retained_baseline" : undefined,
+      evidence_role: input.retainsBaseline && !input.auditBrief ? "retained_baseline" : undefined,
     })),
     finding_page: findingPage.page,
     review_results:
@@ -260,21 +282,28 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
     coverage: input.coverage
       ? {
           surface_count: input.coverage.surfaces.length,
-          surfaces: input.coverage.surfaces.slice(0, 2).map((surface) => ({
+          surfaces: input.coverage.surfaces.slice(0, 1).map((surface) => ({
             route: agentText(surface.route, 32),
             type: surface.surfaceType,
             state: agentText(surface.state, 20),
             extent: surface.captureExtent,
             motion: surface.motion,
+            interaction: surface.interaction,
             status: surface.status,
           })),
         }
       : undefined,
-    coverage_gaps: visibleCoverageGaps.map(
-      ({ id, label }) => `${agentText(id, 20)}|${agentText(label, 16)}`,
-    ),
-    coverage_gaps_omitted:
-      Math.max(0, input.coverageGaps.length - visibleCoverageGaps.length) || undefined,
+    coverage_gaps: visibleCoverageGaps.map(({ id, label, viewports, targets }) => {
+      const targetSummary = targets
+        ?.slice(0, 2)
+        .map(({ route, scopeId, viewport }) =>
+          [agentText(route ?? scopeId ?? "scope", 20), viewport].join("@"),
+        )
+        .join(",");
+      return [agentText(id, 20), agentText(label, 16), targetSummary ?? viewports?.join(",")]
+        .filter(Boolean)
+        .join("|");
+    }),
     uncaptured_nav:
       uncapturedNav.length > 0
         ? uncapturedNav.map((route) => agentText(routePath(route.url), 32))

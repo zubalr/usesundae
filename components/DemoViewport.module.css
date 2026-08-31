@@ -32,6 +32,7 @@
   display: block;
   border: 0;
   background: #ffffff;
+  pointer-events: none;
 }
 
 .captureImage {

@@ -118,6 +118,7 @@ export type WorkbenchCommands = {
 
 export type VisibleFinding = Finding & {
   decision: Decision;
+  decisionReason: string;
   verification: Verification;
   verificationReceipt?: VerificationReceipt;
 };

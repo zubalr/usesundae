@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sundae — Audit the same live page together",
+  title: "Sundae — The shared WebMCP product-audit workspace",
   description:
-    "A shared WebMCP audit workspace where ChatGPT measures and organizes evidence, the person governs judgment, and Sundae requires fresh proof before a fix is verified.",
+    "A person and ChatGPT audit the same live page: Site Tools record evidence, the person governs decisions, and fresh recapture is required before anything is called fixed.",
   robots: { index: true, follow: true },
 };
 

@@ -105,13 +105,14 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
     >
       <div className={styles.fields}>
         <label className={styles.urlField}>
-          <span>Public product URL</span>
+          <span>Public page</span>
           <input
-            type="url"
+            type="text"
+            inputMode="url"
             value={targetUrl}
             maxLength={MAX_PUBLIC_URL_LENGTH}
             onChange={(event) => setTargetUrl(event.target.value)}
-            placeholder="https://your-product.com"
+            placeholder="linear.app"
             autoComplete="url"
             autoCapitalize="none"
             spellCheck={false}
@@ -126,7 +127,7 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
             value={goal}
             maxLength={MAX_AUDIT_GOAL_LENGTH}
             onChange={(event) => setGoal(event.target.value)}
-            placeholder="Activation, signup clarity, visual polish…"
+            placeholder="Activation, pricing, visual hierarchy…"
           />
         </label>
       </div>
@@ -138,20 +139,21 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       ) : null}
 
       <div className={styles.actions}>
-        <a className={styles.chatGptAction} href="/demo">
-          <Icon name="focus" /> Try the included demo
+        <a className={styles.demoAction} href="/demo">
+          <Icon name="focus" /> Run included /demo
         </a>
         <button className={styles.workbenchAction} type="submit">
-          Audit a public website
+          Open public workspace
         </button>
         <button className={styles.desktopAction} type="button" onClick={prepareChatGptHandoff}>
-          <Icon name="agent" /> Use with ChatGPT Desktop
+          <Icon name="agent" /> Prepare Desktop handoff
         </button>
       </div>
 
-      <p className={styles.controlNote}>
+      <p className={styles.controlNote} data-state={toolReadiness.state}>
+        <i aria-hidden="true" />
         {toolReadiness.state === "available"
-          ? "Site Tools supported here. The workspace registers its tools below."
+          ? "Site Tools supported here. Open a workspace to register its page tools."
           : toolReadiness.state === "human"
             ? "Human controls ready. For Site Tools, open the exact workspace in ChatGPT Desktop’s built-in browser."
             : "Checking this browser for Site Tools…"}

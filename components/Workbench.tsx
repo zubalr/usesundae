@@ -34,10 +34,10 @@ import type {
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import {
   capturedVisibleNavLabels,
+  reconcileVisibleNavGap,
   type VisibleNavRoute,
   uncapturedVisibleNav,
   visibleNavGap,
-  withoutVisibleNavGap,
 } from "@/lib/capture/visible-nav";
 import { DEMO_TOOL_CONTRACTS } from "@/lib/demo/tools";
 import { resolveInitialTargetMode, resolvePublicDemoUrl } from "@/lib/launch";
@@ -46,6 +46,7 @@ import { assertApprovedForActor, canonicalizeApprovedUrl } from "@/lib/workbench
 import { deriveCoverageSummary, inferSurfaceType } from "@/lib/workbench/coverage";
 import {
   assertSameJourneyOrigin,
+  clearVisibleNavGaps,
   mergeBelowFoldSnapshot,
   mergeJourneySnapshots,
 } from "@/lib/workbench/journey";
@@ -57,6 +58,7 @@ import {
   describeEvidenceBoard,
   invalidateVerificationForFindings,
 } from "@/lib/workbench/evidence";
+import { evaluatePreviewAuthority } from "@/lib/workbench/preview-authority";
 import { runReversibleTransition } from "@/lib/workbench/transition";
 import type {
   Activity,
@@ -277,6 +279,7 @@ export function Workbench({
   const fullPageRef = useRef(false);
   const waitForSelectorRef = useRef<string | undefined>(undefined);
   const previewCssRef = useRef<string | undefined>(undefined);
+  const previewFindingIdRef = useRef<string | null>(null);
   const decisionsRef = useRef<Record<string, DecisionRecord>>({});
   const verificationRef = useRef<Record<string, VerificationReceipt>>({});
   const selectedRef = useRef<string | null>(null);
@@ -314,6 +317,7 @@ export function Workbench({
   const [gapDraft, setGapDraft] = useState({ label: "", detail: "" });
   const [auditBrief, setAuditBrief] = useState<AuditBrief | null>(null);
   const [reviewResults, setReviewResults] = useState<ReviewResult[]>([]);
+  const [activePreviewFindingId, setActivePreviewFindingId] = useState<string | null>(null);
 
   useEffect(
     () => () => {
@@ -413,14 +417,16 @@ export function Workbench({
             ? "improved"
             : "baseline";
         const facts = captureBrowserFacts(document, viewportRef.current);
+        const checkpointId = `included-live-target-${viewportRef.current}`;
+        const scopeKey = `included:/demo:${viewportRef.current}`;
         const measuredSnapshot: AuditSnapshot = {
           capturedAt: nowIso(),
           demoState: renderedState,
           viewport: viewportRef.current,
           viewportSize: facts.viewportSize,
-          scopeKey: `included:/demo:${viewportRef.current}`,
+          scopeKey,
           findings: deriveFindings(facts).toSorted(compareFindingsForReview),
-          gaps: SAMPLE_GAPS,
+          gaps: SAMPLE_GAPS.map((gap) => ({ ...gap, checkpointId, scopeKey })),
         };
         const replaceBaseline =
           replaceBaselineOverride ?? measuredSnapshot.demoState === "baseline";
@@ -467,6 +473,7 @@ export function Workbench({
     baselineCheckpointRef.current = {};
     checkpointRef.current = null;
     previewCssRef.current = undefined;
+    previewFindingIdRef.current = null;
     fullPageRef.current = false;
     waitForSelectorRef.current = undefined;
     verificationRef.current = {};
@@ -496,6 +503,7 @@ export function Workbench({
     setGapDraft({ label: "", detail: "" });
     setAuditBrief(null);
     setReviewResults([]);
+    setActivePreviewFindingId(null);
   }, []);
 
   const beginRemoteOperation = useCallback(() => {
@@ -518,6 +526,7 @@ export function Workbench({
       baselineCheckpointRef.current = { [record.checkpoint.viewport]: record.checkpoint };
       approvedUrlsRef.current.add(record.captureUrl);
       previewCssRef.current = undefined;
+      previewFindingIdRef.current = null;
       demoStateRef.current = "baseline";
       viewportRef.current = record.checkpoint.viewport;
       setCheckpoint(record.checkpoint);
@@ -525,6 +534,7 @@ export function Workbench({
       setWaitForSelectorDraft(record.checkpoint.capture.waitForSelector ?? "");
       setCssDraft("");
       setDemoState("baseline");
+      setActivePreviewFindingId(null);
       setViewport(record.checkpoint.viewport);
       const baseline = baselineRef.current[record.checkpoint.viewport];
       if (baseline) {
@@ -548,6 +558,7 @@ export function Workbench({
       const cleanUrl = url.trim();
       if (!cleanUrl) throw new Error("Enter the public page URL you want to audit.");
       const approvedUrl = assertApprovedForActor(actor, cleanUrl, approvedUrlsRef.current);
+      const continuesAudit = modeRef.current === "remote" && remoteUrlRef.current === approvedUrl;
       const waitSelector = resolveWaitForSelector(waitForSelector);
       const operationEpoch = beginRemoteOperation();
       const nextCheckpoint = await fetchRemote(approvedUrl, nextViewport, {
@@ -557,11 +568,21 @@ export function Workbench({
       });
       assertCurrentOperation(operationEpoch, signal);
 
-      resetEvidence();
-      visibleNavRef.current = nextCheckpoint.visibleNav;
+      if (!continuesAudit) resetEvidence();
+      const visibleNav = [
+        ...new Map(
+          [...visibleNavRef.current, ...nextCheckpoint.visibleNav].map((route) => [
+            canonicalizeApprovedUrl(route.url),
+            route,
+          ]),
+        ).values(),
+      ].slice(0, 4);
+      visibleNavRef.current = visibleNav;
       modeRef.current = "remote";
       viewportRef.current = nextViewport;
       demoStateRef.current = "baseline";
+      previewCssRef.current = undefined;
+      previewFindingIdRef.current = null;
       remoteUrlRef.current = approvedUrl;
       fullPageRef.current = nextCheckpoint.capture.fullPage;
       waitForSelectorRef.current = waitSelector;
@@ -571,22 +592,38 @@ export function Workbench({
         captureUrl: approvedUrl,
       });
       approvedUrlsRef.current = new Set([
+        ...approvedUrlsRef.current,
         approvedUrl,
-        ...nextCheckpoint.visibleNav.map((route) => canonicalizeApprovedUrl(route.url)),
+        ...visibleNav.map((route) => canonicalizeApprovedUrl(route.url)),
       ]);
       draftApprovalRef.current = null;
-      baselineCheckpointRef.current = { [nextViewport]: nextCheckpoint };
+      baselineCheckpointRef.current = {
+        ...baselineCheckpointRef.current,
+        [nextViewport]: nextCheckpoint,
+      };
       setMode("remote");
       setViewport(nextViewport);
       setDemoState("baseline");
+      setActivePreviewFindingId(null);
       setCheckpoint(nextCheckpoint);
       setUrlDraft(nextCheckpoint.target.displayUrl);
       setWaitForSelectorDraft(waitSelector ?? "");
       setDraftApproved(false);
 
       const snapshot = snapshotFromCheckpoint(nextCheckpoint);
-      if (nextCheckpoint.visibleNav.length > 0) {
-        snapshot.gaps = [...snapshot.gaps, visibleNavGap(nextCheckpoint.visibleNav.length)];
+      const uncapturedNav = uncapturedVisibleNav(visibleNav, [
+        approvedUrl,
+        ...journeyRef.current.map((step) => step.displayUrl),
+      ]);
+      if (uncapturedNav.length > 0) {
+        snapshot.gaps = [
+          ...snapshot.gaps,
+          {
+            ...visibleNavGap(uncapturedNav.length),
+            checkpointId: nextCheckpoint.id,
+            scopeKey: nextCheckpoint.scopeId,
+          },
+        ];
       }
       commitSnapshot(snapshot);
       const firstStep: JourneyEntry = {
@@ -596,13 +633,18 @@ export function Workbench({
         displayUrl: nextCheckpoint.target.displayUrl,
         capturedAt: nextCheckpoint.capturedAt,
         findingCount: snapshot.findings.length,
+        viewport: nextCheckpoint.viewport,
         surfaceType: "entry",
         state: "settled render",
         captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
-        reason: "Establish the visible proposition and entry job",
+        reason: continuesAudit
+          ? `Add ${nextViewport} evidence for the same approved page`
+          : "Establish the visible proposition and entry job",
         motion: "not_seen",
       };
-      journeyRef.current = [firstStep];
+      journeyRef.current = continuesAudit
+        ? [...journeyRef.current, firstStep].slice(-12)
+        : [firstStep];
       setJourney(journeyRef.current);
       const browserMs = browserMsReceipt(nextCheckpoint);
       pushActivity(
@@ -621,8 +663,8 @@ export function Workbench({
         capture_extent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
         measured_finding_count: snapshot.findings.length,
         coverage_gaps: snapshot.gaps,
-        visible_nav: nextCheckpoint.visibleNav,
-        next: nextCheckpoint.visibleNav.length
+        visible_nav: uncapturedNav,
+        next: uncapturedNav.length
           ? "Call get_board_context, then capture_visible_nav for the listed same-origin routes."
           : "Inspect the screenshot, then use record_visual_finding for visible product judgments.",
         ...browserMs.fields,
@@ -675,9 +717,10 @@ export function Workbench({
         authorizedUrl,
         ...journeyRef.current.map((step) => step.displayUrl),
       ]);
-      aggregate.gaps = withoutVisibleNavGap(aggregate.gaps);
-      if (remainingVisibleNav.length > 0)
-        aggregate.gaps.push(visibleNavGap(remainingVisibleNav.length));
+      aggregate.gaps = reconcileVisibleNavGap(aggregate.gaps, remainingVisibleNav.length, {
+        checkpointId: journeyRef.current[0]?.checkpointId ?? nextCheckpoint.id,
+        scopeKey: journeyRef.current[0]?.scopeId ?? nextCheckpoint.scopeId,
+      });
 
       remoteUrlRef.current = authorizedUrl;
       fullPageRef.current = nextCheckpoint.capture.fullPage;
@@ -695,6 +738,12 @@ export function Workbench({
       setWaitForSelectorDraft(waitSelector ?? "");
       setDraftApproved(false);
       commitSnapshot(aggregate);
+      if (remainingVisibleNav.length === 0) {
+        baselineRef.current = clearVisibleNavGaps(baselineRef.current);
+        currentRef.current = clearVisibleNavGaps(currentRef.current);
+        setBaselineSnapshots(baselineRef.current);
+        setCurrentSnapshots(currentRef.current);
+      }
       const entry: JourneyEntry = {
         checkpointId: nextCheckpoint.id,
         scopeId: nextCheckpoint.scopeId,
@@ -702,6 +751,7 @@ export function Workbench({
         displayUrl: nextCheckpoint.target.displayUrl,
         capturedAt: nextCheckpoint.capturedAt,
         findingCount: stepSnapshot.findings.length,
+        viewport: nextCheckpoint.viewport,
         surfaceType: inferSurfaceType(cleanLabel, nextCheckpoint.target.displayUrl),
         state: cleanLabel,
         captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
@@ -867,6 +917,7 @@ export function Workbench({
         displayUrl: nextCheckpoint.target.displayUrl,
         capturedAt: nextCheckpoint.capturedAt,
         findingCount: stepSnapshot.findings.length,
+        viewport: nextCheckpoint.viewport,
         surfaceType:
           journeyRef.current.findLast(({ scopeId }) => scopeId === nextCheckpoint.scopeId)
             ?.surfaceType ?? "other",
@@ -968,6 +1019,8 @@ export function Workbench({
                 checkpointId: nextCheckpoint.id,
                 capturedAt: nextCheckpoint.capturedAt,
                 findingCount: routeSnapshot.findings.length,
+                viewport: nextCheckpoint.viewport,
+                captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
               }
             : entry,
         );
@@ -1029,14 +1082,25 @@ export function Workbench({
     const activeViewport = viewportRef.current;
     const baseline = baselineRef.current[activeViewport];
     if (!baseline) throw new Error("Run an audit before recording a coverage gap.");
-    if (baseline.gaps.some((current) => current.label.toLowerCase() === gap.label.toLowerCase()))
+    const scopeKey = gap.scopeKey ?? checkpointRef.current?.scopeId ?? baseline.scopeKey;
+    const scopedGap = {
+      ...gap,
+      checkpointId: gap.checkpointId ?? checkpointRef.current?.id,
+      scopeKey,
+    };
+    if (
+      baseline.gaps.some(
+        (current) =>
+          current.label.toLowerCase() === gap.label.toLowerCase() && current.scopeKey === scopeKey,
+      )
+    )
       return false;
     if (baseline.gaps.length >= MAX_COVERAGE_GAPS) {
       throw new Error(
         `This scope already retains ${MAX_COVERAGE_GAPS} coverage gaps. Start a new audit before adding more.`,
       );
     }
-    const nextBaseline = { ...baseline, gaps: [...baseline.gaps, gap] };
+    const nextBaseline = { ...baseline, gaps: [...baseline.gaps, scopedGap] };
     baselineRef.current = { ...baselineRef.current, [activeViewport]: nextBaseline };
     setBaselineSnapshots(baselineRef.current);
     if (demoStateRef.current === "baseline") {
@@ -1201,6 +1265,7 @@ export function Workbench({
           journeyRef.current,
           input.scopeId,
         ),
+        baseline.gaps,
       );
       const conflictsWithFinding = baseline.findings.some(
         (finding) =>
@@ -1408,6 +1473,16 @@ export function Workbench({
         demoStateRef.current,
         viewportRef.current,
       );
+      const coverage = deriveCoverageSummary({
+        mode: modeRef.current,
+        baseline,
+        current,
+        trail: journeyRef.current,
+        baselinesByViewport: baselineRef.current,
+        hasVerification: baseline.findings.some(
+          ({ id }) => verificationRef.current[id] !== undefined,
+        ),
+      });
       return buildAgentBoardContext({
         auditGoal: currentAuditGoal,
         target:
@@ -1436,7 +1511,7 @@ export function Workbench({
         findings: baseline.findings,
         decisions: decisionsRef.current,
         verifications: verificationRef.current,
-        coverageGaps: baseline.gaps,
+        coverageGaps: coverage.openGaps,
         trailStepCount: journeyRef.current.length,
         uncapturedNav: uncapturedVisibleNav(visibleNavRef.current, [
           remoteUrlRef.current,
@@ -1445,15 +1520,7 @@ export function Workbench({
         findingOffset,
         auditBrief: auditBriefRef.current,
         reviewResults: reviewResultsRef.current,
-        coverage: deriveCoverageSummary({
-          mode: modeRef.current,
-          baseline,
-          current,
-          trail: journeyRef.current,
-          hasVerification: baseline.findings.some(
-            ({ id }) => verificationRef.current[id] !== undefined,
-          ),
-        }),
+        coverage,
       });
     },
     [currentAuditGoal, pushActivity],
@@ -1609,6 +1676,19 @@ export function Workbench({
       waitForSelector?: string,
       toolName?: string,
     ): Promise<CommandResult> => {
+      const selectedFinding = selectedRef.current
+        ? visibleFindingById(selectedRef.current)
+        : undefined;
+      const findingId = selectedFinding?.id ?? null;
+      const authority = evaluatePreviewAuthority({
+        findingId,
+        decision: findingId ? decisionsRef.current[findingId]?.decision : undefined,
+        reason: findingId ? decisionsRef.current[findingId]?.reason : undefined,
+        previewActive: demoStateRef.current === "improved",
+        previewFindingId: previewFindingIdRef.current,
+      });
+      if (!authority.canPreview) throw new Error(authority.previewMessage);
+
       if (modeRef.current === "remote") {
         const css = previewCss?.trim();
         if (!css)
@@ -1625,6 +1705,7 @@ export function Workbench({
         });
         assertCurrentOperation(operationEpoch, signal);
         previewCssRef.current = css;
+        previewFindingIdRef.current = findingId;
         fullPageRef.current = nextCheckpoint.capture.fullPage;
         waitForSelectorRef.current = waitSelector;
         checkpointRef.current = nextCheckpoint;
@@ -1632,6 +1713,7 @@ export function Workbench({
         setCheckpoint(nextCheckpoint);
         setWaitForSelectorDraft(waitSelector ?? "");
         setDemoState("improved");
+        setActivePreviewFindingId(findingId);
         const snapshot = snapshotFromCheckpoint(
           nextCheckpoint,
           deriveCheckpointFindings(nextCheckpoint),
@@ -1653,9 +1735,6 @@ export function Workbench({
         };
       }
 
-      const selectedFinding = selectedRef.current
-        ? visibleFindingById(selectedRef.current)
-        : undefined;
       if (selectedFinding?.rule === "agent-surface") {
         throw new Error(
           "This finding changes a WebMCP contract, so the included visual preview cannot fix it. Update the tool contract, then inspect it again.",
@@ -1697,7 +1776,9 @@ export function Workbench({
         },
         rollback: () => {
           demoStateRef.current = "baseline";
+          previewFindingIdRef.current = null;
           setDemoState("baseline");
+          setActivePreviewFindingId(null);
           pushActivity(
             "system",
             "Rolled back preview",
@@ -1706,6 +1787,8 @@ export function Workbench({
         },
       });
       signal?.throwIfAborted();
+      previewFindingIdRef.current = findingId;
+      setActivePreviewFindingId(findingId);
       return {
         ok: true,
         receipt: "Previewed the reversible improvement and measured the rendered result.",
@@ -1735,13 +1818,24 @@ export function Workbench({
       toolName?: string,
     ): Promise<CommandResult> => {
       signal?.throwIfAborted();
-      const baseline = baselineRef.current[viewportRef.current];
-      const explicit = findingId ? visibleFindingById(findingId) : undefined;
-      if (findingId && !explicit)
-        throw new Error(`Finding ${findingId} is not present on the board.`);
-      const targets = explicit ? [explicit] : (baseline?.findings ?? []);
-      if (targets.length === 0)
-        throw new Error("There are no baseline findings in the current scope to verify.");
+      const requestedFindingId = findingId ?? previewFindingIdRef.current ?? selectedRef.current;
+      const explicit = requestedFindingId ? visibleFindingById(requestedFindingId) : undefined;
+      if (!explicit) {
+        throw new Error(
+          requestedFindingId
+            ? `Finding ${requestedFindingId} is not present on the board.`
+            : "Focus an accepted finding before verification.",
+        );
+      }
+      const authority = evaluatePreviewAuthority({
+        findingId: explicit.id,
+        decision: decisionsRef.current[explicit.id]?.decision,
+        reason: decisionsRef.current[explicit.id]?.reason,
+        previewActive: demoStateRef.current === "improved",
+        previewFindingId: previewFindingIdRef.current,
+      });
+      if (!authority.canVerify) throw new Error(authority.verifyMessage);
+      const targets = [explicit];
 
       let snapshot: AuditSnapshot;
       let browserMs = { suffix: "", fields: {} as { browser_ms_used?: number } };
@@ -1776,6 +1870,7 @@ export function Workbench({
           displayUrl: nextCheckpoint.target.displayUrl,
           capturedAt: nextCheckpoint.capturedAt,
           findingCount: snapshot.findings.length,
+          viewport: nextCheckpoint.viewport,
           surfaceType: priorSurface?.surfaceType ?? "other",
           state: "verification",
           captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
@@ -1805,10 +1900,8 @@ export function Workbench({
       const nextVerification = { ...verificationRef.current, ...comparison.receipts };
       verificationRef.current = nextVerification;
       setVerification(nextVerification);
-      if (explicit) {
-        selectedRef.current = explicit.id;
-        setSelectedId(explicit.id);
-      }
+      selectedRef.current = explicit.id;
+      setSelectedId(explicit.id);
       const { fixed, still_open: stillOpen, unverified } = comparison.summary;
       pushActivity(
         actor,
@@ -1962,7 +2055,9 @@ export function Workbench({
       setSelectedId(null);
       if (demoStateRef.current === "improved") {
         demoStateRef.current = "baseline";
+        previewFindingIdRef.current = null;
         setDemoState("baseline");
+        setActivePreviewFindingId(null);
       }
       pushActivity("human", "Changed scope", `Switched the live target to ${next}.`);
       scheduleAudit(80);
@@ -1973,7 +2068,9 @@ export function Workbench({
   const resetPreview = useCallback(() => {
     demoStateRef.current = "baseline";
     previewCssRef.current = undefined;
+    previewFindingIdRef.current = null;
     setDemoState("baseline");
+    setActivePreviewFindingId(null);
     verificationRef.current = {};
     setVerification({});
     if (modeRef.current === "remote") {
@@ -2078,6 +2175,7 @@ export function Workbench({
       (baseline?.findings ?? []).map((finding) => ({
         ...finding,
         decision: decisions[finding.id]?.decision ?? "open",
+        decisionReason: decisions[finding.id]?.reason ?? "",
         verification: verification[finding.id]?.status ?? "not_run",
         verificationReceipt: verification[finding.id],
       })),
@@ -2088,14 +2186,15 @@ export function Workbench({
   const measuredCount = visibleFindings.filter((finding) => finding.truth === "measured").length;
   const judgedCount = visibleFindings.filter((finding) => finding.truth === "judged").length;
   const evidenceBoard = describeEvidenceBoard(baseline, current, demoState, viewport);
-  const activeGaps = baseline?.gaps ?? [];
   const coverage = deriveCoverageSummary({
     mode,
     baseline,
     current,
     trail: journey,
+    baselinesByViewport: baselineSnapshots,
     hasVerification: Boolean(baseline?.findings.some(({ id }) => verification[id] !== undefined)),
   });
+  const activeGaps = coverage.openGaps;
   const uncapturedNav = uncapturedVisibleNav(visibleNavRef.current, [
     remoteUrlRef.current,
     ...journey.map((step) => step.displayUrl),
@@ -2121,6 +2220,7 @@ export function Workbench({
       judgedCount={judgedCount}
       auditBrief={auditBrief}
       reviewResults={reviewResults}
+      activePreviewFindingId={activePreviewFindingId}
       coverage={coverage}
       evidenceBoard={evidenceBoard}
       activeGaps={activeGaps}

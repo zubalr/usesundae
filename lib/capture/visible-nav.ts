@@ -167,3 +167,26 @@ export function visibleNavGap(count: number) {
 export function withoutVisibleNavGap<T extends { id?: string }>(gaps: T[]) {
   return gaps.filter((gap) => gap.id !== "gap-visible-nav");
 }
+
+type VisibleNavGapEvidence = ReturnType<typeof visibleNavGap> & {
+  checkpointId?: string;
+  scopeKey?: string;
+};
+
+export function reconcileVisibleNavGap(
+  gaps: readonly VisibleNavGapEvidence[],
+  remainingCount: number,
+  fallback: Pick<VisibleNavGapEvidence, "checkpointId" | "scopeKey">,
+) {
+  const retained = gaps.find(({ id }) => id === "gap-visible-nav") ?? fallback;
+  const next = withoutVisibleNavGap([...gaps]);
+  if (remainingCount < 1) return next;
+  return [
+    ...next,
+    {
+      ...visibleNavGap(remainingCount),
+      ...(retained.checkpointId ? { checkpointId: retained.checkpointId } : {}),
+      ...(retained.scopeKey ? { scopeKey: retained.scopeKey } : {}),
+    },
+  ];
+}

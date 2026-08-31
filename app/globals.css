@@ -23,6 +23,14 @@
   --c-teal: #236b5f;
   --c-amber: #8a5700;
   --c-focus: #176fc1;
+  --c-cobalt: #0b46c8;
+  --c-stage: #090b0e;
+  --c-stage-panel: #11151a;
+  --c-stage-line: #2b323b;
+  --c-stage-text: #f7f8f5;
+  --c-stage-muted: #aeb6c1;
+  --c-signal-coral: #ff6b57;
+  --c-signal-teal: #45c9b5;
 
   /* dark counterparts: warm neutrals biased toward the coral accent, so the
      greys read as chosen rather than inherited */
@@ -36,6 +44,14 @@
   --c-teal-dark: #5fb8a6;
   --c-amber-dark: #e0aa4d;
   --c-focus-dark: #6aa9e8;
+  --c-cobalt-dark: #4f7cff;
+  --c-stage-dark: #050709;
+  --c-stage-panel-dark: #0e1217;
+  --c-stage-line-dark: #303844;
+  --c-stage-text-dark: #f2f4f7;
+  --c-stage-muted-dark: #9ea8b5;
+  --c-signal-coral-dark: #ff806b;
+  --c-signal-teal-dark: #64d6c3;
 
   /* -- semantic: colour --------------------------------------------------- */
   --surface: light-dark(var(--c-paper), var(--c-paper-dark));
@@ -50,6 +66,14 @@
   --success-on: light-dark(var(--c-paper-bright), var(--c-ink));
   --warning: light-dark(var(--c-amber), var(--c-amber-dark));
   --focus-ring: light-dark(var(--c-focus), var(--c-focus-dark));
+  --stage-ground: light-dark(var(--c-stage), var(--c-stage-dark));
+  --stage-panel: light-dark(var(--c-stage-panel), var(--c-stage-panel-dark));
+  --stage-line: light-dark(var(--c-stage-line), var(--c-stage-line-dark));
+  --stage-text: light-dark(var(--c-stage-text), var(--c-stage-text-dark));
+  --stage-muted: light-dark(var(--c-stage-muted), var(--c-stage-muted-dark));
+  --stage-primary: light-dark(var(--c-cobalt), var(--c-cobalt-dark));
+  --stage-attention: light-dark(var(--c-signal-coral), var(--c-signal-coral-dark));
+  --stage-verification: light-dark(var(--c-signal-teal), var(--c-signal-teal-dark));
 
   /* The audit workbench is an evidence canvas: screenshots, severity markers,
      and measurement overlays retain one stable colour interpretation in both
@@ -117,6 +141,8 @@
   --duration-fast: 150ms;
   --duration-base: 240ms;
   --duration-slow: 400ms;
+  --duration-rundown: 2.4s;
+  --duration-status-pulse: 1.2s;
 }
 
 * {

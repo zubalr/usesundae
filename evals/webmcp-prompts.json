@@ -275,6 +275,29 @@
     ]
   },
   {
+    "id": "record-inspected-no-issue",
+    "messages": [
+      {
+        "role": "user",
+        "content": "The audit brief and current evidence are already on the board. This inspected UI category has a clear hierarchy and no material issue. Record that outcome without manufacturing a fault."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "record_review_result",
+        "arguments": {
+          "kind": "no_material_issue",
+          "category": "ui",
+          "observation": "No material hierarchy issue was observed in this inspected viewport.",
+          "why_it_supports_job": "The primary information and next action remain distinguishable for the product job in this sampled scope.",
+          "confidence": "medium",
+          "scope_id": "included:/demo:mobile",
+          "evidence_ref": "included-live-target"
+        }
+      }
+    ]
+  },
+  {
     "id": "name-unseen-checkout",
     "messages": [
       {

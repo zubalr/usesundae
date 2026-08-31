@@ -12,9 +12,21 @@
   --success-on: var(--evidence-success-on);
   --warning: var(--evidence-warning);
   --focus-ring: var(--evidence-focus-ring);
-  min-height: 100dvh;
+  height: 100dvh;
+  min-height: var(--space-none);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--surface);
   color: var(--text-primary);
+}
+
+.topbar,
+.contextBar,
+.authorityBar,
+.captureBar,
+.journeyBar {
+  flex: 0 0 auto;
 }
 
 .topbar {
@@ -262,13 +274,12 @@
 }
 
 .authorityBar dd {
-  overflow: hidden;
   margin: var(--space-2xs) var(--space-none) var(--space-none);
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .captureBar {
@@ -499,17 +510,16 @@
 }
 
 .workbench {
+  min-height: var(--space-none);
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: minmax(560px, 1.2fr) minmax(430px, 0.8fr);
-  min-height: calc(100dvh - 178px);
-}
-
-.app[data-mode="remote"] .workbench {
-  min-height: calc(100dvh - 220px);
 }
 
 .productPane {
   min-width: 0;
+  min-height: var(--space-none);
+  overflow-y: auto;
   border-right: 1px solid #cdcdc5;
   background: #e8e6df;
 }
@@ -522,6 +532,14 @@
   justify-content: space-between;
   gap: 18px;
   padding: 14px 18px;
+}
+
+.paneHead {
+  position: sticky;
+  z-index: 3;
+  top: var(--space-none);
+  border-bottom: thin solid var(--border);
+  background: var(--surface);
 }
 
 .paneHead h1,
@@ -611,13 +629,9 @@
 
 .evidencePane {
   min-width: 0;
-  max-height: calc(100dvh - 178px);
+  min-height: var(--space-none);
   overflow-y: auto;
   background: var(--surface-raised);
-}
-
-.app[data-mode="remote"] .evidencePane {
-  max-height: calc(100dvh - 220px);
 }
 
 .evidenceHead {
@@ -1611,6 +1625,11 @@
 }
 
 @media (max-width: 900px) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
   .topbar {
     position: relative;
   }
@@ -1618,6 +1637,7 @@
     display: block;
   }
   .productPane {
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid #cdcdc5;
   }
@@ -1626,6 +1646,9 @@
     overflow: visible;
   }
   .evidenceHead {
+    position: static;
+  }
+  .paneHead {
     position: static;
   }
   .findingCopy strong {
@@ -1684,7 +1707,10 @@
     padding-inline: var(--space-m);
   }
   .authorityBar dl {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(var(--space-none), 1fr));
+  }
+  .authorityBar dl > div:nth-child(5) {
+    grid-column: 1 / -1;
   }
   .capturePrompt {
     grid-column: auto;

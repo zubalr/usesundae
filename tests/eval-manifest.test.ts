@@ -92,6 +92,18 @@ test("design-review evals orient the product and preserve strengths before suppo
   }
 });
 
+test("a strong inspected category records no issue without manufacturing a finding", () => {
+  const noIssue = evals.find(({ id }) => id === "record-inspected-no-issue");
+  assert.ok(noIssue);
+  assert.deepEqual(
+    noIssue.expectedCall.map(({ functionName }) => functionName),
+    ["record_review_result"],
+  );
+  const input = noIssue.expectedCall[0]!.arguments;
+  assert.ok("kind" in input);
+  assert.equal(input.kind, "no_material_issue");
+});
+
 test("representative eval calls execute through the registered tool surface", async () => {
   const registered: WebMcpTool[] = [];
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");

@@ -61,7 +61,14 @@ test("remote checkpoints become bounded measured findings with checkpoint receip
 
   const snapshot = snapshotFromCheckpoint(current, findings);
   assert.equal(snapshot.demoState, "baseline");
-  assert.deepEqual(snapshot.gaps, current.gaps);
+  assert.deepEqual(
+    snapshot.gaps,
+    current.gaps.map((gap) => ({
+      ...gap,
+      checkpointId: current.id,
+      scopeKey: current.scopeId,
+    })),
+  );
 });
 
 test("remote checkpoints report missing document semantics as measured accessibility facts", () => {

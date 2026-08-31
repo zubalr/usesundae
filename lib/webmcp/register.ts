@@ -667,7 +667,7 @@ export async function registerWorkbenchTools(
       name: "record_visual_finding",
       title: "Record visual finding",
       description:
-        "After measured evidence, every board-context page, and record_audit_brief, add one visible-only UI, UX, or Interaction judgment. Include the inferred product job when known. Cite the observation, explain the job-specific harm, and give a bounded recommendation. Do not repeat a measurement or claim conversion, revenue, or unseen states. Read the board next.",
+        "After measured evidence, every board-context page, and record_audit_brief, record only the strongest supported visible UI, UX, or Interaction judgments—up to three per inspected category, and fewer or none when warranted. State observation, affected job, likely consequence, bounded recommendation, severity, and confidence. Severity is product impact; confidence is evidence strength. Never restate a measurement or claim conversion, revenue, or unseen states. Read the board next.",
       inputSchema: WEBMCP_INPUT_SCHEMAS.judgedFinding,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: execute("record_visual_finding", judgedFindingInput, (input) =>

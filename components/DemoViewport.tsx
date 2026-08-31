@@ -95,6 +95,7 @@ export function DemoViewport({
               width={size.width}
               height={size.height}
               allow="tools"
+              scrolling="no"
               aria-hidden="true"
               tabIndex={-1}
               sandbox="allow-same-origin allow-scripts"

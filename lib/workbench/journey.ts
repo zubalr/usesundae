@@ -1,5 +1,21 @@
 import type { AuditSnapshot } from "@/lib/audit/types";
+import { withoutVisibleNavGap } from "@/lib/capture/visible-nav";
 import { withDefaultScheme } from "@/lib/url";
+
+function gapKey(gap: AuditSnapshot["gaps"][number]) {
+  return `${gap.scopeKey ?? "audit"}:${gap.id || gap.label.toLowerCase()}`;
+}
+
+export function clearVisibleNavGaps(
+  snapshots: Partial<Record<AuditSnapshot["viewport"], AuditSnapshot>>,
+) {
+  const next = { ...snapshots };
+  for (const viewport of ["desktop", "mobile"] as const) {
+    const snapshot = snapshots[viewport];
+    if (snapshot) next[viewport] = { ...snapshot, gaps: withoutVisibleNavGap(snapshot.gaps) };
+  }
+  return next;
+}
 
 export function assertSameJourneyOrigin(activeOrigin: string, requestedUrl: string) {
   let parsed: URL;
@@ -36,8 +52,8 @@ export function mergeJourneySnapshots(previous: AuditSnapshot, next: AuditSnapsh
   });
   const findings = new Map(retained.map((finding) => [finding.id, finding]));
   for (const finding of next.findings) findings.set(finding.id, finding);
-  const gaps = new Map(previous.gaps.map((gap) => [gap.label.toLowerCase(), gap]));
-  for (const gap of next.gaps) gaps.set(gap.label.toLowerCase(), gap);
+  const gaps = new Map(previous.gaps.map((gap) => [gapKey(gap), gap]));
+  for (const gap of next.gaps) gaps.set(gapKey(gap), gap);
 
   return {
     ...next,
@@ -53,9 +69,11 @@ export function mergeBelowFoldSnapshot(
   capturedFullPage = true,
 ) {
   const aggregate = mergeJourneySnapshots(previous, next);
-  if (!capturedFullPage || aggregate.scopeKey !== next.scopeKey) return aggregate;
+  if (!capturedFullPage) return aggregate;
   return {
     ...aggregate,
-    gaps: aggregate.gaps.filter((gap) => gap.id !== "gap-below-fold"),
+    gaps: aggregate.gaps.filter(
+      (gap) => gap.id !== "gap-below-fold" || gap.scopeKey !== next.scopeKey,
+    ),
   };
 }

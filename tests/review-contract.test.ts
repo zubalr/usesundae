@@ -10,7 +10,7 @@ import {
   validateReviewResultScope,
   withoutConflictingNoIssue,
 } from "../lib/audit/review";
-import { deriveCoverageSummary } from "../lib/workbench/coverage";
+import { deriveCoverageSummary, findFindingSurface } from "../lib/workbench/coverage";
 
 const sampledSnapshot: AuditSnapshot = {
   capturedAt: "2030-01-01T10:00:00.000Z",
@@ -170,6 +170,39 @@ test("no-material-issue requires evidence from an inspected scope", () => {
       ),
     /same inspected scope/i,
   );
+  assert.throws(
+    () =>
+      validateReviewResultScope(
+        input,
+        new Set(["included:/demo:desktop"]),
+        new Set(["included-live-target"]),
+        sampledSnapshot.gaps,
+      ),
+    /interaction.*not fully inspected/i,
+  );
+});
+
+test("another route's gaps do not block an inspected no-issue result", () => {
+  const input = {
+    kind: "no_material_issue" as const,
+    category: "interaction" as const,
+    observation: "The visible primary control has a clear action label and affordance.",
+    whyItSupportsJob: "The operator can predict the immediate action from this sampled state.",
+    confidence: "medium" as const,
+    scopeId: "scope-b",
+    evidenceRef: "checkpoint-b",
+  };
+
+  assert.doesNotThrow(() =>
+    validateReviewResultScope(input, new Set(["scope-a", "scope-b"]), new Set(["checkpoint-b"]), [
+      {
+        id: "gap-motion-window",
+        label: "Motion and transition behavior",
+        detail: "No motion window was captured on route A.",
+        scopeKey: "scope-a",
+      },
+    ]),
+  );
 });
 
 test("product judgments lead while deterministic facts remain supporting evidence", () => {
@@ -206,7 +239,34 @@ test("coverage reports sampled evidence and keeps motion explicitly not seen", (
   assert.equal(coverage.surfaces[0]?.finalUrl, "/demo");
   assert.equal(coverage.surfaces[0]?.captureExtent, "viewport");
   assert.equal(coverage.surfaces[0]?.motion, "not_seen");
+  assert.equal(coverage.surfaces[0]?.interaction, "not_seen");
   assert.equal(coverage.openGapCount, 1);
+});
+
+test("sample coverage retains every inspected responsive viewport", () => {
+  const mobile = {
+    ...sampledSnapshot,
+    capturedAt: "2030-01-01T10:01:00.000Z",
+    viewport: "mobile" as const,
+    viewportSize: { width: 390, height: 844 },
+    scopeKey: "included:/demo:mobile",
+  };
+  const coverage = deriveCoverageSummary({
+    mode: "sample",
+    baseline: mobile,
+    current: mobile,
+    trail: [],
+    baselinesByViewport: { desktop: sampledSnapshot, mobile },
+  });
+
+  assert.deepEqual(
+    coverage.surfaces.map(({ scopeId, viewport }) => [scopeId, viewport]),
+    [
+      ["included:/demo:mobile", "mobile"],
+      ["included:/demo:desktop", "desktop"],
+    ],
+  );
+  assert.equal(new Set(coverage.surfaces.map(({ checkpointId }) => checkpointId)).size, 2);
 });
 
 test("coverage distinguishes a reversible preview from explicit verification", () => {
@@ -236,4 +296,254 @@ test("coverage distinguishes a reversible preview from explicit verification", (
     afterVerification.surfaces[1]?.reason,
     "Comparable recapture after explicit verification",
   );
+});
+
+test("coverage preserves each captured surface viewport", () => {
+  const coverage = deriveCoverageSummary({
+    mode: "remote",
+    baseline: sampledSnapshot,
+    current: sampledSnapshot,
+    trail: [
+      {
+        checkpointId: "checkpoint-mobile-entry",
+        scopeId: "scope-entry",
+        label: "Entry",
+        displayUrl: "https://example.com/",
+        capturedAt: "2030-01-01T10:00:00.000Z",
+        findingCount: 1,
+        viewport: "mobile",
+        surfaceType: "entry",
+        captureExtent: "full-page",
+      },
+      {
+        checkpointId: "checkpoint-desktop-pricing",
+        scopeId: "scope-pricing",
+        label: "Pricing",
+        displayUrl: "https://example.com/pricing",
+        capturedAt: "2030-01-01T10:01:00.000Z",
+        findingCount: 0,
+        viewport: "desktop",
+        surfaceType: "pricing",
+        captureExtent: "viewport",
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    coverage.surfaces.map(({ route, viewport }) => [route, viewport]),
+    [
+      ["/", "mobile"],
+      ["/pricing", "desktop"],
+    ],
+  );
+});
+
+test("finding scope resolves the exact checkpoint before a shared scope", () => {
+  const coverage = deriveCoverageSummary({
+    mode: "remote",
+    baseline: sampledSnapshot,
+    current: sampledSnapshot,
+    trail: [
+      {
+        checkpointId: "checkpoint-entry",
+        scopeId: "scope-shared",
+        label: "Entry",
+        displayUrl: "https://example.com/",
+        capturedAt: "2030-01-01T10:00:00.000Z",
+        findingCount: 1,
+        viewport: "desktop",
+        state: "settled render",
+      },
+      {
+        checkpointId: "checkpoint-verification",
+        scopeId: "scope-shared",
+        label: "Verification",
+        displayUrl: "https://example.com/",
+        capturedAt: "2030-01-01T10:02:00.000Z",
+        findingCount: 1,
+        viewport: "desktop",
+        state: "verification",
+      },
+    ],
+  });
+
+  const surface = findFindingSurface(
+    coverage.surfaces,
+    finding({ checkpointId: "checkpoint-verification", scopeKey: "scope-shared" }),
+  );
+  assert.equal(surface?.checkpointId, "checkpoint-verification");
+  assert.equal(surface?.state, "verification");
+  assert.equal(
+    findFindingSurface(
+      coverage.surfaces,
+      finding({ checkpointId: "checkpoint-evicted", scopeKey: "scope-evicted" }),
+    ),
+    undefined,
+  );
+});
+
+test("finding scope fallback keeps the finding's exact responsive viewport", () => {
+  const coverage = deriveCoverageSummary({
+    mode: "remote",
+    baseline: sampledSnapshot,
+    current: sampledSnapshot,
+    trail: [
+      {
+        checkpointId: "checkpoint-desktop",
+        scopeId: "scope-shared",
+        label: "Desktop entry",
+        displayUrl: "https://example.com/",
+        capturedAt: "2030-01-01T10:00:00.000Z",
+        findingCount: 1,
+        viewport: "desktop",
+      },
+      {
+        checkpointId: "checkpoint-mobile",
+        scopeId: "scope-shared",
+        label: "Mobile entry",
+        displayUrl: "https://example.com/",
+        capturedAt: "2030-01-01T10:01:00.000Z",
+        findingCount: 1,
+        viewport: "mobile",
+      },
+    ],
+  });
+  const surface = findFindingSurface(coverage.surfaces, {
+    ...finding({ scopeKey: "scope-shared" }),
+    checkpointId: "checkpoint-stale",
+    viewport: "mobile",
+  });
+
+  assert.equal(surface?.checkpointId, "checkpoint-mobile");
+  assert.equal(surface?.viewport, "mobile");
+});
+
+test("coverage retains an inactive responsive viewport gap", () => {
+  const mobile = {
+    ...sampledSnapshot,
+    viewport: "mobile" as const,
+    viewportSize: { width: 390, height: 844 },
+    scopeKey: "scope-mobile",
+    gaps: [
+      {
+        id: "gap-below-fold",
+        label: "Below-fold content",
+        detail: "The full page did not fit the provider response budget.",
+      },
+    ],
+  };
+  const desktop = {
+    ...sampledSnapshot,
+    scopeKey: "scope-desktop",
+    gaps: [],
+  };
+  const coverage = deriveCoverageSummary({
+    mode: "remote",
+    baseline: desktop,
+    current: desktop,
+    trail: [],
+    baselinesByViewport: { mobile, desktop },
+  });
+
+  assert.equal(coverage.openGapCount, 1);
+  assert.equal(coverage.hasUncoveredScope, true);
+  assert.deepEqual(coverage.openGaps[0]?.viewports, ["mobile"]);
+  assert.deepEqual(coverage.openGaps[0]?.targets, [
+    { scopeId: "scope-mobile", viewport: "mobile" },
+  ]);
+});
+
+test("coverage keeps a viewport fallback on its exact route when another route is full-page", () => {
+  const aggregate: AuditSnapshot = {
+    ...sampledSnapshot,
+    scopeKey: undefined,
+    gaps: [
+      {
+        id: "gap-below-fold",
+        label: "Below-fold content",
+        detail: "The root route remained viewport-only.",
+        checkpointId: "checkpoint-root",
+        scopeKey: "scope-root",
+      },
+    ],
+  };
+  const coverage = deriveCoverageSummary({
+    mode: "remote",
+    baseline: aggregate,
+    current: aggregate,
+    trail: [
+      {
+        checkpointId: "checkpoint-root",
+        scopeId: "scope-root",
+        label: "Entry",
+        displayUrl: "https://example.com/",
+        capturedAt: "2030-01-01T10:00:00.000Z",
+        findingCount: 0,
+        viewport: "desktop",
+        captureExtent: "viewport",
+      },
+      {
+        checkpointId: "checkpoint-pricing",
+        scopeId: "scope-pricing",
+        label: "Pricing",
+        displayUrl: "https://example.com/pricing",
+        capturedAt: "2030-01-01T10:01:00.000Z",
+        findingCount: 0,
+        viewport: "desktop",
+        captureExtent: "full-page",
+      },
+    ],
+  });
+
+  assert.deepEqual(coverage.openGaps[0]?.targets, [
+    {
+      checkpointId: "checkpoint-root",
+      scopeId: "scope-root",
+      route: "/",
+      viewport: "desktop",
+    },
+  ]);
+});
+
+test("coverage resolves stale gap receipts to the current checkpoint for the same route", () => {
+  const refreshed: AuditSnapshot = {
+    ...sampledSnapshot,
+    scopeKey: "scope-root",
+    gaps: [
+      {
+        id: "gap-flow-states",
+        label: "Flow states",
+        detail: "A multi-step flow was not opened.",
+        checkpointId: "checkpoint-old",
+        scopeKey: "scope-root",
+      },
+    ],
+  };
+  const coverage = deriveCoverageSummary({
+    mode: "remote",
+    baseline: refreshed,
+    current: refreshed,
+    trail: [
+      {
+        checkpointId: "checkpoint-current",
+        scopeId: "scope-root",
+        label: "Entry",
+        displayUrl: "https://example.com/",
+        capturedAt: "2030-01-01T10:02:00.000Z",
+        findingCount: 0,
+        viewport: "desktop",
+        captureExtent: "full-page",
+      },
+    ],
+  });
+
+  assert.deepEqual(coverage.openGaps[0]?.targets, [
+    {
+      checkpointId: "checkpoint-current",
+      scopeId: "scope-root",
+      route: "/",
+      viewport: "desktop",
+    },
+  ]);
+  assert.equal(coverage.openGaps[0]?.checkpointId, "checkpoint-old");
 });

@@ -1,10 +1,12 @@
 # Sundae
 
-Ordinary AI website audits split the interface, the model conversation, the evidence, and the decision record. Sundae uses WebMCP to make the live audit page the structured operating surface for ChatGPT, so the agent and the person inspect and change the same visible board in the same session.
+A screenshot chat can critique a website, but it separates the live interface from the model, its evidence, and the person's decisions. A hidden audit API has the same problem: the agent acts somewhere the person cannot inspect.
+
+Sundae uses page-hosted WebMCP Site Tools to make the open audit page the shared operating surface. ChatGPT records evidence and supported judgment on the board the person is already viewing; the person governs decisions and previews; Sundae requires a fresh same-scope recapture before a measured issue is called fixed.
 
 **A person and their ChatGPT agent audit the same live page together: the agent measures and organizes evidence through WebMCP, the person governs judgment, and Sundae verifies every claimed fix.**
 
-[Open the published `/demo` workspace](https://usesundae.vercel.app/demo). It needs no login, connector, hosted auditor model, capture-provider key, or plugin. In ChatGPT Desktop, open the built-in browser and paste that URL. Sundae's Site Tools are discovered automatically from the page.
+[Open Sundae](https://usesundae.vercel.app/) to prepare a workspace, or go straight to the guaranteed [published `/demo` workspace](https://usesundae.vercel.app/demo). The demo needs no login, connector, hosted auditor model, capture-provider key, or plugin. In ChatGPT Desktop, open the built-in browser and paste the exact workspace URL; Site Tools are discovered automatically from that page.
 
 ## Why WebMCP
 

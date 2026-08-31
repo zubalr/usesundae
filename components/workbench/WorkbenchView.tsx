@@ -14,20 +14,24 @@ import type {
   AuditBrief,
   AuditBriefInput,
   AuditSnapshot,
-  CoverageGap,
   DemoState,
   ReviewResult,
   ReviewResultInput,
   Viewport,
 } from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
-import type { CoverageSummary, CoverageTrailEntry } from "@/lib/workbench/coverage";
+import {
+  findFindingSurface,
+  type CoverageSummary,
+  type CoverageTrailEntry,
+} from "@/lib/workbench/coverage";
 import { DECISION_OPTIONS, DECISION_VALUES, type Decision } from "@/lib/workbench/decisions";
 import {
   describeAgentAuthority,
   type EvidenceBoardDescription,
   verificationLabel,
 } from "@/lib/workbench/evidence";
+import { evaluatePreviewAuthority } from "@/lib/workbench/preview-authority";
 import {
   activityActorLabel,
   activityTitle,
@@ -193,9 +197,10 @@ export type WorkbenchViewProps = {
   judgedCount: number;
   auditBrief: AuditBrief | null;
   reviewResults: ReviewResult[];
+  activePreviewFindingId: string | null;
   coverage: CoverageSummary;
   evidenceBoard: EvidenceBoardDescription;
-  activeGaps: CoverageGap[];
+  activeGaps: CoverageSummary["openGaps"];
   activity: Activity[];
   activityLimit: number;
   auditing: boolean;
@@ -377,10 +382,11 @@ function CaptureBar({
         <label className={styles.urlField}>
           <span className={styles.srOnly}>Public page URL</span>
           <input
-            type="url"
+            type="text"
+            inputMode="url"
             value={urlDraft}
             onChange={(event) => onChangeUrlDraft(event.target.value)}
-            placeholder="https://your-product.com/page"
+            placeholder="linear.app or www.example.com/page"
             spellCheck={false}
             autoCapitalize="none"
             autoComplete="url"
@@ -454,7 +460,9 @@ function JourneyBar({ mode, journey, checkpoint, onOpenJourneyCheckpoint }: Work
             >
               <b>{index + 1}</b>
               <span>{entry.label}</span>
-              <small>{entry.findingCount} facts</small>
+              <small>
+                {entry.findingCount} facts · {entry.viewport}
+              </small>
             </button>
           </li>
         ))}
@@ -618,6 +626,16 @@ function AuditBriefPanel({
             <div>
               <dt>Primary action</dt>
               <dd>{auditBrief.primaryAction}</dd>
+            </div>
+            <div>
+              <dt>Audit goal</dt>
+              <dd>{auditBrief.auditGoal || "General product-design review"}</dd>
+            </div>
+            <div>
+              <dt>Evidence</dt>
+              <dd title={auditBrief.evidenceRefs.join(" · ")}>
+                {auditBrief.evidenceRefs.join(" · ")}
+              </dd>
             </div>
           </dl>
           {auditBrief.unresolvedQuestions.length > 0 ? (
@@ -918,7 +936,7 @@ function FindingList({
       {baseline ? (
         <div className={styles.findingLane} data-lane="supporting">
           <div className={styles.laneHead}>
-            <h3>Supporting facts</h3>
+            <h3>Accessibility &amp; technical facts</h3>
             <span>{supportingFacts.length} deterministic observations</span>
           </div>
           <FindingRows
@@ -988,6 +1006,7 @@ function FindingControls({
   cssDraft,
   demoState,
   auditBrief,
+  activePreviewFindingId,
   auditing,
   onSetFindingDecision,
   onChangeDecisionReason,
@@ -998,9 +1017,17 @@ function FindingControls({
   onVerifyRecapture,
 }: WorkbenchViewProps) {
   if (!selected) return null;
+  const authority = evaluatePreviewAuthority({
+    findingId: selected.id,
+    decision: selected.decision,
+    reason: selected.decisionReason,
+    previewActive: demoState === "improved",
+    previewFindingId: activePreviewFindingId,
+  });
   const previewDisabled =
     auditing ||
     demoState === "improved" ||
+    !authority.canPreview ||
     selected.rule === "agent-surface" ||
     (mode === "remote" && !cssDraft.trim());
   const previewLabel =
@@ -1176,6 +1203,7 @@ function FindingControls({
           type="button"
           className={styles.previewButton}
           disabled={previewDisabled}
+          title={previewDisabled ? authority.previewMessage : undefined}
           onClick={() => onPreviewFix(mode === "remote" ? cssDraft : undefined)}
         >
           <Icon name="spark" /> {previewLabel}
@@ -1183,7 +1211,8 @@ function FindingControls({
         <button
           type="button"
           className={styles.verifyButton}
-          disabled={auditing}
+          disabled={auditing || !authority.canVerify}
+          title={authority.verifyMessage}
           onClick={() => onVerifyRecapture(selected.id)}
         >
           <Icon name="refresh" /> Verify recapture
@@ -1193,8 +1222,10 @@ function FindingControls({
   );
 }
 
-function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewProps) {
+function FindingInspector(props: WorkbenchViewProps) {
+  const { selected, inspectorRef, coverage } = props;
   if (!selected) return null;
+  const surface = findFindingSurface(coverage.surfaces, selected);
 
   return (
     <article
@@ -1232,22 +1263,42 @@ function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewPro
         </p>
       ) : null}
 
-      {selected.measurement ? (
-        <dl className={styles.measurement}>
-          <div>
-            <dt>Observed</dt>
-            <dd>{selected.measurement.value}</dd>
-          </div>
-          <div>
-            <dt>Threshold</dt>
-            <dd>{selected.measurement.threshold}</dd>
-          </div>
-          <div>
-            <dt>Viewport</dt>
-            <dd>{selected.viewport}</dd>
-          </div>
-        </dl>
-      ) : null}
+      <dl className={styles.measurement} aria-label="Finding evidence scope">
+        {selected.measurement ? (
+          <>
+            <div>
+              <dt>Observed</dt>
+              <dd>{selected.measurement.value}</dd>
+            </div>
+            <div>
+              <dt>Threshold</dt>
+              <dd>{selected.measurement.threshold}</dd>
+            </div>
+          </>
+        ) : null}
+        <div>
+          <dt>Route</dt>
+          <dd title={surface?.finalUrl}>{surface?.route ?? "Unknown route"}</dd>
+        </div>
+        <div>
+          <dt>State</dt>
+          <dd>{surface?.state ?? "Unknown state"}</dd>
+        </div>
+        <div>
+          <dt>Viewport</dt>
+          <dd>{selected.viewport}</dd>
+        </div>
+        <div>
+          <dt>Scope</dt>
+          <dd>
+            <code>{selected.scopeKey ?? surface?.scopeId ?? "Unknown scope"}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Verification</dt>
+          <dd>{verificationLabel(selected.verification)}</dd>
+        </div>
+      </dl>
 
       <div className={styles.reasoning}>
         <div>
@@ -1260,7 +1311,7 @@ function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewPro
         </div>
       </div>
 
-      <CheckpointEvidence selected={selected} inspectorRef={inspectorRef} {...props} />
+      <CheckpointEvidence {...props} />
 
       {selected.verificationReceipt ? (
         <div
@@ -1277,7 +1328,7 @@ function FindingInspector({ selected, inspectorRef, ...props }: WorkbenchViewPro
         </div>
       ) : null}
 
-      <FindingControls selected={selected} inspectorRef={inspectorRef} {...props} />
+      <FindingControls {...props} />
     </article>
   );
 }
@@ -1326,6 +1377,10 @@ function CoveragePanel({
                 <dd>{surface.motion.replace("_", " ")}</dd>
               </div>
               <div>
+                <dt>Interaction</dt>
+                <dd>{surface.interaction.replace("_", " ")}</dd>
+              </div>
+              <div>
                 <dt>Status</dt>
                 <dd>{surface.status.replace("_", " ")}</dd>
               </div>
@@ -1346,7 +1401,15 @@ function CoveragePanel({
       </div>
       {activeGaps.map((gap) => (
         <div key={gap.id}>
-          <b>{gap.label}</b>
+          <b>
+            {gap.label} ·{" "}
+            {gap.targets
+              .map(
+                ({ route, scopeId, viewport }) =>
+                  `${route ?? scopeId ?? "audit scope"} · ${viewport}`,
+              )
+              .join(" + ")}
+          </b>
           <p>{gap.detail}</p>
         </div>
       ))}
@@ -1444,7 +1507,7 @@ function EvidencePane(props: WorkbenchViewProps) {
             {judgedCount} judged
           </span>
           <span>{strengthCount} strengths</span>
-          <span>{noIssueCount} clear</span>
+          <span>{noIssueCount} no-issue</span>
           <span>{activeGaps.length} gaps</span>
         </div>
       </div>

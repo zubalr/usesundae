@@ -267,6 +267,10 @@ export function snapshotFromCheckpoint(
     viewportSize: checkpoint.viewportSize,
     scopeKey: checkpoint.scopeId,
     findings,
-    gaps: checkpoint.gaps,
+    gaps: checkpoint.gaps.map((gap) => ({
+      ...gap,
+      checkpointId: checkpoint.id,
+      scopeKey: checkpoint.scopeId,
+    })),
   };
 }
