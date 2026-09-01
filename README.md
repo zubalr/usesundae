@@ -126,7 +126,7 @@ Sundae audits public HTTPS pages its configured browser provider can render. Whe
 
 **Typing a public URL and pressing Enter** approves that exact target for the current browser session and starts capture. ChatGPT may then call `capture_public_page` on the same URL. Additional same-origin routes still need a human-named journey step.
 
-Public capture opens the approved page in a Cloudflare browser session and runs Sundae's own audit engine inside that page with `page.evaluate()`. Measurement happens in one browser session and typically finishes in about 6 to 9 seconds. Sundae never accepts credentials in URLs, private-network targets, nonstandard ports, target-site cookies, silent tabs, login flows, form submission, recursive crawling, or off-origin navigation. Existing board evidence remains intact when the provider fails.
+Public capture opens the approved page in a Cloudflare browser session and runs Sundae's own audit engine inside that page with `page.evaluate()`. Measurement happens in one browser session. A small page settles in under ten seconds; a large one, where the design-signal walk reaches its 1,500-node cap, takes closer to thirty. Sundae never accepts credentials in URLs, private-network targets, nonstandard ports, target-site cookies, silent tabs, login flows, form submission, recursive crawling, or off-origin navigation. Existing board evidence remains intact when the provider fails.
 
 For local public-capture development, configure opaque values outside source control:
 

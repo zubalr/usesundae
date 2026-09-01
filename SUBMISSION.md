@@ -32,7 +32,7 @@ Without WebMCP (an ordinary browser, or an unsupported model), Sundae still prov
 
 ## Execution
 
-Type a public URL and press Enter. Capture starts with zero extra clicks. Measurement happens in one Cloudflare browser session, typically in about 6 to 9 seconds.
+Type a public URL and press Enter. Capture starts with zero extra clicks. Measurement happens in one Cloudflare browser session: under ten seconds on a small page, closer to thirty on a large one where the design-signal walk reaches its 1,500-node cap.
 
 On Todoist, a live mobile capture measured the primary call-to-action at 4.09:1 contrast, below the 4.5:1 threshold, on their own brand red, as one of 28 controls under the 44 × 44 touch target guidance.
 

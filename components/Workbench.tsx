@@ -292,8 +292,12 @@ export function Workbench({
   const auditTimerRef = useRef<number | null>(null);
   const committedSystemBaselineRef = useRef<string | null>(null);
   const auditEndTimerRef = useRef<number | null>(null);
+  // The included fixture is a phone-shaped product mock whose planted defects are
+  // mobile-scoped. A real public site is audited at desktop, because squeezing a
+  // desktop layout into 390px turns its own product mockups into false findings.
+  const initialViewport: Viewport = initialMode === "sample" ? "mobile" : "desktop";
   const modeRef = useRef<TargetMode>(initialMode);
-  const viewportRef = useRef<Viewport>("desktop");
+  const viewportRef = useRef<Viewport>(initialViewport);
   const demoStateRef = useRef<DemoState>("baseline");
   const baselineRef = useRef<SnapshotMap>({});
   const currentRef = useRef<SnapshotMap>({});
@@ -324,7 +328,7 @@ export function Workbench({
   const didAutoStartRef = useRef(false);
 
   const [mode, setMode] = useState<TargetMode>(initialMode);
-  const [viewport, setViewport] = useState<Viewport>("desktop");
+  const [viewport, setViewport] = useState<Viewport>(initialViewport);
   const [demoState, setDemoState] = useState<DemoState>("baseline");
   const [urlDraft, setUrlDraft] = useState(initialUrl);
   const [waitForSelectorDraft, setWaitForSelectorDraft] = useState("");
