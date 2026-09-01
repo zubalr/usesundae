@@ -30,13 +30,23 @@ function revealFeedback(target: { current: HTMLElement | null }) {
   requestAnimationFrame(() => target.current?.focus());
 }
 
+function usePreparedLaunch(includedDemoUrl: string) {
+  const { targetUrl, goal } = useAuditIntent();
+  return (useDemo: boolean) => {
+    const launch = createAuditLaunch(useDemo ? includedDemoUrl : targetUrl, goal);
+    return {
+      launch,
+      workspaceUrl: buildWorkspaceUrl(window.location.origin, launch),
+    };
+  };
+}
+
 export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) {
   const { targetUrl, setTargetUrl, goal, setGoal } = useAuditIntent();
   const [error, setError] = useState("");
-  const [handoff, setHandoff] = useState<HandoffReceipt | null>(null);
   const [toolReadiness, setToolReadiness] = useState<ToolReadiness>({ state: "checking" });
   const errorRef = useRef<HTMLParagraphElement>(null);
-  const handoffRef = useRef<HTMLElement>(null);
+  const prepareLaunch = usePreparedLaunch(includedDemoUrl);
 
   useEffect(() => {
     setToolReadiness(
@@ -44,52 +54,15 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
     );
   }, []);
 
-  function prepareLaunch(useDemo: boolean) {
-    const launch = createAuditLaunch(useDemo ? includedDemoUrl : targetUrl, goal);
-    return {
-      launch,
-      workspaceUrl: buildWorkspaceUrl(window.location.origin, launch),
-    };
-  }
-
   function openPublicWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setHandoff(null);
     try {
       window.location.assign(prepareLaunch(false).workspaceUrl);
     } catch (cause) {
       setError(errorMessage(cause));
       revealFeedback(errorRef);
     }
-  }
-
-  function openChatGptAudit() {
-    setError("");
-    setHandoff(null);
-    try {
-      const { launch, workspaceUrl } = prepareLaunch(!targetUrl.trim());
-      const prompt = buildChatGptHandoffPrompt(launch, workspaceUrl, includedDemoUrl);
-      const receipt = { prompt, workspaceUrl, copied: false };
-      setHandoff(receipt);
-      window.open(buildChatGptComposerUrl(prompt), "_blank", "noopener,noreferrer");
-      revealFeedback(handoffRef);
-    } catch (cause) {
-      setError(errorMessage(cause));
-      setHandoff(null);
-      revealFeedback(errorRef);
-    }
-  }
-
-  function copyWorkspaceLink(receipt: HandoffReceipt) {
-    const copyOperation = navigator.clipboard?.writeText(receipt.workspaceUrl);
-    if (!copyOperation) {
-      setHandoff(receipt);
-      return;
-    }
-    void copyOperation
-      .then(() => setHandoff({ ...receipt, copied: true }))
-      .catch(() => setHandoff(receipt));
   }
 
   return (
@@ -139,23 +112,76 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
         <button className={styles.workbenchAction} type="submit">
           Audit my page
         </button>
-        <a className={styles.demoAction} href="/demo">
-          Run included /demo
-        </a>
-        <button className={styles.desktopAction} type="button" onClick={openChatGptAudit}>
-          <Icon name="agent" /> Audit with ChatGPT
-        </button>
       </div>
+
+      <p className={styles.demoHint}>
+        <a className={styles.demoAction} href="/demo">
+          No URL handy? Try it on our sample product.
+        </a>
+      </p>
 
       <p className={styles.controlNote} data-state={toolReadiness.state}>
         <i aria-hidden="true" />
         {toolReadiness.state === "available"
-          ? "Site Tools supported here. Open a workspace to register its page tools."
+          ? "This browser can run the audit with your ChatGPT. Type a public URL and press Enter."
           : toolReadiness.state === "human"
-            ? "Human controls ready. For Site Tools, open the exact workspace in ChatGPT Desktop’s built-in browser or ChatGPT Work Cloud."
-            : "Checking this browser for Site Tools…"}
+            ? "Type a public URL and press Enter. Sundae captures the live page and shows what it measured. Nothing changes until you say so."
+            : "Checking this browser…"}
       </p>
+    </form>
+  );
+}
 
+export function ChatGptNextStep({ includedDemoUrl }: { includedDemoUrl: string }) {
+  const { targetUrl } = useAuditIntent();
+  const [error, setError] = useState("");
+  const [handoff, setHandoff] = useState<HandoffReceipt | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  const handoffRef = useRef<HTMLElement>(null);
+  const prepareLaunch = usePreparedLaunch(includedDemoUrl);
+
+  function openChatGptAudit() {
+    setError("");
+    setHandoff(null);
+    try {
+      const { launch, workspaceUrl } = prepareLaunch(!targetUrl.trim());
+      const prompt = buildChatGptHandoffPrompt(launch, workspaceUrl, includedDemoUrl);
+      const receipt = { prompt, workspaceUrl, copied: false };
+      setHandoff(receipt);
+      window.open(buildChatGptComposerUrl(prompt), "_blank", "noopener,noreferrer");
+      revealFeedback(handoffRef);
+    } catch (cause) {
+      setError(errorMessage(cause));
+      setHandoff(null);
+      revealFeedback(errorRef);
+    }
+  }
+
+  function copyWorkspaceLink(receipt: HandoffReceipt) {
+    const copyOperation = navigator.clipboard?.writeText(receipt.workspaceUrl);
+    if (!copyOperation) {
+      setHandoff(receipt);
+      return;
+    }
+    void copyOperation
+      .then(() => setHandoff({ ...receipt, copied: true }))
+      .catch(() => setHandoff(receipt));
+  }
+
+  return (
+    <div className={styles.nextStep}>
+      <button className={styles.desktopAction} type="button" onClick={openChatGptAudit}>
+        <Icon name="agent" /> Audit with ChatGPT
+      </button>
+      <p>
+        Continue in ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud after the capture.
+        Site Tools appear on the open workspace.
+      </p>
+      {error ? (
+        <p className={styles.error} role="alert" tabIndex={-1} ref={errorRef}>
+          {error}
+        </p>
+      ) : null}
       {handoff ? (
         <section
           className={styles.receipt}
@@ -184,6 +210,6 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
           </div>
         </section>
       ) : null}
-    </form>
+    </div>
   );
 }

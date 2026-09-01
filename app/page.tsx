@@ -1,5 +1,5 @@
 import { AuditIntentProvider } from "@/components/AuditIntent";
-import { AuditLauncher } from "@/components/AuditLauncher";
+import { AuditLauncher, ChatGptNextStep } from "@/components/AuditLauncher";
 import { Workbench } from "@/components/Workbench";
 import { MAX_AUDIT_GOAL_LENGTH, MAX_PUBLIC_URL_LENGTH, resolvePublicDemoUrl } from "@/lib/launch";
 import styles from "./page.module.css";
@@ -41,6 +41,20 @@ const RUNDOWN_STEPS = [
   },
 ] as const;
 
+const DEMO_TOOLS = [
+  ["audit_current_scope", "Measure the live included target; returns the first board page"],
+  ["inspect_agent_surface", "Inspect the controlled target's WebMCP contracts"],
+  ["get_board_context", "Read bounded evidence, decisions, gaps, and next work"],
+  ["record_audit_brief", "Orient the product before judging the interface"],
+  ["record_review_result", "Preserve a strength or an inspected no-issue result"],
+  ["record_visual_finding", "Add a supported UI, UX, or Interaction judgment"],
+  ["record_coverage_gap", "Record an important surface that was not observed"],
+  ["focus_finding", "Select evidence on the visible board"],
+  ["set_finding_decision", "Record the person's reversible decision and reason"],
+  ["preview_fix", "Render a reversible local preview"],
+  ["verify_recapture", "Re-measure the same scope before calling a fact fixed"],
+] as const;
+
 function firstBoundedParam(value: string | string[] | undefined, maxLength: number) {
   const first = Array.isArray(value) ? value[0] : value;
   return first?.slice(0, maxLength) ?? "";
@@ -72,21 +86,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             sundae
           </a>
           <nav aria-label="Landing page navigation">
-            <a href="#method">Why WebMCP</a>
-            <a href="#desktop">ChatGPT Desktop</a>
-            <a className={styles.navAction} href="/demo">
-              Open /demo
-            </a>
+            <a href="#judges">For WebMCP Challenge judges →</a>
           </nav>
         </header>
 
         <main aria-label="Sundae product review entrance">
           <section className={styles.hero} aria-labelledby="landing-title">
             <div className={styles.heroThesis}>
-              <h1 id="landing-title">Audit the same live page together.</h1>
+              <h1 id="landing-title">AI audits your product&apos;s design.</h1>
               <p>
-                Sundae puts ChatGPT’s Site Tools on the live page you are looking at, so
-                measurement, judgment, and fresh recapture stay in one place.
+                Every finding is a measurement you can check, on a page you can inspect, with fixes
+                proved by fresh evidence.
               </p>
               <aside className={styles.measuredFinding} aria-label="Measured capture from Todoist">
                 <p>
@@ -110,10 +120,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </div>
 
                 <div className={styles.commandStrip}>
-                  <div className={styles.commandCopy}>
-                    <h2>Audit a public page.</h2>
-                    <p>The included /demo is a guaranteed fallback.</p>
-                  </div>
                   <AuditLauncher includedDemoUrl={includedDemoUrl} />
                 </div>
 
@@ -160,10 +166,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           <section className={styles.method} id="method" aria-labelledby="method-title">
             <div className={styles.methodLead}>
-              <h2 id="method-title">WebMCP makes the page the operating surface.</h2>
+              <h2 id="method-title">The audit stays on a page you can inspect.</h2>
               <p>
-                The model does not disappear behind a report API. Its commands, evidence, and
-                receipts live on the same interface the person can inspect and control.
+                Other tools assert findings in a chat. Sundae leaves the measurement, the judgment,
+                and the proof on the same board you are looking at.
               </p>
             </div>
 
@@ -176,10 +182,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </p>
               </article>
               <article>
-                <h3>Sundae + WebMCP</h3>
+                <h3>Sundae</h3>
                 <p>
-                  ChatGPT operates goal-shaped Site Tools on the visible board. The person sees the
-                  mutation, controls decisions, and can demand a fresh same-scope measurement.
+                  Findings sit on the live page. You see the measurement, you control the decision,
+                  and a fresh capture has to prove a fix.
                 </p>
               </article>
             </div>
@@ -204,9 +210,44 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </ol>
           </section>
 
-          <section className={styles.availability} aria-labelledby="availability-title">
+          <section className={styles.judgePath} id="judges" aria-labelledby="judges-title">
+            <div className={styles.judgeLead}>
+              <h2 id="judges-title">For WebMCP Challenge judges</h2>
+              <p>
+                WebMCP is the warrant for the audit. Site Tools have been verified on GPT-5.6 Sol
+                and GPT-5.6 Terra in two places: the ChatGPT desktop app&apos;s built-in browser,
+                and ChatGPT Work Cloud at chatgpt.com. GPT-5.6 Luna has WebMCP disabled and will not
+                discover Site Tools. Site tools are also unavailable in Enterprise and Edu
+                workspaces. A host may deny an individual tool call; the rest of the audit still
+                completes.
+              </p>
+            </div>
+
+            <div className={styles.judgeHandoff}>
+              <ChatGptNextStep includedDemoUrl={includedDemoUrl} />
+            </div>
+
+            <ol className={styles.judgeSteps}>
+              <li>
+                Open ChatGPT Desktop&apos;s built-in browser, or ChatGPT Work Cloud, at the exact{" "}
+                <a href="/demo">published /demo workspace</a>.
+              </li>
+              <li>
+                Click <strong>Site tools</strong> in the browser address bar. You should see 11
+                Sundae tools. If the panel is empty, check the model first.
+              </li>
+              <li>
+                Ask ChatGPT to audit the page with its Site Tools, keep measurements and judgment
+                separate, and ask you before any decision or preview.
+              </li>
+              <li>
+                Accept a finding with a visible reason, then let it run <code>preview_fix</code> and{" "}
+                <code>verify_recapture</code>.
+              </li>
+            </ol>
+
             <div className={styles.availabilityLead}>
-              <h2 id="availability-title">One product, two honest scopes.</h2>
+              <h3>One product, two honest scopes.</h3>
               <p>
                 Start with the guaranteed contest workspace. Use public capture only when the
                 configured browser provider can render the approved page.
@@ -228,32 +269,54 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </dd>
               </div>
             </dl>
-          </section>
 
-          <section className={styles.desktopGuide} id="desktop" aria-labelledby="desktop-title">
-            <div>
-              <h2 id="desktop-title">ChatGPT Desktop discovers the tools from the page.</h2>
-              <p>
-                A webpage cannot force-open ChatGPT. Prepare the exact workspace here, then open it
-                in ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud. If Site Tools are
-                unavailable, Sundae says so and keeps the human controls usable.
-              </p>
+            <div className={styles.desktopGuide} id="desktop" aria-labelledby="desktop-title">
+              <div>
+                <h3 id="desktop-title">ChatGPT Desktop discovers the tools from the page.</h3>
+                <p>
+                  A webpage cannot force-open ChatGPT. Prepare the exact workspace here, then open
+                  it in ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud. If Site Tools
+                  are unavailable, Sundae says so and keeps the human controls usable.
+                </p>
+              </div>
+              <ol>
+                <li>Prepare the included demo or an approved public workspace.</li>
+                <li>
+                  Open ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud and paste the
+                  exact URL.
+                </li>
+                <li>Wait for Site Tools to appear before asking ChatGPT to audit.</li>
+              </ol>
+              <a href="#launch">Prepare the handoff</a>
             </div>
-            <ol>
-              <li>Prepare the included demo or an approved public workspace.</li>
-              <li>
-                Open ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud and paste the
-                exact URL.
-              </li>
-              <li>Wait for Site Tools to appear before asking ChatGPT to audit.</li>
-            </ol>
-            <a href="#launch">Prepare the handoff</a>
+
+            <div className={styles.toolTableFrame}>
+              <table className={styles.toolTable}>
+                <caption>The 11 Site Tools on the included /demo</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Tool</th>
+                    <th scope="col">Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {DEMO_TOOLS.map(([name, purpose]) => (
+                    <tr key={name}>
+                      <th scope="row">
+                        <code>{name}</code>
+                      </th>
+                      <td>{purpose}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </main>
 
         <footer className={styles.footer}>
           <strong>sundae</strong>
-          <span>Shared evidence. Human authority. Fresh proof.</span>
+          <span>Measured findings. Human authority. Fresh proof.</span>
           <a href="https://github.com/zubalr/usesundae">Source on GitHub</a>
         </footer>
       </div>

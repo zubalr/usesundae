@@ -41,6 +41,7 @@ test("the launcher opens ChatGPT with the audit instruction already typed", () =
   assert.match(combined, /chatgpt\.com\/\?q=/);
   assert.match(combined, /Copy workspace URL/);
   assert.doesNotMatch(combined, /Prepare Desktop handoff/);
+  assert.doesNotMatch(combined, /Human controls ready/);
   assert.doesNotMatch(combined, new RegExp(["start", "audit"].join("_"), "i"));
   assert.doesNotMatch(combined, new RegExp(["workspace", "ready"].join("_"), "i"));
 });
@@ -138,6 +139,10 @@ test("the evidence pane leads with findings, then strengths, gaps, brief, and re
   assert.match(workbench, /Ask ChatGPT to audit/);
   assert.match(workbench, /Approve one finding/);
   assert.match(workbench, /Preview and verify/);
+  assert.match(workbench, /"Re-measure"/);
+  assert.doesNotMatch(workbench, /Audit live target/);
+  assert.doesNotMatch(workbench, /Recapture page/);
+  assert.match(workbench, /productFindings\.length > 0/);
 });
 
 test("the workbench accepts bare domains and contains desktop pane scrolling", () => {

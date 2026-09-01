@@ -8,8 +8,7 @@
 .masthead,
 .hero,
 .method,
-.availability,
-.desktopGuide,
+.judgePath,
 .footer {
   width: min(
     calc(100% - var(--space-2xl)),
@@ -30,6 +29,11 @@
 }
 
 .wordmark {
+  min-block-size: calc(var(--space-xl) + var(--space-xs));
+  min-inline-size: calc(var(--space-xl) + var(--space-xs));
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--space-s);
   color: inherit;
   font-size: var(--text-xl);
   font-weight: var(--weight-bold);
@@ -44,6 +48,7 @@
   gap: var(--space-2xs);
 }
 
+.masthead .wordmark,
 .masthead nav a,
 .desktopGuide > a,
 .footer a {
@@ -59,20 +64,15 @@
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
+.masthead .wordmark:active,
 .masthead nav a:active,
 .desktopGuide > a:active,
 .footer a:active {
   transform: scale(0.98);
 }
 
-.masthead .navAction {
-  border: thin solid var(--stage-line);
-  background: var(--stage-panel);
-  color: var(--stage-text);
-}
-
 .hero {
-  padding-block: var(--space-2xl) var(--space-3xl);
+  padding-block: var(--space-2xl) var(--space-none);
   background: var(--stage-ground);
   color: var(--stage-text);
 }
@@ -95,24 +95,24 @@
 
 .heroThesis {
   display: grid;
-  grid-template-columns: minmax(var(--space-none), 1.35fr) minmax(var(--space-none), 1fr);
-  align-items: end;
-  gap: var(--space-l) var(--space-2xl);
+  gap: var(--space-l);
   margin-bottom: var(--space-l);
 }
 
 .heroThesis h1,
 .heroThesis p,
 .measuredFinding p,
-.commandCopy h2,
-.commandCopy p,
 .rundown h2,
 .rundown p,
 .method h2,
 .method h3,
 .method p,
 .availability h2,
+.availability h3,
 .availability p,
+.judgePath h2,
+.judgePath h3,
+.judgePath p,
 .desktopGuide h2,
 .desktopGuide p,
 .toolLedger,
@@ -121,7 +121,8 @@
 }
 
 .heroThesis h1 {
-  max-width: 13ch;
+  max-width: 16ch;
+  font-family: var(--font-serif);
   font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
   font-weight: var(--weight-bold);
   letter-spacing: -0.035em;
@@ -136,17 +137,19 @@
 }
 
 .measuredFinding {
-  grid-column: 1 / -1;
   display: grid;
-  gap: var(--space-xs);
+  gap: var(--space-s);
   max-width: calc(var(--measure) + var(--measure));
-  padding-top: var(--space-m);
-  border-top: thin solid var(--stage-line);
+  padding-block: var(--space-l);
+  border-block: thin solid var(--stage-line);
 }
 
 .measuredFinding p:first-child {
+  max-width: var(--measure);
   color: var(--stage-text);
-  font-size: var(--text-m);
+  font-size: clamp(var(--text-l), 2.4vw, var(--text-xl));
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
 }
 
 .measuredSource {
@@ -186,8 +189,8 @@
   gap: var(--space-m);
   padding-inline: var(--space-m);
   border-bottom: thin solid var(--stage-line);
-  background: var(--stage-primary);
-  color: var(--stage-text);
+  background: var(--stage-ground);
+  color: var(--stage-muted);
 }
 
 .programHeader span:first-child {
@@ -201,7 +204,7 @@
   inline-size: var(--space-xs);
   block-size: var(--space-xs);
   border-radius: var(--radius-full);
-  background: var(--stage-ground);
+  background: var(--stage-verification);
 }
 
 .fixtureWindow {
@@ -236,39 +239,16 @@
 
 .commandStrip {
   display: grid;
-  grid-template-columns: minmax(var(--space-3xl), 0.55fr) minmax(var(--space-none), 1.45fr);
-  align-items: end;
   gap: var(--space-l);
   padding: var(--space-l);
   border-top: thin solid var(--stage-line);
-  background: var(--stage-primary);
-}
-
-.commandCopy {
-  align-self: stretch;
-  display: grid;
-  align-content: center;
-  gap: var(--space-xs);
-  padding-right: var(--space-l);
-  border-right: thin solid color-mix(in srgb, var(--stage-text) 34%, transparent);
-}
-
-.commandCopy h2 {
-  max-width: 15ch;
-  font-size: var(--text-xl);
-  letter-spacing: -0.025em;
-  line-height: var(--leading-tight);
-}
-
-.commandCopy p {
-  color: color-mix(in srgb, var(--stage-text) 76%, transparent);
-  font-size: var(--text-xs);
+  background: var(--stage-panel);
 }
 
 .rundown {
   position: relative;
   min-width: var(--space-none);
-  overflow: hidden;
+  overflow: visible;
   background: var(--stage-ground);
 }
 
@@ -407,22 +387,21 @@
   animation: audit-signal-tip var(--duration-rundown) var(--ease-in-out) var(--duration-slow) both;
 }
 
-.method,
-.availability {
+.method {
   display: grid;
   grid-template-columns: repeat(12, minmax(var(--space-none), 1fr));
   gap: var(--space-l);
   padding-block: var(--space-3xl);
 }
 
-.methodLead,
-.availabilityLead {
+.methodLead {
   grid-column: 1 / 6;
 }
 
 .methodLead h2,
-.availabilityLead h2,
-.desktopGuide h2 {
+.judgeLead h2,
+.availabilityLead h3,
+.desktopGuide h3 {
   max-width: 18ch;
   font-size: var(--text-2xl);
   letter-spacing: -0.03em;
@@ -431,6 +410,7 @@
 }
 
 .methodLead p,
+.judgeLead p,
 .availabilityLead p,
 .desktopGuide p {
   max-width: var(--measure);
@@ -494,12 +474,55 @@
   color: var(--text-secondary);
 }
 
-.availability {
+.judgePath {
+  display: grid;
+  gap: var(--space-2xl);
+  padding-block: var(--space-3xl);
   border-top: thin solid var(--border);
 }
 
+.judgeHandoff {
+  display: grid;
+  justify-items: start;
+  max-width: var(--measure);
+}
+
+.judgeSteps,
+.desktopGuide ol {
+  margin: var(--space-none);
+  padding: var(--space-none);
+  list-style: none;
+}
+
+.judgeSteps {
+  display: grid;
+  gap: var(--space-s);
+  counter-reset: judge-step;
+}
+
+.judgeSteps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-s);
+  color: var(--text-secondary);
+  font-size: var(--text-s);
+  counter-increment: judge-step;
+}
+
+.judgeSteps li::before {
+  color: var(--success);
+  font-family: var(--font-mono);
+  content: counter(judge-step, decimal-leading-zero);
+}
+
+.judgeSteps a {
+  min-block-size: calc(var(--space-xl) + var(--space-xs));
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-primary);
+}
+
 .toolLedger {
-  grid-column: 7 / -1;
   display: grid;
   grid-template-columns: repeat(2, minmax(var(--space-none), 1fr));
   border: thin solid var(--border);
@@ -540,29 +563,51 @@
 }
 
 .desktopGuide {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(var(--space-none), 1.4fr) minmax(var(--space-none), 1fr) auto;
   align-items: end;
   gap: var(--space-2xl);
-  margin-bottom: var(--space-3xl);
-  padding-block: var(--space-2xl);
-  border-block: thin solid var(--stage-line);
+  padding: var(--space-2xl);
+  border: thin solid var(--stage-line);
   background: var(--stage-ground);
   color: var(--stage-text);
 }
 
-.desktopGuide::before {
-  position: absolute;
-  z-index: -1;
-  inset-block: var(--space-none);
-  inset-inline: calc((100vw - 100%) / -2);
-  background: var(--stage-ground);
-  content: "";
+.toolTableFrame {
+  overflow-x: auto;
 }
 
-.desktopGuide {
-  position: relative;
-  isolation: isolate;
+.toolTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-s);
+}
+
+.toolTable caption {
+  caption-side: top;
+  padding-block-end: var(--space-s);
+  color: var(--text-primary);
+  font-weight: var(--weight-bold);
+  text-align: start;
+}
+
+.toolTable th,
+.toolTable td {
+  padding: var(--space-s) var(--space-m);
+  border-bottom: thin solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.toolTable th {
+  font-weight: var(--weight-medium);
+}
+
+.toolTable code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
 }
 
 .desktopGuide p {
@@ -642,13 +687,9 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .masthead .wordmark:hover,
   .masthead nav a:hover {
     color: var(--stage-verification);
-  }
-
-  .masthead .navAction:hover {
-    background: var(--stage-primary);
-    color: var(--stage-text);
   }
 
   .desktopGuide > a:hover {
@@ -661,15 +702,13 @@
   .masthead,
   .hero,
   .method,
-  .availability,
-  .desktopGuide,
+  .judgePath,
   .footer {
     width: min(calc(100% - var(--space-xl)), var(--measure));
   }
 
   .heroThesis,
   .liveSet,
-  .commandStrip,
   .desktopGuide {
     grid-template-columns: 1fr;
   }
@@ -679,7 +718,7 @@
   }
 
   .heroThesis h1 {
-    max-width: 12ch;
+    max-width: 14ch;
   }
 
   .programStage {
@@ -700,15 +739,7 @@
     order: 2;
   }
 
-  .commandCopy {
-    padding-right: var(--space-none);
-    padding-bottom: var(--space-m);
-    border-right: var(--space-none);
-    border-bottom: thin solid color-mix(in srgb, var(--stage-text) 34%, transparent);
-  }
-
-  .method,
-  .availability {
+  .method {
     display: block;
   }
 
@@ -744,18 +775,13 @@
   .masthead,
   .hero,
   .method,
-  .availability,
-  .desktopGuide,
+  .judgePath,
   .footer {
     width: calc(100% - var(--space-l));
   }
 
-  .masthead nav a:not(.navAction) {
-    display: none;
-  }
-
   .hero {
-    padding-block: var(--space-l) var(--space-xl);
+    padding-block: var(--space-l) var(--space-none);
   }
 
   .heroThesis {
@@ -788,15 +814,6 @@
     padding: var(--space-m);
   }
 
-  .commandCopy {
-    gap: var(--space-none);
-    padding-bottom: var(--space-s);
-  }
-
-  .commandCopy p {
-    display: none;
-  }
-
   .rundown li {
     grid-template-columns: auto minmax(var(--space-none), 1fr) auto;
     gap: var(--space-xs);
@@ -811,13 +828,14 @@
   }
 
   .method,
-  .availability {
+  .judgePath {
     padding-block: var(--space-2xl);
   }
 
   .methodLead h2,
-  .availabilityLead h2,
-  .desktopGuide h2 {
+  .judgeLead h2,
+  .availabilityLead h3,
+  .desktopGuide h3 {
     font-size: var(--text-xl);
   }
 
@@ -852,6 +870,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .masthead .wordmark:active,
   .masthead nav a:active,
   .desktopGuide > a:active,
   .footer a:active {

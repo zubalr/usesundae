@@ -21,14 +21,28 @@ test("the entrance makes public capture primary and the included demo secondary"
   const page = readSource("app", "page.tsx");
   const launcher = readSource("components", "AuditLauncher.tsx");
   const publicAction = launcher.indexOf("Audit my page");
-  const demoAction = launcher.indexOf("Run included /demo");
+  const demoAction = launcher.indexOf("No URL handy? Try it on our sample product.");
+  const chatAction = launcher.indexOf("Audit with ChatGPT");
 
   assert.ok(publicAction >= 0 && publicAction < demoAction);
+  assert.ok(demoAction > publicAction && chatAction > demoAction);
+  assert.match(page, /id="judges"[\s\S]*<ChatGptNextStep/);
+  assert.doesNotMatch(
+    page.slice(
+      page.indexOf('<div className={styles.landing} id="top">'),
+      page.indexOf('id="judges"'),
+    ),
+    /ChatGptNextStep/,
+  );
   assert.match(page, /<dd className=\{styles\.toolCount\}>11 Site Tools<\/dd>/);
   assert.match(page, /<dd className=\{styles\.toolCount\}>15 Site Tools<\/dd>/);
-  assert.match(page, /The included \/demo is a guaranteed fallback/);
+  assert.match(page, /id="judges"/);
+  assert.doesNotMatch(launcher, /fallback/i);
+  assert.doesNotMatch(page, /fallback/i);
   assert.doesNotMatch(page, /11 page-hosted tools · zero provider keys/);
   assert.doesNotMatch(page, /Public capture is a bounded secondary path/);
+  assert.doesNotMatch(page, /Why WebMCP/);
+  assert.doesNotMatch(page, /Open \/demo/);
 });
 
 test("the landing uses valid named regions and definition-list groups", () => {
@@ -79,20 +93,30 @@ test("the landing leads with a measured capture and explains WebMCP without fabr
   const page = readSource("app", "page.tsx");
   const styles = readSource("app", "page.module.css");
 
-  assert.match(
-    page,
-    /Sundae puts ChatGPT’s Site Tools on the live page you are looking at, so[\s\S]*measurement, judgment, and fresh recapture stay in one place/,
-  );
+  assert.match(page, /AI audits your product&apos;s design\./);
+  assert.doesNotMatch(page, /together/i);
+  assert.match(page, /Every finding is a measurement you can check/);
+  assert.match(page, /fixes[\s\S]*proved by fresh evidence/);
   assert.match(page, /measured its primary call-to-action at 4\.09:1 contrast/);
   assert.match(page, /Measured from a live capture of todoist\.com at mobile/);
   assert.match(
     page,
     /The image, conversation, evidence, and decision trail live in different places/,
   );
-  assert.match(page, /ChatGPT operates goal-shaped Site Tools on the visible board/);
+  assert.match(page, /Findings sit on the live page/);
+  assert.match(page, /For WebMCP Challenge judges/);
+  assert.match(page, /GPT-5\.6 Luna has WebMCP disabled/);
+  assert.match(page, /Enterprise[\s\S]*Edu/);
+  assert.match(page, /A host may deny an individual tool call/);
+  assert.match(page, /audit_current_scope/);
+  assert.match(page, /verify_recapture/);
   assert.match(styles, /\.liveSet\s*\{/);
   assert.match(styles, /\.rundown\s*\{/);
   assert.match(styles, /\.playhead\s*\{/);
+  assert.match(
+    styles,
+    /\.wordmark\s*\{[\s\S]*?min-block-size:\s*calc\(var\(--space-xl\) \+ var\(--space-xs\)\)/,
+  );
   assert.match(
     styles,
     /\.landing > header,[\s\S]*?\.landing > main > \.hero\s*\{[\s\S]*?isolation:\s*isolate;/,
@@ -104,6 +128,10 @@ test("the landing leads with a measured capture and explains WebMCP without fabr
   assert.doesNotMatch(styles, /\.playhead\s*\{[\s\S]*?animation:[^;]*infinite/);
   assert.doesNotMatch(styles, /(?:inline-size|block-size):\s*thin;/);
   assert.doesNotMatch(styles, /\.proofShell\s*\{|\.evidenceSheet\s*\{/);
+  assert.doesNotMatch(
+    styles,
+    /\.hero\s*\{[\s\S]*?padding-block:\s*var\(--space-2xl\) var\(--space-3xl\)/,
+  );
 });
 
 test("the explanatory signal settles and preserves an intentional reduced-motion state", () => {
@@ -171,7 +199,8 @@ test("public hostnames use a forgiving text field and Desktop guidance stays hon
 
   assert.match(launcher, /type="text"[\s\S]{0,80}inputMode="url"/);
   assert.doesNotMatch(launcher, /type="url"/);
-  assert.match(launcher, /Human controls ready/);
+  assert.match(launcher, /Type a public URL and press Enter/);
+  assert.doesNotMatch(launcher, /Human controls ready/);
   assert.match(launcher, /ChatGPT Desktop/);
   assert.match(launcher, /Work Cloud/);
   assert.match(launcher, /Audit with ChatGPT/);
@@ -180,6 +209,8 @@ test("public hostnames use a forgiving text field and Desktop guidance stays hon
   assert.doesNotMatch(launcher, /Prepare Desktop handoff/);
   assert.match(page, /ChatGPT Work Cloud/);
   assert.match(page, /built-in browser or ChatGPT Work Cloud/);
+  assert.match(page, /For WebMCP Challenge judges/);
+  assert.match(page, /<ChatGptNextStep/);
 });
 
 test("the controlled fixture cannot scroll away from its evidence pins", () => {

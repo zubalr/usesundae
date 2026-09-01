@@ -267,9 +267,7 @@ function AuditTopbar({
       ? "Awaiting capture"
       : auditing
         ? "Capturing…"
-        : mode === "remote"
-          ? "Recapture page"
-          : "Audit live target";
+        : "Re-measure";
   const agentToolCalls = countAgentToolCalls(activity);
 
   return (
@@ -954,7 +952,7 @@ function FindingList({
           <span />
         </div>
       ) : null}
-      {baseline ? (
+      {baseline && productFindings.length > 0 ? (
         <div className={styles.findingLane}>
           <div className={styles.laneHead}>
             <h3>Product findings</h3>
@@ -966,12 +964,6 @@ function FindingList({
             startIndex={0}
             onFocusFinding={onFocusFinding}
           />
-          {productFindings.length === 0 ? (
-            <p className={styles.emptyCopy}>
-              No supported product fault recorded yet. A strong sampled surface may legitimately
-              remain empty.
-            </p>
-          ) : null}
         </div>
       ) : null}
       {baseline ? (
