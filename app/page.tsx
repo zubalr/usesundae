@@ -43,14 +43,14 @@ const RUNDOWN_STEPS = [
 
 const DEMO_TOOLS = [
   ["audit_current_scope", "Measure the live included target; returns the first board page"],
-  ["inspect_agent_surface", "Inspect the controlled target's WebMCP contracts"],
+  ["inspect_agent_surface", "Inspect the controlled target’s WebMCP contracts"],
   ["get_board_context", "Read bounded evidence, decisions, gaps, and next work"],
   ["record_audit_brief", "Orient the product before judging the interface"],
   ["record_review_result", "Preserve a strength or an inspected no-issue result"],
   ["record_visual_finding", "Add a supported UI, UX, or Interaction judgment"],
   ["record_coverage_gap", "Record an important surface that was not observed"],
   ["focus_finding", "Select evidence on the visible board"],
-  ["set_finding_decision", "Record the person's reversible decision and reason"],
+  ["set_finding_decision", "Record the person’s reversible decision and reason"],
   ["preview_fix", "Render a reversible local preview"],
   ["verify_recapture", "Re-measure the same scope before calling a fact fixed"],
 ] as const;
@@ -222,7 +222,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 WebMCP is the warrant for the audit. Site Tools have been verified on GPT-5.6 Sol
                 and GPT-5.6 Terra in two places: the ChatGPT desktop app&rsquo;s built-in browser,
                 and ChatGPT Work Cloud at chatgpt.com. GPT-5.6 Luna has WebMCP disabled and will not
-                discover Site Tools. Site tools are also unavailable in Enterprise and Edu
+                discover Site Tools. Site Tools are also unavailable in Enterprise and Edu
                 workspaces. A host may deny an individual tool call; the rest of the audit still
                 completes.
               </p>

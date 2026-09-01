@@ -42,7 +42,7 @@ Without WebMCP, this workflow collapses into a screenshot conversation, a hidden
 
 ## Judge path
 
-Site Tools have been verified on **GPT-5.6 Sol** and **GPT-5.6 Terra** in two places: the ChatGPT desktop app, and ChatGPT **Work Cloud** at chatgpt.com. OpenAI's Site tools documentation currently names only the desktop app. **GPT-5.6 Luna has WebMCP disabled** and will not discover Site Tools. Site tools are also unavailable in Enterprise and Edu workspaces.
+Site Tools have been verified on **GPT-5.6 Sol** and **GPT-5.6 Terra** in two places: the ChatGPT desktop app, and ChatGPT **Work Cloud** at chatgpt.com. OpenAI's Site tools documentation currently names only the desktop app. **GPT-5.6 Luna has WebMCP disabled** and will not discover Site Tools. Site Tools are also unavailable in Enterprise and Edu workspaces.
 
 1. Open ChatGPT Desktop's built-in browser, or ChatGPT Work Cloud's browser, at `https://usesundae.vercel.app/demo`.
 2. Click **Site tools** in the browser address bar. You should see **11 Sundae tools**. If the panel is empty, check the model first.

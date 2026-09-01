@@ -174,8 +174,8 @@ export function ChatGptNextStep({ includedDemoUrl }: { includedDemoUrl: string }
         <Icon name="agent" /> Audit with ChatGPT
       </button>
       <p>
-        Continue in ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud after the capture.
-        Site Tools appear on the open workspace.
+        Continue in ChatGPT Desktop&rsquo;s built-in browser or ChatGPT Work Cloud after the
+        capture. Site Tools appear on the open workspace.
       </p>
       {error ? (
         <p className={styles.error} role="alert" tabIndex={-1} ref={errorRef}>
