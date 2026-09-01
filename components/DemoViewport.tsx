@@ -5,6 +5,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 import type { DemoState, Viewport } from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
+import type { CaptureProgressStage } from "@/lib/workbench/capture-progress";
+import { captureProgressLabel } from "@/lib/workbench/capture-progress";
 import type { VisibleFinding } from "@/lib/workbench/types";
 import styles from "./DemoViewport.module.css";
 
@@ -19,6 +21,7 @@ type DemoViewportProps = {
   demoState: DemoState;
   checkpoint: RemoteCheckpoint | null;
   pending: boolean;
+  captureProgress?: CaptureProgressStage | null;
   findings: VisibleFinding[];
   selectedId: string | null;
   auditing: boolean;
@@ -32,6 +35,7 @@ export function DemoViewport({
   demoState,
   checkpoint,
   pending,
+  captureProgress = null,
   findings,
   selectedId,
   auditing,
@@ -74,9 +78,19 @@ export function DemoViewport({
         >
           {pending ? (
             <div className={styles.pendingCapture} role="status">
-              <span>Capture required</span>
-              <strong>The requested page has not been inspected.</strong>
-              <p>Approve the prefilled target or use Capture page before evidence appears.</p>
+              <span>
+                {captureProgress ? captureProgressLabel(captureProgress) : "Capture in progress"}
+              </span>
+              <strong>
+                {captureProgress
+                  ? "The human-supplied target is approved for this session."
+                  : "The requested page has not been inspected."}
+              </strong>
+              <p>
+                {captureProgress
+                  ? "Cancel if you need to stop this capture."
+                  : "Sundae will capture the approved public target for this session."}
+              </p>
             </div>
           ) : checkpoint ? (
             <img

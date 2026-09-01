@@ -234,14 +234,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div>
               <h2 id="desktop-title">ChatGPT Desktop discovers the tools from the page.</h2>
               <p>
-                A webpage cannot force-open ChatGPT&apos;s built-in browser. Prepare the exact
-                workspace here, then paste its URL into that browser. If Site Tools are unavailable,
-                Sundae says so and keeps the human controls usable.
+                A webpage cannot force-open ChatGPT. Prepare the exact workspace here, then open it
+                in ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud. If Site Tools are
+                unavailable, Sundae says so and keeps the human controls usable.
               </p>
             </div>
             <ol>
               <li>Prepare the included demo or an approved public workspace.</li>
-              <li>Open ChatGPT Desktop&apos;s built-in browser and paste the exact URL.</li>
+              <li>
+                Open ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud and paste the
+                exact URL.
+              </li>
               <li>Wait for Site Tools to appear before asking ChatGPT to audit.</li>
             </ol>
             <a href="#launch">Prepare the handoff</a>

@@ -247,12 +247,18 @@
 }
 
 .authorityBar {
-  display: grid;
-  grid-template-columns: minmax(var(--space-3xl), 0.35fr) minmax(var(--space-none), 1.65fr);
-  gap: var(--space-l);
+  display: block;
   padding: var(--space-s) var(--space-l);
   border-bottom: thin solid var(--border);
   background: var(--surface-raised);
+}
+
+.authorityBar summary {
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.45;
 }
 
 .authorityBar > div,
@@ -725,6 +731,11 @@
 .reviewResults {
   padding: var(--space-m) var(--space-l);
   border-bottom: thin solid var(--border);
+}
+
+.auditBrief > details > summary,
+.gaps > details > summary {
+  cursor: pointer;
 }
 
 .briefSummary {

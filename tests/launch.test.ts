@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildChatGptComposerUrl,
   buildChatGptHandoffPrompt,
   buildPublicDemoWorkspacePath,
   buildWorkspaceUrl,
@@ -43,11 +44,15 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /No plugin or connection is required/);
   assert.ok(prompt.includes(workspaceUrl));
   assert.match(prompt, /wait for Sundae Site Tools/i);
-  assert.match(prompt, /Allow agent to capture/);
-  assert.match(prompt, /Capture myself/);
-  assert.match(prompt, /alternatives.*never ask me to do both/is);
-  assert.doesNotMatch(prompt, /chatgpt\.com/i);
+  assert.match(prompt, /approved for this session/i);
+  assert.match(prompt, /capture_public_page/);
+  assert.doesNotMatch(prompt, /Allow agent to capture/);
+  assert.doesNotMatch(prompt, /Capture myself/);
   assert.doesNotMatch(prompt, /start.audit|workspace.ready/i);
+  assert.equal(
+    buildChatGptComposerUrl(prompt),
+    `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
+  );
   assert.match(prompt, /get_board_context/);
   assert.match(prompt, /`uncaptured_nav`.*`capture_visible_nav`/is);
   assert.match(prompt, /`capture_visible_nav`.*accepts no URL/is);

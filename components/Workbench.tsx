@@ -42,7 +42,18 @@ import {
 import { DEMO_TOOL_CONTRACTS } from "@/lib/demo/tools";
 import { resolveInitialTargetMode, resolvePublicDemoUrl } from "@/lib/launch";
 import { boundedText } from "@/lib/text";
-import { assertApprovedForActor, canonicalizeApprovedUrl } from "@/lib/workbench/approval";
+import {
+  assertApprovedForActor,
+  canonicalizeApprovedUrl,
+  seedApprovedUrl,
+  shouldAutoStartPublicCapture,
+} from "@/lib/workbench/approval";
+import {
+  acceptFollowThroughKind,
+  acceptFollowThroughReceipt,
+  runAcceptFollowThrough,
+} from "@/lib/workbench/accept-follow-through";
+import type { CaptureProgressStage } from "@/lib/workbench/capture-progress";
 import { deriveCoverageSummary, inferSurfaceType } from "@/lib/workbench/coverage";
 import {
   assertSameJourneyOrigin,
@@ -217,13 +228,6 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function displayUrlWithoutPrivateState(value: string) {
-  const target = new URL(value);
-  target.search = "";
-  target.hash = "";
-  return target.toString();
-}
-
 async function requestCheckpoint(
   url: string,
   viewport: Viewport,
@@ -309,19 +313,32 @@ export function Workbench({
   const journeyRef = useRef<JourneyEntry[]>([]);
   const visibleNavRef = useRef<VisibleNavRoute[]>([]);
   const checkpointRecordsRef = useRef<Map<string, CheckpointRecord>>(new Map());
-  const approvedUrlsRef = useRef<Set<string>>(new Set());
+  const seededUrl = seedApprovedUrl(initialUrl);
+  const approvedUrlsRef = useRef<Set<string>>(new Set(seededUrl ? [seededUrl] : []));
   const draftApprovalRef = useRef<string | null>(null);
   const latestOperationRef = useRef(new LatestOperation());
   const auditCountRef = useRef(0);
   const inspectorRef = useRef<HTMLElement>(null);
+  const captureAbortRef = useRef<AbortController | null>(null);
+  const cssDraftRef = useRef("");
+  const didAutoStartRef = useRef(false);
 
   const [mode, setMode] = useState<TargetMode>(initialMode);
   const [viewport, setViewport] = useState<Viewport>("mobile");
   const [demoState, setDemoState] = useState<DemoState>("baseline");
   const [urlDraft, setUrlDraft] = useState(initialUrl);
   const [waitForSelectorDraft, setWaitForSelectorDraft] = useState("");
-  const [draftApproved, setDraftApproved] = useState(false);
+  const [draftApproved, setDraftApproved] = useState(Boolean(seededUrl));
   const [cssDraft, setCssDraft] = useState("");
+  const [captureProgress, setCaptureProgress] = useState<CaptureProgressStage | null>(
+    shouldAutoStartPublicCapture({
+      mode: initialMode,
+      initialUrl,
+      hasCheckpoint: false,
+    })
+      ? "rendering"
+      : null,
+  );
   const [checkpoint, setCheckpoint] = useState<RemoteCheckpoint | null>(null);
   const [baselineSnapshots, setBaselineSnapshots] = useState<SnapshotMap>({});
   const [currentSnapshots, setCurrentSnapshots] = useState<SnapshotMap>({});
@@ -329,7 +346,14 @@ export function Workbench({
   const [verification, setVerification] = useState<Record<string, VerificationReceipt>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activity, setActivity] = useState<Activity[]>([]);
-  const [auditing, setAuditing] = useState(initialMode === "sample");
+  const [auditing, setAuditing] = useState(
+    initialMode === "sample" ||
+      shouldAutoStartPublicCapture({
+        mode: initialMode,
+        initialUrl,
+        hasCheckpoint: false,
+      }),
+  );
   const [error, setError] = useState<string | null>(null);
   const [journey, setJourney] = useState<JourneyEntry[]>([]);
   const [decisionReason, setDecisionReason] = useState("");
@@ -338,6 +362,7 @@ export function Workbench({
   const [auditBrief, setAuditBrief] = useState<AuditBrief | null>(null);
   const [reviewResults, setReviewResults] = useState<ReviewResult[]>([]);
   const [activePreviewFindingId, setActivePreviewFindingId] = useState<string | null>(null);
+  cssDraftRef.current = cssDraft;
 
   useEffect(
     () => () => {
@@ -584,114 +609,121 @@ export function Workbench({
       const continuesAudit = modeRef.current === "remote" && remoteUrlRef.current === approvedUrl;
       const waitSelector = resolveWaitForSelector(waitForSelector);
       const operationEpoch = beginRemoteOperation();
-      const nextCheckpoint = await fetchRemote(approvedUrl, nextViewport, {
-        waitForSelector: waitSelector,
-        signal,
-        fullPage: true,
-      });
-      assertCurrentOperation(operationEpoch, signal);
+      setCaptureProgress("rendering");
+      try {
+        const nextCheckpoint = await fetchRemote(approvedUrl, nextViewport, {
+          waitForSelector: waitSelector,
+          signal,
+          fullPage: true,
+        });
+        assertCurrentOperation(operationEpoch, signal);
+        setCaptureProgress("measuring");
 
-      if (!continuesAudit) resetEvidence();
-      const visibleNav = [
-        ...new Map(
-          [...visibleNavRef.current, ...nextCheckpoint.visibleNav].map((route) => [
-            canonicalizeApprovedUrl(route.url),
-            route,
-          ]),
-        ).values(),
-      ].slice(0, 4);
-      visibleNavRef.current = visibleNav;
-      modeRef.current = "remote";
-      viewportRef.current = nextViewport;
-      demoStateRef.current = "baseline";
-      previewCssRef.current = undefined;
-      previewFindingIdRef.current = null;
-      remoteUrlRef.current = approvedUrl;
-      fullPageRef.current = nextCheckpoint.capture.fullPage;
-      waitForSelectorRef.current = waitSelector;
-      checkpointRef.current = nextCheckpoint;
-      checkpointRecordsRef.current.set(nextCheckpoint.id, {
-        checkpoint: nextCheckpoint,
-        captureUrl: approvedUrl,
-      });
-      approvedUrlsRef.current = new Set([
-        ...approvedUrlsRef.current,
-        approvedUrl,
-        ...visibleNav.map((route) => canonicalizeApprovedUrl(route.url)),
-      ]);
-      draftApprovalRef.current = null;
-      baselineCheckpointRef.current = {
-        ...baselineCheckpointRef.current,
-        [nextViewport]: nextCheckpoint,
-      };
-      setMode("remote");
-      setViewport(nextViewport);
-      setDemoState("baseline");
-      setActivePreviewFindingId(null);
-      setCheckpoint(nextCheckpoint);
-      setUrlDraft(nextCheckpoint.target.displayUrl);
-      setWaitForSelectorDraft(waitSelector ?? "");
-      setDraftApproved(false);
+        if (!continuesAudit) resetEvidence();
+        const visibleNav = [
+          ...new Map(
+            [...visibleNavRef.current, ...nextCheckpoint.visibleNav].map((route) => [
+              canonicalizeApprovedUrl(route.url),
+              route,
+            ]),
+          ).values(),
+        ].slice(0, 4);
+        visibleNavRef.current = visibleNav;
+        modeRef.current = "remote";
+        viewportRef.current = nextViewport;
+        demoStateRef.current = "baseline";
+        previewCssRef.current = undefined;
+        previewFindingIdRef.current = null;
+        remoteUrlRef.current = approvedUrl;
+        fullPageRef.current = nextCheckpoint.capture.fullPage;
+        waitForSelectorRef.current = waitSelector;
+        checkpointRef.current = nextCheckpoint;
+        checkpointRecordsRef.current.set(nextCheckpoint.id, {
+          checkpoint: nextCheckpoint,
+          captureUrl: approvedUrl,
+        });
+        approvedUrlsRef.current = new Set([
+          ...approvedUrlsRef.current,
+          approvedUrl,
+          ...visibleNav.map((route) => canonicalizeApprovedUrl(route.url)),
+        ]);
+        draftApprovalRef.current = null;
+        baselineCheckpointRef.current = {
+          ...baselineCheckpointRef.current,
+          [nextViewport]: nextCheckpoint,
+        };
+        setMode("remote");
+        setViewport(nextViewport);
+        setDemoState("baseline");
+        setActivePreviewFindingId(null);
+        setCheckpoint(nextCheckpoint);
+        setUrlDraft(nextCheckpoint.target.displayUrl);
+        setWaitForSelectorDraft(waitSelector ?? "");
+        setDraftApproved(true);
 
-      const snapshot = snapshotFromCheckpoint(nextCheckpoint);
-      const uncapturedNav = uncapturedVisibleNav(visibleNav, [
-        approvedUrl,
-        ...journeyRef.current.map((step) => step.displayUrl),
-      ]);
-      if (uncapturedNav.length > 0) {
-        snapshot.gaps = [
-          ...snapshot.gaps,
-          {
-            ...visibleNavGap(uncapturedNav.length),
-            checkpointId: nextCheckpoint.id,
-            scopeKey: nextCheckpoint.scopeId,
-          },
-        ];
+        const snapshot = snapshotFromCheckpoint(nextCheckpoint);
+        setCaptureProgress("grouping");
+        const uncapturedNav = uncapturedVisibleNav(visibleNav, [
+          approvedUrl,
+          ...journeyRef.current.map((step) => step.displayUrl),
+        ]);
+        if (uncapturedNav.length > 0) {
+          snapshot.gaps = [
+            ...snapshot.gaps,
+            {
+              ...visibleNavGap(uncapturedNav.length),
+              checkpointId: nextCheckpoint.id,
+              scopeKey: nextCheckpoint.scopeId,
+            },
+          ];
+        }
+        commitSnapshot(snapshot);
+        const firstStep: JourneyEntry = {
+          checkpointId: nextCheckpoint.id,
+          scopeId: nextCheckpoint.scopeId,
+          label: nextCheckpoint.title || "Entry page",
+          displayUrl: nextCheckpoint.target.displayUrl,
+          capturedAt: nextCheckpoint.capturedAt,
+          findingCount: snapshot.findings.length,
+          viewport: nextCheckpoint.viewport,
+          surfaceType: "entry",
+          state: "settled render",
+          captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
+          reason: continuesAudit
+            ? `Add ${nextViewport} evidence for the same approved page`
+            : "Establish the visible proposition and entry job",
+          motion: "not_seen",
+        };
+        journeyRef.current = continuesAudit
+          ? [...journeyRef.current, firstStep].slice(-12)
+          : [firstStep];
+        setJourney(journeyRef.current);
+        const browserMs = browserMsReceipt(nextCheckpoint);
+        pushActivity(
+          actor,
+          "Captured public page",
+          `${nextCheckpoint.target.displayUrl} · ${nextViewport} · ${nextCheckpoint.id}${browserMs.suffix}`,
+          toolName,
+        );
+        return {
+          ok: true,
+          receipt: `Created rendered checkpoint ${nextCheckpoint.id}.`,
+          target: nextCheckpoint.target,
+          checkpoint_id: nextCheckpoint.id,
+          scope_id: nextCheckpoint.scopeId,
+          viewport: nextCheckpoint.viewport,
+          capture_extent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
+          measured_finding_count: snapshot.findings.length,
+          coverage_gaps: snapshot.gaps,
+          visible_nav: uncapturedNav,
+          next: uncapturedNav.length
+            ? "Call get_board_context, then capture_visible_nav for the listed same-origin routes."
+            : "Inspect the screenshot, then use record_visual_finding for visible product judgments.",
+          ...browserMs.fields,
+        };
+      } finally {
+        setCaptureProgress(null);
       }
-      commitSnapshot(snapshot);
-      const firstStep: JourneyEntry = {
-        checkpointId: nextCheckpoint.id,
-        scopeId: nextCheckpoint.scopeId,
-        label: nextCheckpoint.title || "Entry page",
-        displayUrl: nextCheckpoint.target.displayUrl,
-        capturedAt: nextCheckpoint.capturedAt,
-        findingCount: snapshot.findings.length,
-        viewport: nextCheckpoint.viewport,
-        surfaceType: "entry",
-        state: "settled render",
-        captureExtent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
-        reason: continuesAudit
-          ? `Add ${nextViewport} evidence for the same approved page`
-          : "Establish the visible proposition and entry job",
-        motion: "not_seen",
-      };
-      journeyRef.current = continuesAudit
-        ? [...journeyRef.current, firstStep].slice(-12)
-        : [firstStep];
-      setJourney(journeyRef.current);
-      const browserMs = browserMsReceipt(nextCheckpoint);
-      pushActivity(
-        actor,
-        "Captured public page",
-        `${nextCheckpoint.target.displayUrl} · ${nextViewport} · ${nextCheckpoint.id}${browserMs.suffix}`,
-        toolName,
-      );
-      return {
-        ok: true,
-        receipt: `Created rendered checkpoint ${nextCheckpoint.id}.`,
-        target: nextCheckpoint.target,
-        checkpoint_id: nextCheckpoint.id,
-        scope_id: nextCheckpoint.scopeId,
-        viewport: nextCheckpoint.viewport,
-        capture_extent: nextCheckpoint.capture.fullPage ? "full-page" : "viewport",
-        measured_finding_count: snapshot.findings.length,
-        coverage_gaps: snapshot.gaps,
-        visible_nav: uncapturedNav,
-        next: uncapturedNav.length
-          ? "Call get_board_context, then capture_visible_nav for the listed same-origin routes."
-          : "Inspect the screenshot, then use record_visual_finding for visible product judgments.",
-        ...browserMs.fields,
-      };
     },
     [
       assertCurrentOperation,
@@ -1991,6 +2023,46 @@ export function Workbench({
     ],
   );
 
+  const setFindingDecisionWithFollowThrough = useCallback(
+    async (
+      findingId: string,
+      decision: Decision,
+      reason: string,
+      actor: Actor,
+      toolName?: string,
+    ): Promise<CommandResult> => {
+      const accept = await setFindingDecision(findingId, decision, reason, actor, toolName);
+      const kind = acceptFollowThroughKind({
+        decision,
+        mode: modeRef.current,
+        previewCss: cssDraftRef.current,
+      });
+      if (kind === "none" || !accept.ok) return accept;
+      try {
+        return await runAcceptFollowThrough({
+          kind,
+          accept,
+          findingId,
+          actor,
+          waitForSelector: waitForSelectorRef.current,
+          toolName,
+          previewCss: modeRef.current === "remote" ? cssDraftRef.current : undefined,
+          previewFix,
+          verifyRecapture,
+          auditCurrentScope,
+        });
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : "Follow-through did not complete.";
+        return {
+          ...accept,
+          receipt: `${acceptFollowThroughReceipt(kind, accept.receipt)} ${message}`,
+          follow_through_error: message,
+        };
+      }
+    },
+    [auditCurrentScope, previewFix, setFindingDecision, verifyRecapture],
+  );
+
   const actualCommands: WorkbenchCommands = {
     capturePublicPage,
     captureJourneyStep,
@@ -2004,7 +2076,7 @@ export function Workbench({
     recordVisualFinding,
     recordCoverageGap,
     focusFinding,
-    setFindingDecision,
+    setFindingDecision: setFindingDecisionWithFollowThrough,
     previewFix,
     verifyRecapture,
   };
@@ -2080,6 +2152,31 @@ export function Workbench({
   useEffect(() => {
     if (iframeRef.current?.contentDocument?.readyState === "complete") scheduleAudit();
   }, [scheduleAudit]);
+
+  useEffect(() => {
+    if (didAutoStartRef.current) return;
+    if (
+      !shouldAutoStartPublicCapture({
+        mode: initialMode,
+        initialUrl,
+        hasCheckpoint: false,
+      })
+    ) {
+      return;
+    }
+    didAutoStartRef.current = true;
+    const seeded = seedApprovedUrl(initialUrl);
+    if (!seeded) return;
+    const controller = new AbortController();
+    captureAbortRef.current = controller;
+    runVisibleCommand(capturePublicPage(seeded, viewportRef.current, "human", controller.signal));
+    return () => controller.abort();
+  }, [capturePublicPage, initialMode, initialUrl, runVisibleCommand]);
+
+  const cancelCapture = useCallback(() => {
+    captureAbortRef.current?.abort();
+    setCaptureProgress(null);
+  }, []);
 
   const showSample = useCallback(() => {
     beginRemoteOperation();
@@ -2173,8 +2270,17 @@ export function Workbench({
   const submitCapture = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+      captureAbortRef.current?.abort();
+      const controller = new AbortController();
+      captureAbortRef.current = controller;
       runVisibleCommand(
-        capturePublicPage(urlDraft, viewportRef.current, "human", undefined, waitForSelectorDraft),
+        capturePublicPage(
+          urlDraft,
+          viewportRef.current,
+          "human",
+          controller.signal,
+          waitForSelectorDraft,
+        ),
       );
     },
     [capturePublicPage, runVisibleCommand, urlDraft, waitForSelectorDraft],
@@ -2185,32 +2291,13 @@ export function Workbench({
       approvedUrlsRef.current.delete(draftApprovalRef.current);
       draftApprovalRef.current = null;
     }
-    setDraftApproved(false);
     setUrlDraft(value);
-  }, []);
-
-  const approveUrlDraftForAgent = useCallback(() => {
     try {
-      const approvedUrl = canonicalizeApprovedUrl(urlDraft);
-      if (draftApprovalRef.current) approvedUrlsRef.current.delete(draftApprovalRef.current);
-      draftApprovalRef.current = approvedUrl;
-      approvedUrlsRef.current.add(approvedUrl);
-      setDraftApproved(true);
-      setError(null);
-      pushActivity(
-        "human",
-        "Allowed capture target",
-        `${displayUrlWithoutPrivateState(approvedUrl)} · exact private URL state retained in this browser session`,
-      );
-    } catch (cause) {
+      setDraftApproved(approvedUrlsRef.current.has(canonicalizeApprovedUrl(value)));
+    } catch {
       setDraftApproved(false);
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Enter a complete public URL before allowing the agent to capture it.",
-      );
     }
-  }, [pushActivity, urlDraft]);
+  }, []);
 
   const submitManualJudgment = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -2323,7 +2410,8 @@ export function Workbench({
       onSubmitCapture={submitCapture}
       onChangeUrlDraft={changeUrlDraft}
       onChangeWaitForSelectorDraft={setWaitForSelectorDraft}
-      onApproveUrlDraft={approveUrlDraftForAgent}
+      captureProgress={captureProgress}
+      onCancelCapture={cancelCapture}
       onCaptureJourneyStep={(url, label) =>
         runVisibleCommand(captureJourneyStep(url, label, "human", undefined, waitForSelectorDraft))
       }
@@ -2336,7 +2424,7 @@ export function Workbench({
       onScheduleAudit={() => scheduleAudit()}
       onFocusFinding={(findingId) => runVisibleCommand(focusFinding(findingId, "human"))}
       onSetFindingDecision={(findingId, decision, reason) =>
-        runVisibleCommand(setFindingDecision(findingId, decision, reason, "human"))
+        runVisibleCommand(setFindingDecisionWithFollowThrough(findingId, decision, reason, "human"))
       }
       onChangeDecisionReason={setDecisionReason}
       onChangeJudgmentDraft={setJudgmentDraft}

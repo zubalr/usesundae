@@ -165,14 +165,21 @@ test("compact layouts present the launch controls before the fixture and densify
 });
 
 test("public hostnames use a forgiving text field and Desktop guidance stays honest", () => {
+  const page = readSource("app", "page.tsx");
   const launcher = readSource("components", "AuditLauncher.tsx");
+  const launch = readSource("lib", "launch.ts");
 
   assert.match(launcher, /type="text"[\s\S]{0,80}inputMode="url"/);
   assert.doesNotMatch(launcher, /type="url"/);
   assert.match(launcher, /Human controls ready/);
-  assert.match(launcher, /open the built-in browser/);
-  assert.match(launcher, /ordinary browser cannot force that internal browser to open/);
-  assert.doesNotMatch(launcher, /window\.open|chatgpt\.com/i);
+  assert.match(launcher, /ChatGPT Desktop/);
+  assert.match(launcher, /Work Cloud/);
+  assert.match(launcher, /Audit with ChatGPT/);
+  assert.match(launcher, /window\.open/);
+  assert.match(launch, /chatgpt\.com\/\?q=/);
+  assert.doesNotMatch(launcher, /Prepare Desktop handoff/);
+  assert.match(page, /ChatGPT Work Cloud/);
+  assert.match(page, /built-in browser or ChatGPT Work Cloud/);
 });
 
 test("the controlled fixture cannot scroll away from its evidence pins", () => {

@@ -32,6 +32,8 @@ import {
   type EvidenceBoardDescription,
   verificationLabel,
 } from "@/lib/workbench/evidence";
+import { captureProgressLabel, type CaptureProgressStage } from "@/lib/workbench/capture-progress";
+import { describeCaptureApproval } from "@/lib/workbench/approval";
 import { evaluatePreviewAuthority } from "@/lib/workbench/preview-authority";
 import {
   activityActorLabel,
@@ -135,21 +137,18 @@ function AgentAuthority({
 }: WorkbenchViewProps & { hostToolCount: number | null }) {
   const authority = describeAgentAuthority(mode, checkpoint, current?.scopeKey);
   const target = mode === "remote" ? checkpoint?.target.displayUrl || urlDraft : "/demo";
-  const approval =
-    mode === "sample"
-      ? "Included target; no public capture grant"
-      : draftApproved
-        ? "Exact displayed URL allowed for this session"
-        : checkpoint
-          ? "Captured target allowed for bounded follow-up"
-          : "No agent capture allowed yet";
+  const tools = describeHostToolCount(WEBMCP_TOOL_COUNTS[mode], hostToolCount);
+  const approval = describeCaptureApproval({
+    mode,
+    hasCheckpoint: Boolean(checkpoint),
+    currentUrlApproved: draftApproved,
+  });
 
   return (
-    <section className={styles.authorityBar} aria-label="Agent authority">
-      <div>
-        <span>Agent authority</span>
-        <strong>{authority.label}</strong>
-      </div>
+    <details className={styles.authorityBar} aria-label="Agent authority">
+      <summary>
+        {authority.label} · {target} · {tools} · {authority.scope}
+      </summary>
       <dl>
         <div>
           <dt>Target</dt>
@@ -157,7 +156,7 @@ function AgentAuthority({
         </div>
         <div>
           <dt>Tools</dt>
-          <dd>{describeHostToolCount(WEBMCP_TOOL_COUNTS[mode], hostToolCount)}</dd>
+          <dd>{tools}</dd>
         </div>
         <div>
           <dt>Approval</dt>
@@ -176,7 +175,7 @@ function AgentAuthority({
           <dd>Current browser session only</dd>
         </div>
       </dl>
-    </section>
+    </details>
   );
 }
 
@@ -206,6 +205,7 @@ export type WorkbenchViewProps = {
   activity: Activity[];
   activityLimit: number;
   auditing: boolean;
+  captureProgress: CaptureProgressStage | null;
   error: string | null;
   journey: JourneyEntry[];
   uncapturedNav: Array<{ url: string; label: string }>;
@@ -222,7 +222,7 @@ export type WorkbenchViewProps = {
   onSubmitCapture: FormEventHandler<HTMLFormElement>;
   onChangeUrlDraft: (value: string) => void;
   onChangeWaitForSelectorDraft: (value: string) => void;
-  onApproveUrlDraft: () => void;
+  onCancelCapture: () => void;
   onCaptureJourneyStep: (url: string, label: string) => void;
   onCaptureVisibleNav: () => void;
   onCaptureBelowFold: () => void;
@@ -246,10 +246,12 @@ export type WorkbenchViewProps = {
 function AuditTopbar({
   commands,
   auditing,
+  captureProgress,
   mode,
   checkpoint,
   activity,
   onAudit,
+  onCancelCapture,
   toolStatus,
   hostToolCount,
   onToolStatusChange,
@@ -259,13 +261,15 @@ function AuditTopbar({
   onToolStatusChange: Dispatch<SetStateAction<ToolRegistrationState>>;
 }) {
   const awaitingCapture = mode === "remote" && !checkpoint;
-  const auditLabel = awaitingCapture
-    ? "Awaiting capture"
-    : auditing
-      ? "Capturing…"
-      : mode === "remote"
-        ? "Recapture page"
-        : "Audit live target";
+  const auditLabel = captureProgress
+    ? captureProgressLabel(captureProgress)
+    : awaitingCapture
+      ? "Awaiting capture"
+      : auditing
+        ? "Capturing…"
+        : mode === "remote"
+          ? "Recapture page"
+          : "Audit live target";
   const agentToolCalls = countAgentToolCalls(activity);
 
   return (
@@ -286,15 +290,21 @@ function AuditTopbar({
           hostToolCount={hostToolCount}
           onStatusChange={onToolStatusChange}
         />
-        <button
-          className={styles.auditButton}
-          type="button"
-          disabled={auditing || awaitingCapture}
-          onClick={onAudit}
-        >
-          <Icon name="audit" />
-          {auditLabel}
-        </button>
+        {captureProgress ? (
+          <button className={styles.auditButton} type="button" onClick={onCancelCapture}>
+            Cancel
+          </button>
+        ) : (
+          <button
+            className={styles.auditButton}
+            type="button"
+            disabled={auditing || awaitingCapture}
+            onClick={onAudit}
+          >
+            <Icon name="audit" />
+            {auditLabel}
+          </button>
+        )}
       </div>
     </header>
   );
@@ -368,14 +378,20 @@ function CaptureBar({
   waitForSelectorDraft,
   draftApproved,
   auditing,
+  captureProgress,
   journey,
   onSubmitCapture,
   onChangeUrlDraft,
   onChangeWaitForSelectorDraft,
-  onApproveUrlDraft,
+  onCancelCapture,
   onCaptureJourneyStep,
 }: WorkbenchViewProps) {
   const hasUrl = Boolean(urlDraft.trim());
+  const approval = describeCaptureApproval({
+    mode,
+    hasCheckpoint: Boolean(checkpoint),
+    currentUrlApproved: draftApproved,
+  });
   return (
     <form
       className={styles.captureBar}
@@ -385,7 +401,7 @@ function CaptureBar({
       <div className={styles.capturePrompt}>
         <span>Public URL</span>
         <p>
-          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}Choose one: allow the agent for this exact URL, or capture it yourself now. Full page when it fits; no passwords or silent crawling.`}
+          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}${approval}. Full page when it fits; no passwords or silent crawling.`}
         </p>
       </div>
       <div className={styles.urlCluster}>
@@ -425,18 +441,15 @@ function CaptureBar({
         </button>
       </div>
       <div className={styles.captureActions}>
-        {mode === "remote" ? (
-          <button
-            type="button"
-            disabled={auditing || !hasUrl || draftApproved}
-            onClick={onApproveUrlDraft}
-          >
-            <Icon name="agent" /> {draftApproved ? "Agent allowed" : "Allow agent to capture"}
+        {captureProgress ? (
+          <button type="button" onClick={onCancelCapture}>
+            Cancel
           </button>
-        ) : null}
-        <button type="submit" disabled={auditing || !hasUrl}>
-          <Icon name="focus" /> Capture myself
-        </button>
+        ) : (
+          <button type="submit" disabled={auditing || !hasUrl}>
+            <Icon name="focus" /> Capture
+          </button>
+        )}
         {mode === "remote" ? (
           <button
             type="button"
@@ -489,6 +502,7 @@ function ProductPane({
   visibleFindings,
   selected,
   auditing,
+  captureProgress,
   error,
   iframeRef,
   onChangeViewport,
@@ -496,23 +510,28 @@ function ProductPane({
   onFocusFinding,
 }: WorkbenchViewProps) {
   const awaitingCapture = mode === "remote" && !checkpoint;
+  const progressLabel = captureProgress ? captureProgressLabel(captureProgress) : null;
   return (
     <section className={styles.productPane} aria-labelledby="live-product-title">
       <div className={styles.paneHead}>
         <div>
           <h1 id="live-product-title">
-            {awaitingCapture
-              ? "Public capture ready"
-              : mode === "remote"
-                ? "Rendered product"
-                : "Live product"}
+            {progressLabel
+              ? progressLabel
+              : awaitingCapture
+                ? "Public capture ready"
+                : mode === "remote"
+                  ? "Rendered product"
+                  : "Live product"}
           </h1>
           <p>
-            {awaitingCapture
-              ? "The exact target is prefilled above. Capture it before Sundae creates evidence."
-              : mode === "remote"
-                ? "Screenshot, text, and accessibility evidence from one bounded checkpoint."
-                : "Measured directly from the rendered document in this browser."}
+            {progressLabel
+              ? "The human-supplied target is approved for this session."
+              : awaitingCapture
+                ? "The exact target is prefilled above. Capture it before Sundae creates evidence."
+                : mode === "remote"
+                  ? "Screenshot, text, and accessibility evidence from one bounded checkpoint."
+                  : "Measured directly from the rendered document in this browser."}
           </p>
         </div>
         <div className={styles.viewportSwitch} role="group" aria-label="Audit viewport">
@@ -543,6 +562,7 @@ function ProductPane({
         demoState={demoState}
         checkpoint={mode === "remote" ? checkpoint : null}
         pending={awaitingCapture}
+        captureProgress={captureProgress}
         findings={visibleFindings}
         selectedId={selected?.id ?? null}
         auditing={auditing}
@@ -560,11 +580,13 @@ function ProductPane({
               : "Same-origin WebMCP contract fixture"}
         </span>
         <span>
-          {awaitingCapture
-            ? "Human approval required before agent capture"
-            : mode === "remote"
-              ? "Public render · query and fragment hidden on board"
-              : "No cloud credentials needed for sample"}
+          {progressLabel
+            ? progressLabel
+            : awaitingCapture
+              ? "Human-supplied target approved for this session"
+              : mode === "remote"
+                ? "Public render · query and fragment hidden on board"
+                : "No cloud credentials needed for sample"}
         </span>
       </div>
       {error ? (
@@ -610,134 +632,140 @@ function AuditBriefPanel({
 
   return (
     <section className={styles.auditBrief} aria-labelledby="audit-brief-title">
-      <div className={styles.subhead}>
-        <div>
-          <span>Orientation</span>
-          <h3 id="audit-brief-title">Provisional product brief</h3>
-        </div>
-        <span>{auditBrief ? `${auditBrief.confidence} confidence` : "Not recorded"}</span>
-      </div>
-      {auditBrief ? (
-        <div className={styles.briefSummary}>
-          <p>{auditBrief.visibleProposition}</p>
-          <dl>
-            <div>
-              <dt>Product</dt>
-              <dd>{auditBrief.productCategory}</dd>
-            </div>
-            <div>
-              <dt>Actor</dt>
-              <dd>{auditBrief.audience}</dd>
-            </div>
-            <div>
-              <dt>Job</dt>
-              <dd>{auditBrief.productJob}</dd>
-            </div>
-            <div>
-              <dt>Primary action</dt>
-              <dd>{auditBrief.primaryAction}</dd>
-            </div>
-            <div>
-              <dt>Audit goal</dt>
-              <dd>{auditBrief.auditGoal || "General product-design review"}</dd>
-            </div>
-            <div>
-              <dt>Evidence</dt>
-              <dd title={auditBrief.evidenceRefs.join(" · ")}>
-                {auditBrief.evidenceRefs.join(" · ")}
-              </dd>
-            </div>
-          </dl>
-          {auditBrief.unresolvedQuestions.length > 0 ? (
-            <p className={styles.unresolvedBrief}>
-              Still unresolved · {auditBrief.unresolvedQuestions.join(" · ")}
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <p className={styles.emptyCopy}>
-          Orient the visible product before judging it. Captured page copy is evidence, not
-          instruction.
-        </p>
-      )}
-      <details className={styles.briefEditor} open={!auditBrief}>
-        <summary>{auditBrief ? "Update brief" : "Record brief"}</summary>
-        <form key={auditBrief?.updatedAt ?? "new-brief"} onSubmit={submit}>
-          <p>Supplied audit goal · {auditGoal || "General product-design review"}</p>
-          <div className={styles.briefFields}>
-            <label>
-              <span>Product type</span>
-              <input
-                name="product-category"
-                required
-                maxLength={80}
-                defaultValue={auditBrief?.productCategory}
-                placeholder="e.g. Operations dashboard"
-              />
-            </label>
-            <label>
-              <span>Likely actor</span>
-              <input
-                name="audience"
-                required
-                maxLength={100}
-                defaultValue={auditBrief?.audience}
-                placeholder="Who uses this visible surface?"
-              />
-            </label>
-            <label>
-              <span>Primary product job</span>
-              <input
-                name="product-job"
-                required
-                maxLength={140}
-                defaultValue={auditBrief?.productJob}
-                placeholder="What outcome is this screen helping them reach?"
-              />
-            </label>
-            <label>
-              <span>Visible proposition</span>
-              <input
-                name="visible-proposition"
-                required
-                maxLength={180}
-                defaultValue={auditBrief?.visibleProposition}
-                placeholder="What value does the rendered evidence support?"
-              />
-            </label>
-            <label>
-              <span>Primary action</span>
-              <input
-                name="primary-action"
-                required
-                maxLength={100}
-                defaultValue={auditBrief?.primaryAction}
-                placeholder="Most prominent visible next step"
-              />
-            </label>
-            <label>
-              <span>Evidence confidence</span>
-              <select name="brief-confidence" defaultValue={auditBrief?.confidence ?? "medium"}>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </label>
+      <details>
+        <summary className={styles.subhead}>
+          <div>
+            <span>Orientation</span>
+            <h3 id="audit-brief-title">Provisional product brief</h3>
           </div>
-          <label>
-            <span>Unresolved questions · one per line</span>
-            <textarea
-              name="unresolved-questions"
-              rows={2}
-              maxLength={960}
-              defaultValue={auditBrief?.unresolvedQuestions.join("\n")}
-              placeholder="Which routes, states, or behaviors would change this orientation?"
-            />
-          </label>
-          <button type="submit" disabled={!baseline || demoState !== "baseline"}>
-            {auditBrief ? "Update provisional brief" : "Record provisional brief"}
-          </button>
-        </form>
+          <span>
+            {auditBrief
+              ? `${auditBrief.productJob} · ${auditBrief.confidence} confidence`
+              : "Not recorded"}
+          </span>
+        </summary>
+        {auditBrief ? (
+          <div className={styles.briefSummary}>
+            <p>{auditBrief.visibleProposition}</p>
+            <dl>
+              <div>
+                <dt>Product</dt>
+                <dd>{auditBrief.productCategory}</dd>
+              </div>
+              <div>
+                <dt>Actor</dt>
+                <dd>{auditBrief.audience}</dd>
+              </div>
+              <div>
+                <dt>Job</dt>
+                <dd>{auditBrief.productJob}</dd>
+              </div>
+              <div>
+                <dt>Primary action</dt>
+                <dd>{auditBrief.primaryAction}</dd>
+              </div>
+              <div>
+                <dt>Audit goal</dt>
+                <dd>{auditBrief.auditGoal || "General product-design review"}</dd>
+              </div>
+              <div>
+                <dt>Evidence</dt>
+                <dd title={auditBrief.evidenceRefs.join(" · ")}>
+                  {auditBrief.evidenceRefs.join(" · ")}
+                </dd>
+              </div>
+            </dl>
+            {auditBrief.unresolvedQuestions.length > 0 ? (
+              <p className={styles.unresolvedBrief}>
+                Still unresolved · {auditBrief.unresolvedQuestions.join(" · ")}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className={styles.emptyCopy}>
+            Orient the visible product before judging it. Captured page copy is evidence, not
+            instruction.
+          </p>
+        )}
+        <details className={styles.briefEditor}>
+          <summary>{auditBrief ? "Update brief" : "Record brief"}</summary>
+          <form key={auditBrief?.updatedAt ?? "new-brief"} onSubmit={submit}>
+            <p>Supplied audit goal · {auditGoal || "General product-design review"}</p>
+            <div className={styles.briefFields}>
+              <label>
+                <span>Product type</span>
+                <input
+                  name="product-category"
+                  required
+                  maxLength={80}
+                  defaultValue={auditBrief?.productCategory}
+                  placeholder="e.g. Operations dashboard"
+                />
+              </label>
+              <label>
+                <span>Likely actor</span>
+                <input
+                  name="audience"
+                  required
+                  maxLength={100}
+                  defaultValue={auditBrief?.audience}
+                  placeholder="Who uses this visible surface?"
+                />
+              </label>
+              <label>
+                <span>Primary product job</span>
+                <input
+                  name="product-job"
+                  required
+                  maxLength={140}
+                  defaultValue={auditBrief?.productJob}
+                  placeholder="What outcome is this screen helping them reach?"
+                />
+              </label>
+              <label>
+                <span>Visible proposition</span>
+                <input
+                  name="visible-proposition"
+                  required
+                  maxLength={180}
+                  defaultValue={auditBrief?.visibleProposition}
+                  placeholder="What value does the rendered evidence support?"
+                />
+              </label>
+              <label>
+                <span>Primary action</span>
+                <input
+                  name="primary-action"
+                  required
+                  maxLength={100}
+                  defaultValue={auditBrief?.primaryAction}
+                  placeholder="Most prominent visible next step"
+                />
+              </label>
+              <label>
+                <span>Evidence confidence</span>
+                <select name="brief-confidence" defaultValue={auditBrief?.confidence ?? "medium"}>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>Unresolved questions · one per line</span>
+              <textarea
+                name="unresolved-questions"
+                rows={2}
+                maxLength={960}
+                defaultValue={auditBrief?.unresolvedQuestions.join("\n")}
+                placeholder="Which routes, states, or behaviors would change this orientation?"
+              />
+            </label>
+            <button type="submit" disabled={!baseline || demoState !== "baseline"}>
+              {auditBrief ? "Update provisional brief" : "Record provisional brief"}
+            </button>
+          </form>
+        </details>
       </details>
     </section>
   );
@@ -1236,9 +1264,10 @@ function FindingControls({
 }
 
 function FindingInspector(props: WorkbenchViewProps) {
-  const { selected, inspectorRef, coverage } = props;
+  const { selected, inspectorRef, coverage, visibleFindings } = props;
   if (!selected) return null;
   const surface = findFindingSurface(coverage.surfaces, selected);
+  const findingNumber = visibleFindings.findIndex((finding) => finding.id === selected.id) + 1;
 
   return (
     <article
@@ -1249,6 +1278,7 @@ function FindingInspector(props: WorkbenchViewProps) {
       aria-labelledby="selected-title"
     >
       <div className={styles.inspectorTop}>
+        <span className={styles.findingNumber}>{findingNumber}</span>
         <span className={styles.truthBadge} data-truth={selected.truth}>
           {selected.truth}
         </span>
@@ -1367,110 +1397,114 @@ function CoveragePanel({
 }: WorkbenchViewProps) {
   return (
     <section className={styles.gaps} aria-labelledby="coverage-title">
-      <div className={styles.subhead}>
-        <h3 id="coverage-title">Observed scope</h3>
-        <span>
-          {coverage.surfaces.length} surfaces · {coverage.openGapCount} open gaps
-        </span>
-      </div>
-      <div className={styles.coverageMatrix} role="list" aria-label="Audit coverage matrix">
-        {coverage.surfaces.map((surface) => (
-          <article key={surface.checkpointId} role="listitem">
-            <div>
-              <span>{surface.surfaceType}</span>
-              <b title={surface.finalUrl}>{surface.route}</b>
-            </div>
-            <dl>
+      <details>
+        <summary className={styles.subhead}>
+          <h3 id="coverage-title">Observed scope</h3>
+          <span>
+            {coverage.surfaces.length} surfaces · {coverage.openGapCount} open gaps
+          </span>
+        </summary>
+        <div className={styles.coverageMatrix} role="list" aria-label="Audit coverage matrix">
+          {coverage.surfaces.map((surface) => (
+            <article key={surface.checkpointId} role="listitem">
               <div>
-                <dt>Viewport</dt>
-                <dd>{surface.viewport}</dd>
+                <span>{surface.surfaceType}</span>
+                <b title={surface.finalUrl}>{surface.route}</b>
               </div>
-              <div>
-                <dt>State</dt>
-                <dd>{surface.state}</dd>
-              </div>
-              <div>
-                <dt>Extent</dt>
-                <dd>{surface.captureExtent}</dd>
-              </div>
-              <div>
-                <dt>Evidence</dt>
-                <dd>{surface.evidenceTypes.join(" · ")}</dd>
-              </div>
-              <div>
-                <dt>Motion</dt>
-                <dd>{surface.motion.replace("_", " ")}</dd>
-              </div>
-              <div>
-                <dt>Interaction</dt>
-                <dd>{surface.interaction.replace("_", " ")}</dd>
-              </div>
-              <div>
-                <dt>Status</dt>
-                <dd>{surface.status.replace("_", " ")}</dd>
-              </div>
-            </dl>
-            <small>
-              {surface.reason ? `${surface.reason} · ` : ""}
-              {shortTime(surface.capturedAt)} · <code>{surface.checkpointId}</code>
-            </small>
-          </article>
-        ))}
-        {coverage.surfaces.length === 0 ? (
-          <p className={styles.emptyCopy}>Capture or measure a surface before claiming coverage.</p>
-        ) : null}
-      </div>
-      <div className={styles.subhead}>
-        <h3 id="gaps-title">Not seen</h3>
-        <span>{activeGaps.length} coverage gaps</span>
-      </div>
-      {activeGaps.map((gap) => (
-        <div key={gap.id}>
-          <b>
-            {gap.label} ·{" "}
-            {gap.targets
-              .map(
-                ({ route, scopeId, viewport }) =>
-                  `${route ?? scopeId ?? "audit scope"} · ${viewport}`,
-              )
-              .join(" + ")}
-          </b>
-          <p>{gap.detail}</p>
+              <dl>
+                <div>
+                  <dt>Viewport</dt>
+                  <dd>{surface.viewport}</dd>
+                </div>
+                <div>
+                  <dt>State</dt>
+                  <dd>{surface.state}</dd>
+                </div>
+                <div>
+                  <dt>Extent</dt>
+                  <dd>{surface.captureExtent}</dd>
+                </div>
+                <div>
+                  <dt>Evidence</dt>
+                  <dd>{surface.evidenceTypes.join(" · ")}</dd>
+                </div>
+                <div>
+                  <dt>Motion</dt>
+                  <dd>{surface.motion.replace("_", " ")}</dd>
+                </div>
+                <div>
+                  <dt>Interaction</dt>
+                  <dd>{surface.interaction.replace("_", " ")}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{surface.status.replace("_", " ")}</dd>
+                </div>
+              </dl>
+              <small>
+                {surface.reason ? `${surface.reason} · ` : ""}
+                {shortTime(surface.capturedAt)} · <code>{surface.checkpointId}</code>
+              </small>
+            </article>
+          ))}
+          {coverage.surfaces.length === 0 ? (
+            <p className={styles.emptyCopy}>
+              Capture or measure a surface before claiming coverage.
+            </p>
+          ) : null}
         </div>
-      ))}
-      {activeGaps.length === 0 ? (
-        <p className={styles.emptyCopy}>
-          No gaps have been named yet. This does not mean coverage is complete.
-        </p>
-      ) : null}
-      <details className={styles.manualGap}>
-        <summary>Add a coverage gap</summary>
-        <form onSubmit={onSubmitCoverageGap}>
-          <label>
-            <span>Surface not seen</span>
-            <input
-              required
-              maxLength={100}
-              value={gapDraft.label}
-              onChange={(event) =>
-                onChangeGapDraft((draft) => ({ ...draft, label: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>What remains unknown</span>
-            <textarea
-              required
-              maxLength={300}
-              rows={2}
-              value={gapDraft.detail}
-              onChange={(event) =>
-                onChangeGapDraft((draft) => ({ ...draft, detail: event.target.value }))
-              }
-            />
-          </label>
-          <button type="submit">Record gap</button>
-        </form>
+        <div className={styles.subhead}>
+          <h3 id="gaps-title">Not seen</h3>
+          <span>{activeGaps.length} coverage gaps</span>
+        </div>
+        {activeGaps.map((gap) => (
+          <div key={gap.id}>
+            <b>
+              {gap.label} ·{" "}
+              {gap.targets
+                .map(
+                  ({ route, scopeId, viewport }) =>
+                    `${route ?? scopeId ?? "audit scope"} · ${viewport}`,
+                )
+                .join(" + ")}
+            </b>
+            <p>{gap.detail}</p>
+          </div>
+        ))}
+        {activeGaps.length === 0 ? (
+          <p className={styles.emptyCopy}>
+            No gaps have been named yet. This does not mean coverage is complete.
+          </p>
+        ) : null}
+        <details className={styles.manualGap}>
+          <summary>Add a coverage gap</summary>
+          <form onSubmit={onSubmitCoverageGap}>
+            <label>
+              <span>Surface not seen</span>
+              <input
+                required
+                maxLength={100}
+                value={gapDraft.label}
+                onChange={(event) =>
+                  onChangeGapDraft((draft) => ({ ...draft, label: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>What remains unknown</span>
+              <textarea
+                required
+                maxLength={300}
+                rows={2}
+                value={gapDraft.detail}
+                onChange={(event) =>
+                  onChangeGapDraft((draft) => ({ ...draft, detail: event.target.value }))
+                }
+              />
+            </label>
+            <button type="submit">Record gap</button>
+          </form>
+        </details>
       </details>
     </section>
   );
@@ -1536,11 +1570,11 @@ function EvidencePane(props: WorkbenchViewProps) {
           <span>{activeGaps.length} gaps</span>
         </div>
       </div>
-      <AuditBriefPanel {...props} />
-      <CoveragePanel {...props} />
-      <ReviewResultsPanel {...props} />
       <FindingList {...props} />
       <FindingInspector {...props} />
+      <ReviewResultsPanel {...props} />
+      <CoveragePanel {...props} />
+      <AuditBriefPanel {...props} />
       <ActivityReceipts {...props} />
     </section>
   );

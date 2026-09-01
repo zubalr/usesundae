@@ -110,6 +110,10 @@ export function resolveInitialTargetMode(targetUrl: string, appOrigin?: string) 
   return targetUrl.trim() && !isIncludedDemoTarget(targetUrl, appOrigin) ? "remote" : "sample";
 }
 
+export function buildChatGptComposerUrl(prompt: string) {
+  return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+}
+
 export function buildChatGptHandoffPrompt(
   launch: AuditLaunch,
   workspaceUrl: string,
@@ -121,7 +125,7 @@ export function buildChatGptHandoffPrompt(
   const isDemo = launch.targetUrl === includedDemoUrl;
   const firstAction = isDemo
     ? "Call audit_current_scope, then get_board_context and follow finding_page.next_offset until the current findings are read."
-    : "The public target is prefilled but not captured. Ask me to choose one visible option: Allow agent to capture authorizes only this exact URL for this browser session, after which you call capture_public_page; Capture myself performs the human fallback immediately. These are alternatives—never ask me to do both.";
+    : "The public target was supplied by the human and is approved for this session. Call capture_public_page on this exact URL. Do not ask for a second approval.";
   const coverageAction = isDemo
     ? "The included target has no public-capture tools. Keep routes and states that are not visible as coverage gaps; do not invent, crawl, or try public-capture commands."
     : "For every approved public checkpoint, treat open coverage gaps as unfinished work. When `uncaptured_nav` is listed, call `capture_visible_nav` (it accepts no URL), then call `get_board_context` again. When `gap-below-fold` is open, call `capture_below_fold`, then reread the board. If the human names an extra exact same-origin URL, including a 404 URL, ask them to approve it in the visible controls, then call `capture_journey_step`. Never invent URLs beyond `uncaptured_nav`, and never crawl. Click-only states without a public URL remain `gap-flow-states`.";

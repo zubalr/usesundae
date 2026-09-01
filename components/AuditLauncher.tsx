@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useAuditIntent } from "@/components/AuditIntent";
 import { Icon } from "@/components/Icons";
 import {
+  buildChatGptComposerUrl,
   buildChatGptHandoffPrompt,
   buildWorkspaceUrl,
   createAuditLaunch,
@@ -27,10 +28,6 @@ function errorMessage(cause: unknown) {
 
 function revealFeedback(target: { current: HTMLElement | null }) {
   requestAnimationFrame(() => target.current?.focus());
-}
-
-function copyWorkspaceUrl(receipt: HandoffReceipt) {
-  void navigator.clipboard?.writeText(receipt.workspaceUrl);
 }
 
 export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) {
@@ -67,7 +64,7 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
     }
   }
 
-  function prepareChatGptHandoff() {
+  function openChatGptAudit() {
     setError("");
     setHandoff(null);
     try {
@@ -75,8 +72,8 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       const prompt = buildChatGptHandoffPrompt(launch, workspaceUrl, includedDemoUrl);
       const receipt = { prompt, workspaceUrl, copied: false };
       setHandoff(receipt);
+      window.open(buildChatGptComposerUrl(prompt), "_blank", "noopener,noreferrer");
       revealFeedback(handoffRef);
-      copyHandoff(receipt);
     } catch (cause) {
       setError(errorMessage(cause));
       setHandoff(null);
@@ -84,8 +81,8 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
     }
   }
 
-  function copyHandoff(receipt: HandoffReceipt) {
-    const copyOperation = navigator.clipboard?.writeText(receipt.prompt);
+  function copyWorkspaceLink(receipt: HandoffReceipt) {
+    const copyOperation = navigator.clipboard?.writeText(receipt.workspaceUrl);
     if (!copyOperation) {
       setHandoff(receipt);
       return;
@@ -145,8 +142,8 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
         <a className={styles.demoAction} href="/demo">
           Run included /demo
         </a>
-        <button className={styles.desktopAction} type="button" onClick={prepareChatGptHandoff}>
-          <Icon name="agent" /> Prepare Desktop handoff
+        <button className={styles.desktopAction} type="button" onClick={openChatGptAudit}>
+          <Icon name="agent" /> Audit with ChatGPT
         </button>
       </div>
 
@@ -155,7 +152,7 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
         {toolReadiness.state === "available"
           ? "Site Tools supported here. Open a workspace to register its page tools."
           : toolReadiness.state === "human"
-            ? "Human controls ready. For Site Tools, open the exact workspace in ChatGPT Desktop’s built-in browser."
+            ? "Human controls ready. For Site Tools, open the exact workspace in ChatGPT Desktop’s built-in browser or ChatGPT Work Cloud."
             : "Checking this browser for Site Tools…"}
       </p>
 
@@ -169,26 +166,18 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
         >
           <div className={styles.receiptStatus}>
             <span>
-              <i data-copied={handoff.copied} /> ChatGPT Desktop handoff
+              <i data-copied={handoff.copied} /> ChatGPT handoff
             </span>
-            <strong>{handoff.copied ? "Request copied" : "Request ready to copy"}</strong>
+            <strong>
+              {handoff.copied ? "Workspace link copied" : "Opened ChatGPT with this audit"}
+            </strong>
           </div>
           <p>
-            No plugin or connection is required. In ChatGPT Desktop, open the built-in browser and
-            paste the exact workspace URL below. Site Tools are discovered automatically there; an
-            ordinary browser cannot force that internal browser to open.
+            ChatGPT should already have the audit instruction typed. Keep a copy of the exact
+            workspace URL if you want to paste it into Desktop’s built-in browser yourself.
           </p>
-          <textarea
-            readOnly
-            value={handoff.prompt}
-            aria-label="Ready-to-send Sundae request"
-            onFocus={(event) => event.currentTarget.select()}
-          />
           <div className={styles.receiptLinks}>
-            <button type="button" onClick={() => copyHandoff(handoff)}>
-              Copy request
-            </button>
-            <button type="button" onClick={() => copyWorkspaceUrl(handoff)}>
+            <button type="button" onClick={() => copyWorkspaceLink(handoff)}>
               Copy workspace URL
             </button>
             <a href={handoff.workspaceUrl}>Open exact workspace</a>

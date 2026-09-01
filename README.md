@@ -124,7 +124,7 @@ Each input is a closed, bounded schema. Long-running capture work receives the i
 
 Sundae audits public HTTPS pages its configured browser provider can render. When a page blocks automated rendering, requires login, or exceeds browser limits, Sundae records what was not seen instead of claiming a complete audit.
 
-**Allow agent to capture** authorizes only the exact displayed URL for the current browser session; it does not start a capture. ChatGPT may then call `capture_public_page`. **Capture myself** is the human alternative and captures immediately. The two choices are not a sequence.
+**Typing a public URL and pressing Enter** approves that exact target for the current browser session and starts capture. ChatGPT may then call `capture_public_page` on the same URL. Additional same-origin routes still need a human-named journey step.
 
 Public capture opens the approved page in a Cloudflare browser session and runs Sundae's own audit engine inside that page with `page.evaluate()`. Measurement happens in one browser session and typically finishes in about 6 to 9 seconds. Sundae never accepts credentials in URLs, private-network targets, nonstandard ports, target-site cookies, silent tabs, login flows, form submission, recursive crawling, or off-origin navigation. Existing board evidence remains intact when the provider fails.
 
