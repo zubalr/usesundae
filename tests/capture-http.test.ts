@@ -415,7 +415,7 @@ test("rejects a capture when the injected concurrency budget is occupied", async
 
 test("reads capture limiter options from env and keeps defaults when values are missing or invalid", () => {
   assert.deepEqual(captureLimiterOptionsFromEnv({}), {
-    maxConcurrent: 4,
+    maxConcurrent: 2,
     rateLimit: 20,
     rateWindowMs: 60_000,
   });
@@ -438,7 +438,7 @@ test("reads capture limiter options from env and keeps defaults when values are 
       CAPTURE_RATE_WINDOW_MS: "nope",
     }),
     {
-      maxConcurrent: 4,
+      maxConcurrent: 2,
       rateLimit: 20,
       rateWindowMs: 60_000,
     },
