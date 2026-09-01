@@ -122,7 +122,6 @@
 
 .heroThesis h1 {
   max-width: 16ch;
-  font-family: var(--font-serif);
   font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
   font-weight: var(--weight-bold);
   letter-spacing: -0.035em;
@@ -474,17 +473,30 @@
   color: var(--text-secondary);
 }
 
+/* Twelve columns, matching .method. A single narrow column left the right half
+   of this section empty at desktop widths. */
 .judgePath {
   display: grid;
-  gap: var(--space-2xl);
+  grid-template-columns: repeat(12, minmax(var(--space-none), 1fr));
+  gap: var(--space-2xl) var(--space-l);
   padding-block: var(--space-3xl);
   border-top: thin solid var(--border);
 }
 
+.judgeLead {
+  grid-column: 1 / 6;
+}
+
 .judgeHandoff {
+  grid-column: 7 / 13;
   display: grid;
+  align-content: start;
   justify-items: start;
   max-width: var(--measure);
+}
+
+.judgeSteps {
+  grid-column: 7 / 13;
 }
 
 .judgeSteps,
@@ -739,8 +751,14 @@
     order: 2;
   }
 
-  .method {
+  .method,
+  .judgePath {
     display: block;
+  }
+
+  .judgeHandoff,
+  .judgeSteps {
+    margin-top: var(--space-2xl);
   }
 
   .causalProof,

@@ -121,10 +121,13 @@
   color: var(--stage-ground);
 }
 
+/* This control renders in the judge section on the page background, not on the
+   dark stage, so it reads from the page text tokens. --stage-text is a light
+   colour for the dark panel and left it almost invisible here. */
 .desktopAction {
-  border-color: color-mix(in srgb, var(--stage-text) 34%, transparent);
+  border-color: var(--border);
   background: transparent;
-  color: color-mix(in srgb, var(--stage-text) 86%, transparent);
+  color: var(--text-primary);
 }
 
 .nextStep {
@@ -135,7 +138,7 @@
 
 .nextStep p {
   margin: var(--space-none);
-  color: color-mix(in srgb, var(--stage-text) 72%, transparent);
+  color: var(--text-secondary);
   font-size: var(--text-xs);
 }
 
