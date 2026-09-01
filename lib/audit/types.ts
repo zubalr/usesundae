@@ -18,7 +18,8 @@ export type FindingRule =
   | "main-landmark"
   | "document-name"
   | "visual-judgment"
-  | "agent-surface";
+  | "agent-surface"
+  | "design-signal";
 
 export type EvidenceReference = {
   kind: "dom" | "screenshot" | "accessibility" | "tool-contract";
@@ -32,18 +33,59 @@ export type Region = {
   height: number;
 };
 
+export const NO_DEFENSIBLE_THRESHOLD = "NO_DEFENSIBLE_THRESHOLD";
+
+export type MeasurementDirection =
+  | "descriptive"
+  | "higher-is-worse"
+  | "lower-is-worse"
+  | "non-monotonic";
+export type MeasurementProvenance = "standard" | "study" | "design-system" | "convention" | "none";
+export type ClaimType = "MEASUREMENT";
+
 export type Measurement = {
   value: string;
   threshold: string;
   unit: string;
+  direction: MeasurementDirection;
+  provenance: MeasurementProvenance;
 };
+
+export function hasDefensibleThreshold(measurement: Measurement | null | undefined) {
+  if (!measurement) return false;
+  return (
+    measurement.threshold !== NO_DEFENSIBLE_THRESHOLD &&
+    measurement.direction !== "descriptive" &&
+    measurement.provenance !== "none"
+  );
+}
+
+export function thresholdMeasurement(
+  value: string,
+  threshold: string,
+  unit: string,
+  direction: MeasurementDirection,
+): Measurement {
+  return { value, threshold, unit, direction, provenance: "standard" };
+}
+
+export function descriptiveMeasurement(value: string, unit: string): Measurement {
+  return {
+    value,
+    threshold: NO_DEFENSIBLE_THRESHOLD,
+    unit,
+    direction: "descriptive",
+    provenance: "none",
+  };
+}
 
 export type Finding = {
   id: string;
   auditId: string;
   rule: FindingRule;
   truth: TruthKind;
-  severity: Severity;
+  claimType?: ClaimType;
+  severity?: Severity;
   title: string;
   observation: string;
   whyItMatters: string;

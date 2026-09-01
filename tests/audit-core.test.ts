@@ -25,7 +25,13 @@ function finding(id: string): Finding {
     recommendation: "Increase the interactive hit area to at least 44 × 44 px.",
     viewport: "mobile",
     rect: { x: 10, y: 10, width: 36, height: 36 },
-    measurement: { value: "36 × 36", threshold: "44 × 44", unit: "CSS px" },
+    measurement: {
+      value: "36 × 36",
+      threshold: "44 × 44",
+      unit: "CSS px",
+      direction: "lower-is-worse",
+      provenance: "standard",
+    },
   };
 }
 

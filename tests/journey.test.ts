@@ -22,7 +22,13 @@ function snapshot(scopeKey: string, id: string, gapLabel: string): AuditSnapshot
     recommendation: "Correct the exposed name.",
     viewport: "desktop",
     rect: null,
-    measurement: { value: "1", threshold: "0", unit: "controls" },
+    measurement: {
+      value: "1",
+      threshold: "0",
+      unit: "controls",
+      direction: "higher-is-worse",
+      provenance: "standard",
+    },
     scopeKey,
   };
   return {

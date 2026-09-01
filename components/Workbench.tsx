@@ -2344,7 +2344,9 @@ export function Workbench({
   );
   const selected =
     visibleFindings.find((finding) => finding.id === selectedId) ?? visibleFindings[0] ?? null;
-  const measuredCount = visibleFindings.filter((finding) => finding.truth === "measured").length;
+  const measuredCount = visibleFindings.filter(
+    (finding) => finding.truth === "measured" && finding.rule !== "design-signal",
+  ).length;
   const judgedCount = visibleFindings.filter((finding) => finding.truth === "judged").length;
   const evidenceBoard = describeEvidenceBoard(
     baseline,

@@ -89,7 +89,13 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.doesNotMatch(prompt, /Inspect measured facts first/i);
   assert.match(prompt, /preview_fix/);
   assert.match(prompt, /verify_recapture/);
-  assert.match(prompt, /do not claim conversion or revenue/i);
+  assert.match(prompt, /design-signal counts/i);
+  assert.match(prompt, /no quality threshold/i);
+  assert.match(prompt, /not violations/i);
+  assert.match(prompt, /label it as judgment/i);
+  assert.match(prompt, /persuasion|behavioural effects/i);
+  assert.match(prompt, /conversion/i);
+  assert.doesNotMatch(prompt, /do not claim conversion or revenue/i);
   assert.match(prompt, /keep the exact workspace link, name the missing step, and stop/i);
   assert.doesNotMatch(prompt, /Gemini|Google Cloud/i);
   assert.ok(prompt.length < 4200);

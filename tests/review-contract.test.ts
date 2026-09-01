@@ -41,7 +41,13 @@ function finding(overrides: Partial<Finding>): Finding {
     recommendation: "Increase the text contrast.",
     viewport: "desktop",
     rect: null,
-    measurement: { value: "3.2:1", threshold: "4.5:1", unit: "ratio" },
+    measurement: {
+      value: "3.2:1",
+      threshold: "4.5:1",
+      unit: "ratio",
+      direction: "lower-is-worse",
+      provenance: "standard",
+    },
     scopeKey: "included:/demo:desktop",
     ...overrides,
   };

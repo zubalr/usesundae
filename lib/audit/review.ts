@@ -113,14 +113,22 @@ export function withoutConflictingNoIssue(results: ReviewResult[], finding: Find
 const severityOrder: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 const confidenceOrder: Record<JudgmentConfidence, number> = { high: 0, medium: 1, low: 2 };
 
+function severityRank(finding: Finding) {
+  return finding.severity ? severityOrder[finding.severity] : 3;
+}
+
 export function reviewLane(finding: Finding) {
   return finding.truth === "judged" ? ("product" as const) : ("supporting" as const);
 }
 
 export function compareFindingsForReview(left: Finding, right: Finding) {
+  const leftSignal = Number(left.rule === "design-signal");
+  const rightSignal = Number(right.rule === "design-signal");
+  if (leftSignal !== rightSignal) return leftSignal - rightSignal;
+  if (leftSignal) return 0;
   const laneDifference =
     Number(reviewLane(left) === "supporting") - Number(reviewLane(right) === "supporting");
-  const severityDifference = severityOrder[left.severity] - severityOrder[right.severity];
+  const severityDifference = severityRank(left) - severityRank(right);
   const confidenceDifference =
     confidenceOrder[left.confidence ?? "low"] - confidenceOrder[right.confidence ?? "low"];
   const scoreDifference = (right.prominenceScore ?? 0) - (left.prominenceScore ?? 0);

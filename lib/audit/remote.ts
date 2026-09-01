@@ -1,14 +1,19 @@
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { boundedText } from "@/lib/text";
-import { collectMeasuredFindings, presentFindings } from "./derive-findings";
+import {
+  collectDesignSignalFindings,
+  collectMeasuredFindings,
+  presentFindings,
+} from "./derive-findings";
 import { collectSiteToolFindings, normalizeRuntimeToolContract } from "./tools";
-import type {
-  AuditSnapshot,
-  DesignCategory,
-  Finding,
-  JudgmentConfidence,
-  Region,
-  Severity,
+import {
+  type AuditSnapshot,
+  type DesignCategory,
+  type Finding,
+  type JudgmentConfidence,
+  type Region,
+  type Severity,
+  thresholdMeasurement,
 } from "./types";
 
 export type JudgedFindingInput = {
@@ -97,7 +102,12 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
       whyItMatters:
         "The captured experience may be an error state rather than the intended product surface.",
       recommendation: "Confirm the public URL and capture the intended page state again.",
-      measurement: { value: String(checkpoint.status), threshold: "200–399", unit: "HTTP status" },
+      measurement: thresholdMeasurement(
+        String(checkpoint.status),
+        "200–399",
+        "HTTP status",
+        "non-monotonic",
+      ),
       evidence: { kind: "screenshot", ref: checkpoint.id },
     });
   }
@@ -118,11 +128,12 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
       observation: `${unnamed} of ${interactive} interactive controls in the captured accessibility tree have no exposed name.`,
       whyItMatters: "People using assistive technology may not know what those controls do.",
       recommendation: "Inspect the unnamed controls and give each a concise programmatic name.",
-      measurement: {
-        value: `${unnamed} of ${interactive}`,
-        threshold: "0 unnamed",
-        unit: "interactive controls",
-      },
+      measurement: thresholdMeasurement(
+        `${unnamed} of ${interactive}`,
+        "0 unnamed",
+        "interactive controls",
+        "higher-is-worse",
+      ),
       evidence: { kind: "accessibility", ref: checkpoint.id },
     });
   }
@@ -144,7 +155,7 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
       whyItMatters:
         "A main landmark helps assistive-technology users move directly to the page’s primary content.",
       recommendation: "Wrap the page’s primary content in one semantic main landmark.",
-      measurement: { value: "0", threshold: "at least 1", unit: "main landmarks" },
+      measurement: thresholdMeasurement("0", "at least 1", "main landmarks", "lower-is-worse"),
       evidence: { kind: "accessibility", ref: checkpoint.id },
     });
   }
@@ -163,7 +174,12 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
       whyItMatters:
         "A descriptive document name helps people identify the current page in tabs, history, and assistive technology.",
       recommendation: "Give this page a concise, descriptive document title.",
-      measurement: { value: "empty", threshold: "non-empty", unit: "accessible document name" },
+      measurement: thresholdMeasurement(
+        "empty",
+        "non-empty",
+        "accessible document name",
+        "non-monotonic",
+      ),
       evidence: { kind: "accessibility", ref: checkpoint.id },
     });
   }
@@ -183,20 +199,27 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
         "A coherent heading structure helps people scan the page and navigate with assistive technology.",
       recommendation:
         "Use one descriptive level-one heading and keep later heading levels in a logical order.",
-      measurement: {
-        value:
-          checkpoint.accessibility.headingOutline
-            .map((heading) => `h${heading.level}`)
-            .join(" → ") || "none",
-        threshold: "logical outline",
-        unit: "heading levels",
-      },
+      measurement: thresholdMeasurement(
+        checkpoint.accessibility.headingOutline.map((heading) => `h${heading.level}`).join(" → ") ||
+          "none",
+        "logical outline",
+        "heading levels",
+        "non-monotonic",
+      ),
       evidence: { kind: "accessibility", ref: checkpoint.id },
     });
   }
 
   const fromFacts = checkpoint.facts
     ? collectMeasuredFindings(checkpoint.facts).map((finding) => ({
+        ...finding,
+        checkpointId: checkpoint.id,
+        scopeKey: checkpoint.scopeId,
+        evidence: finding.evidence ?? { kind: "dom" as const, ref: checkpoint.id },
+      }))
+    : [];
+  const designSignal = checkpoint.facts
+    ? collectDesignSignalFindings(checkpoint.facts).map((finding) => ({
         ...finding,
         checkpointId: checkpoint.id,
         scopeKey: checkpoint.scopeId,
@@ -216,7 +239,10 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
           evidence: finding.evidence ?? { kind: "tool-contract" as const, ref: checkpoint.id },
         }));
 
-  return presentFindings([...findings, ...fromFacts, ...fromTools], checkpoint.viewportSize.width);
+  return [
+    ...presentFindings([...findings, ...fromFacts, ...fromTools], checkpoint.viewportSize.width),
+    ...designSignal,
+  ];
 }
 
 export function createJudgedFinding(

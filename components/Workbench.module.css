@@ -955,6 +955,62 @@
   padding: var(--space-none);
 }
 
+.signalGroup {
+  border-bottom: thin solid var(--border);
+}
+
+.signalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding: var(--space-xs) var(--space-l);
+}
+
+.signalHead h4 {
+  margin: var(--space-none);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.signalHead span {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.signalRow {
+  width: 100%;
+  display: grid;
+  gap: var(--space-2xs);
+  border: 0;
+  border-bottom: thin solid var(--border);
+  padding: var(--space-s) var(--space-l);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.signalRow:last-child {
+  border-bottom: 0;
+}
+
+.signalRow:hover,
+.signalRow[data-selected="true"] {
+  background: var(--surface-raised);
+}
+
+.signalRow strong {
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.signalRow small {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
 .chatGptLaneAction {
   min-height: calc(var(--space-xl) + var(--space-xs));
   display: inline-flex;
@@ -1066,6 +1122,9 @@
 .findingMeta b[data-truth="judged"] {
   color: var(--warning);
 }
+.findingMeta b[data-truth="receipt"] {
+  color: var(--text-secondary);
+}
 .findingMeta i {
   font-style: normal;
 }
@@ -1162,6 +1221,10 @@
 .truthBadge[data-truth="judged"] {
   background: #f4e7cc;
   color: #80580f;
+}
+.truthBadge[data-truth="receipt"] {
+  background: var(--surface);
+  color: var(--text-secondary);
 }
 .confidenceBadge {
   display: inline-flex;

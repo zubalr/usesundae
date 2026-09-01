@@ -19,6 +19,7 @@ import type {
   ReviewResultInput,
   Viewport,
 } from "@/lib/audit/types";
+import { hasDefensibleThreshold } from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import {
   findFindingSurface,
@@ -889,10 +890,85 @@ function FindingRows({
 }) {
   return (
     <>
-      {findings.map((finding, index) => (
+      {findings.map((finding, index) => {
+        const defensible = hasDefensibleThreshold(finding.measurement);
+        const receipt = Boolean(finding.measurement) && !defensible;
+        return (
+          <button
+            id={`finding-${finding.id}`}
+            className={styles.findingRow}
+            type="button"
+            key={finding.id}
+            data-selected={selected?.id === finding.id}
+            aria-pressed={selected?.id === finding.id}
+            aria-controls="selected-finding-inspector"
+            onClick={() => onFocusFinding(finding.id)}
+          >
+            <span className={styles.findingNumber}>{startIndex + index + 1}</span>
+            <span className={styles.findingCopy}>
+              <span className={styles.findingMeta}>
+                <b data-truth={receipt ? "receipt" : finding.truth}>
+                  {receipt ? "measurement" : finding.truth}
+                </b>
+                {finding.category ? (
+                  <>
+                    <i>·</i>
+                    <span>{finding.category}</span>
+                  </>
+                ) : null}
+                {!receipt && finding.severity ? (
+                  <>
+                    <i>·</i>
+                    <span>{finding.severity}</span>
+                  </>
+                ) : null}
+                {finding.confidence ? (
+                  <>
+                    <i>·</i>
+                    <span>{finding.confidence} confidence</span>
+                  </>
+                ) : null}
+                {finding.verification !== "not_run" ? (
+                  <em data-status={finding.verification}>
+                    {verificationLabel(finding.verification)}
+                  </em>
+                ) : null}
+              </span>
+              <strong>{finding.title}</strong>
+              <small>
+                {defensible && finding.measurement
+                  ? `${finding.measurement.value} · needs ${finding.measurement.threshold}`
+                  : finding.measurement
+                    ? finding.observation
+                    : "Evidence-linked product judgment"}
+                {finding.instanceCount && finding.instanceCount > 1
+                  ? ` · ${finding.instanceCount} instances · worst shown`
+                  : ""}
+              </small>
+            </span>
+            <Icon name="chevron" />
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+function SignalRows({
+  findings,
+  selected,
+  onFocusFinding,
+}: {
+  findings: VisibleFinding[];
+  selected: VisibleFinding | null;
+  onFocusFinding: (findingId: string) => void;
+}) {
+  return (
+    <>
+      {findings.map((finding) => (
         <button
           id={`finding-${finding.id}`}
-          className={styles.findingRow}
+          className={styles.signalRow}
           type="button"
           key={finding.id}
           data-selected={selected?.id === finding.id}
@@ -900,41 +976,8 @@ function FindingRows({
           aria-controls="selected-finding-inspector"
           onClick={() => onFocusFinding(finding.id)}
         >
-          <span className={styles.findingNumber}>{startIndex + index + 1}</span>
-          <span className={styles.findingCopy}>
-            <span className={styles.findingMeta}>
-              <b data-truth={finding.truth}>{finding.truth}</b>
-              {finding.category ? (
-                <>
-                  <i>·</i>
-                  <span>{finding.category}</span>
-                </>
-              ) : null}
-              <i>·</i>
-              <span>{finding.severity}</span>
-              {finding.confidence ? (
-                <>
-                  <i>·</i>
-                  <span>{finding.confidence} confidence</span>
-                </>
-              ) : null}
-              {finding.verification !== "not_run" ? (
-                <em data-status={finding.verification}>
-                  {verificationLabel(finding.verification)}
-                </em>
-              ) : null}
-            </span>
-            <strong>{finding.title}</strong>
-            <small>
-              {finding.measurement
-                ? `${finding.measurement.value} · needs ${finding.measurement.threshold}`
-                : "Evidence-linked product judgment"}
-              {finding.instanceCount && finding.instanceCount > 1
-                ? ` · ${finding.instanceCount} instances · worst shown`
-                : ""}
-            </small>
-          </span>
-          <Icon name="chevron" />
+          <strong>{finding.title}</strong>
+          <small>{finding.observation}</small>
         </button>
       ))}
     </>
@@ -977,10 +1020,12 @@ function FindingList({
   includedDemoUrl,
   onFocusFinding,
 }: WorkbenchViewProps) {
+  const designSignalFindings = visibleFindings.filter(({ rule }) => rule === "design-signal");
   const designFindings = visibleFindings.filter(({ truth }) => truth === "judged");
   const agentFindings = visibleFindings.filter(({ rule }) => rule === "agent-surface");
   const technicalFindings = visibleFindings.filter(
-    ({ truth, rule }) => truth === "measured" && rule !== "agent-surface",
+    ({ truth, rule }) =>
+      truth === "measured" && rule !== "agent-surface" && rule !== "design-signal",
   );
   return (
     <section className={styles.findingList} aria-label={evidenceBoard.listLabel}>
@@ -1000,6 +1045,19 @@ function FindingList({
                 {designFindings.length} {designFindings.length === 1 ? "judgment" : "judgments"}
               </span>
             </div>
+            {designSignalFindings.length > 0 ? (
+              <div className={styles.signalGroup} aria-label="Design signal">
+                <div className={styles.signalHead}>
+                  <h4>Design signal</h4>
+                  <span>descriptive counts · no threshold</span>
+                </div>
+                <SignalRows
+                  findings={designSignalFindings}
+                  selected={selected}
+                  onFocusFinding={onFocusFinding}
+                />
+              </div>
+            ) : null}
             {designFindings.length > 0 ? (
               <FindingRows
                 findings={designFindings}
@@ -1126,6 +1184,7 @@ function FindingControls({
     demoState === "improved" ||
     !authority.canPreview ||
     selected.rule === "agent-surface" ||
+    selected.rule === "design-signal" ||
     (mode === "remote" && !cssDraft.trim());
   const previewLabel =
     selected.rule === "agent-surface"
@@ -1324,6 +1383,8 @@ function FindingInspector(props: WorkbenchViewProps) {
   if (!selected) return null;
   const surface = findFindingSurface(coverage.surfaces, selected);
   const findingNumber = visibleFindings.findIndex((finding) => finding.id === selected.id) + 1;
+  const descriptive = selected.rule === "design-signal";
+  const defensible = hasDefensibleThreshold(selected.measurement);
 
   return (
     <article
@@ -1334,9 +1395,9 @@ function FindingInspector(props: WorkbenchViewProps) {
       aria-labelledby="selected-title"
     >
       <div className={styles.inspectorTop}>
-        <span className={styles.findingNumber}>{findingNumber}</span>
-        <span className={styles.truthBadge} data-truth={selected.truth}>
-          {selected.truth}
+        {descriptive ? null : <span className={styles.findingNumber}>{findingNumber}</span>}
+        <span className={styles.truthBadge} data-truth={descriptive ? "receipt" : selected.truth}>
+          {descriptive ? "measurement" : selected.truth}
         </span>
         {selected.category ? (
           <span className={styles.truthBadge} data-truth="judged">
@@ -1371,7 +1432,11 @@ function FindingInspector(props: WorkbenchViewProps) {
             </div>
             <div>
               <dt>Threshold</dt>
-              <dd>{selected.measurement.threshold}</dd>
+              <dd>
+                {defensible
+                  ? selected.measurement.threshold
+                  : "No universal quality threshold exists."}
+              </dd>
             </div>
           </>
         ) : null}

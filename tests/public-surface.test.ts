@@ -143,6 +143,9 @@ test("the evidence pane leads with findings, then strengths, gaps, brief, and re
   assert.doesNotMatch(workbench, /Audit live target/);
   assert.doesNotMatch(workbench, /Recapture page/);
   assert.match(workbench, />Design</);
+  assert.match(workbench, /Design signal/);
+  assert.match(workbench, /descriptive counts · no threshold/);
+  assert.match(workbench, /hasDefensibleThreshold/);
   assert.match(workbench, /Agent readiness/);
   assert.match(workbench, /Technical facts/);
   assert.doesNotMatch(workbench, /Product findings/);

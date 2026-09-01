@@ -336,12 +336,15 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
     findings: findingPage.findings.map((finding) => ({
       id: agentText(finding.id, 120),
       truth: finding.truth,
+      claim_type: finding.claimType,
       category: finding.category,
       product_job:
         finding.productJob && !input.auditBrief ? agentText(finding.productJob, 48) : undefined,
       confidence: finding.confidence,
       severity: finding.severity,
       title: agentTitle(finding.title, AGENT_FINDING_TITLE_BYTES),
+      observation:
+        finding.claimType === "MEASUREMENT" ? agentText(finding.observation, 240) : undefined,
       decision:
         input.decisions[finding.id]?.decision === "open"
           ? undefined

@@ -39,7 +39,16 @@ function finding(index: number): Finding {
     recommendation: "Improve the included target state.",
     viewport: "mobile",
     rect: { x: 10, y: index * 20, width: 100, height: 18 },
-    measurement: index === 5 ? null : { value: "3.25:1", threshold: "4.5:1", unit: "ratio" },
+    measurement:
+      index === 5
+        ? null
+        : {
+            value: "3.25:1",
+            threshold: "4.5:1",
+            unit: "ratio",
+            direction: "lower-is-worse",
+            provenance: "standard",
+          },
   };
 }
 

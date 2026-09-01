@@ -1,4 +1,4 @@
-import type { Finding, Viewport } from "./types";
+import { thresholdMeasurement, type Finding, type Viewport } from "./types";
 
 export type AuditedToolContract = {
   name: string;
@@ -88,11 +88,12 @@ export function auditWebMcpTools(
           whyItMatters: "An agent may choose the wrong tool or use it with the wrong expectations.",
           recommendation:
             "Describe when to call the tool, its bounded effect, and the receipt it returns.",
-          measurement: {
-            value: `${description.length}`,
-            threshold: "32+",
-            unit: "description characters",
-          },
+          measurement: thresholdMeasurement(
+            `${description.length}`,
+            "32+",
+            "description characters",
+            "lower-is-worse",
+          ),
         }),
       );
     }
@@ -111,7 +112,12 @@ export function auditWebMcpTools(
             "An agent may treat a state-changing action as safe to invoke without user caution.",
           recommendation:
             "Remove readOnlyHint or make the tool genuinely read-only, and describe its visible state change and receipt.",
-          measurement: { value: "true", threshold: "false or absent", unit: "readOnlyHint" },
+          measurement: thresholdMeasurement(
+            "true",
+            "false or absent",
+            "readOnlyHint",
+            "non-monotonic",
+          ),
         }),
       );
     }
@@ -128,11 +134,12 @@ export function auditWebMcpTools(
           whyItMatters:
             "Unexpected arguments make tool behavior harder to validate, debug, and trust.",
           recommendation: "Close the object schema and name every accepted field explicitly.",
-          measurement: {
-            value: String(tool.inputSchema?.additionalProperties ?? "missing"),
-            threshold: "false",
-            unit: "additionalProperties",
-          },
+          measurement: thresholdMeasurement(
+            String(tool.inputSchema?.additionalProperties ?? "missing"),
+            "false",
+            "additionalProperties",
+            "non-monotonic",
+          ),
         }),
       );
     }
@@ -162,7 +169,7 @@ export function collectSiteToolFindings(
         "Expose the product's important states as WebMCP Site Tools so an agent can reach them without clicking.",
       viewport,
       rect: null,
-      measurement: { value: "0", threshold: "1+", unit: "Site Tools" },
+      measurement: thresholdMeasurement("0", "1+", "Site Tools", "lower-is-worse"),
       evidence: { kind: "tool-contract", ref: "document" },
     },
   ];
