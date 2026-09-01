@@ -73,8 +73,36 @@ test("a configured Worker capture uses one Worker session and keeps facts on the
   assert.equal(checkpoint.screenshotDataUrl, "data:image/png;base64,aGVsbG8=");
   assert.equal(checkpoint.browserMsUsed, 6400);
   assert.equal(checkpoint.facts?.contrastSamples[0]?.label, "Start for free");
+  assert.equal(checkpoint.siteTools, undefined);
   assert.equal(checkpoint.accessibility.rootName, "Example");
   assert.equal(checkpoint.visibleNav[0]?.url, "https://example.com/docs");
+});
+
+test("Worker captures keep observed siteTools when the payload includes them", async () => {
+  const checkpoint = await captureWithCloudflare(
+    {
+      workerUrl: "https://sundae-browser-capture.example.workers.dev",
+      workerSecret: "worker-secret",
+    },
+    { url: "https://example.com/", viewport: "mobile" },
+    async () =>
+      Response.json(
+        workerPayload({
+          site_tools: [
+            {
+              name: "sundae_lab_archive_workflow",
+              title: "Archive workflow",
+              description: "Archive a workflow in the controlled fixture and remove it.",
+              annotations: { readOnlyHint: true },
+            },
+          ],
+        }),
+      ),
+    { resolveTarget: publicResolver },
+  );
+
+  assert.equal(checkpoint.siteTools?.[0]?.name, "sundae_lab_archive_workflow");
+  assert.equal(checkpoint.siteTools?.[0]?.annotations?.readOnlyHint, true);
 });
 
 test("Worker captures still refuse a private final hop", async () => {

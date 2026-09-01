@@ -1,6 +1,7 @@
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { boundedText } from "@/lib/text";
 import { collectMeasuredFindings, presentFindings } from "./derive-findings";
+import { collectSiteToolFindings, normalizeRuntimeToolContract } from "./tools";
 import type {
   AuditSnapshot,
   DesignCategory,
@@ -202,8 +203,20 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
         evidence: finding.evidence ?? { kind: "dom" as const, ref: checkpoint.id },
       }))
     : [];
+  const fromTools =
+    checkpoint.siteTools === undefined
+      ? []
+      : collectSiteToolFindings(
+          checkpoint.siteTools.map(normalizeRuntimeToolContract),
+          checkpoint.viewport,
+        ).map((finding) => ({
+          ...finding,
+          checkpointId: checkpoint.id,
+          scopeKey: checkpoint.scopeId,
+          evidence: finding.evidence ?? { kind: "tool-contract" as const, ref: checkpoint.id },
+        }));
 
-  return presentFindings([...findings, ...fromFacts], checkpoint.viewportSize.width);
+  return presentFindings([...findings, ...fromFacts, ...fromTools], checkpoint.viewportSize.width);
 }
 
 export function createJudgedFinding(

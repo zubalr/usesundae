@@ -1,6 +1,11 @@
 import puppeteer from "@cloudflare/puppeteer";
 
 import { MAX_CAPTURE_SCREENSHOT_BASE64_CHARS } from "../../lib/capture/limits";
+import {
+  MODEL_CONTEXT_OBSERVER_SOURCE,
+  parseObservedSiteTools,
+  READ_OBSERVED_SITE_TOOLS_SOURCE,
+} from "../../lib/capture/observe-site-tools";
 import { MAX_LAUNCH_RETRY_MS } from "../../lib/capture/worker-protocol";
 import { DOM_SOURCE } from "./dom-source.js";
 import { isBlockedBrowserRequest } from "./policy";
@@ -58,6 +63,49 @@ function previewScript(css: string) {
   return `(() => { const style = document.createElement("style"); style.setAttribute("data-sundae-preview", "true"); style.textContent = ${JSON.stringify(css)}; document.documentElement.append(style); })();`;
 }
 
+type CapturePage = Awaited<ReturnType<Awaited<ReturnType<typeof puppeteer.launch>>["newPage"]>>;
+
+async function waitForFixtureHost(page: CapturePage) {
+  try {
+    await page.waitForFunction(
+      `() => {
+        const nodes = [document.querySelector("#fixture-webmcp-status")];
+        for (const iframe of document.querySelectorAll("iframe")) {
+          try {
+            nodes.push(
+              iframe.contentDocument &&
+                iframe.contentDocument.querySelector("#fixture-webmcp-status"),
+            );
+          } catch (error) {
+            nodes.push(null);
+          }
+        }
+        const statuses = nodes.filter(Boolean).map((node) => node.getAttribute("data-status"));
+        return (
+          statuses.length === 0 ||
+          statuses.every((status) => status === "ready" || status === "unavailable" || status === "error")
+        );
+      }`,
+      { timeout: 8_000 },
+    );
+  } catch {
+    return;
+  }
+}
+
+async function collectObservedSiteTools(page: CapturePage) {
+  const listed: unknown[] = [];
+  for (const frame of page.frames()) {
+    try {
+      const tools = await frame.evaluate(`(${READ_OBSERVED_SITE_TOOLS_SOURCE})()`);
+      if (Array.isArray(tools)) listed.push(...tools);
+    } catch {
+      continue;
+    }
+  }
+  return parseObservedSiteTools(listed) ?? [];
+}
+
 function navigationHops(
   requestedUrl: string,
   response: {
@@ -100,11 +148,14 @@ export async function runBrowserCapture(
       if (isBlockedBrowserRequest(request.url())) void request.abort();
       else void request.continue();
     });
+    await page.evaluateOnNewDocument(MODEL_CONTEXT_OBSERVER_SOURCE);
     if (input.previewCss) await page.evaluateOnNewDocument(previewScript(input.previewCss));
     const response = await page.goto(input.url, { waitUntil: "networkidle2", timeout: 30_000 });
     if (input.waitForSelector) {
       await page.waitForSelector(input.waitForSelector, { timeout: 8_000 });
     }
+    await waitForFixtureHost(page);
+    const siteTools = await collectObservedSiteTools(page);
     const evaluated = JSON.parse(
       (await page.evaluate(
         `${DOM_SOURCE};JSON.stringify((() => { const facts = SundaeDom.captureBrowserFacts(document, ${JSON.stringify(input.viewport)}); const links = []; for (const node of document.querySelectorAll("a[href]")) { links.push("[" + ((node.textContent || "").trim().slice(0, 80)) + "](" + node.href + ")"); if (links.length === 80) break; } return { facts, title: document.title, markdown: "# " + document.title + "\\n\\n" + ((document.body && document.body.innerText) || "").slice(0, 20000) + "\\n\\n" + links.join("\\n") }; })())`,
@@ -139,6 +190,7 @@ export async function runBrowserCapture(
       text_or_markdown: evaluated.markdown,
       accessibility_tree: accessibilityTree ?? { role: "RootWebArea", name: evaluated.title },
       facts: evaluated.facts,
+      site_tools: siteTools,
       title: evaluated.title,
     };
   } finally {

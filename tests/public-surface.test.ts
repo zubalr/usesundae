@@ -142,7 +142,23 @@ test("the evidence pane leads with findings, then strengths, gaps, brief, and re
   assert.match(workbench, /"Re-measure"/);
   assert.doesNotMatch(workbench, /Audit live target/);
   assert.doesNotMatch(workbench, /Recapture page/);
-  assert.match(workbench, /productFindings\.length > 0/);
+  assert.match(workbench, />Design</);
+  assert.match(workbench, /Agent readiness/);
+  assert.match(workbench, /Technical facts/);
+  assert.doesNotMatch(workbench, /Product findings/);
+  assert.doesNotMatch(workbench, /Accessibility &(?:amp;)? technical facts/);
+  assert.match(
+    workbench,
+    /No design judgment yet\. Sundae measured the evidence below\. Open this workspace in ChatGPT\s+to add judged findings against it\./,
+  );
+  assert.match(workbench, /Audit with ChatGPT/);
+  assert.match(workbench, /<details[\s\S]*Technical facts/);
+  assert.doesNotMatch(workbench, /<details[^>]*\sopen[\s\S]{0,200}Technical facts/);
+  assert.match(workbench, /aria-label=\{evidenceBoard\.listLabel\}/);
+  const designLane = workbench.indexOf(">Design<");
+  const agentLane = workbench.indexOf("Agent readiness");
+  const technicalLane = workbench.indexOf("Technical facts");
+  assert.ok(designLane >= 0 && agentLane > designLane && technicalLane > agentLane);
 });
 
 test("the workbench accepts bare domains and contains desktop pane scrolling", () => {

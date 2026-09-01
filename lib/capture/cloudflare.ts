@@ -6,6 +6,7 @@ import { summarizeAccessibilityTree } from "./accessibility";
 import { assertPublicDnsTarget, type ResolveTarget } from "./dns-policy";
 import { MAX_CAPTURE_PROVIDER_RESPONSE_BYTES, MAX_CAPTURE_SCREENSHOT_BASE64_CHARS } from "./limits";
 import { extractVisibleNav } from "./visible-nav";
+import { parseObservedSiteTools } from "./observe-site-tools";
 import { readTextUpTo } from "./stream";
 import type { RemoteCaptureInput, RemoteCheckpoint } from "./types";
 import { normalizePublicTarget, sanitizePreviewCss, sanitizeWaitForSelector } from "./url-policy";
@@ -299,6 +300,7 @@ type WorkerCapturePayload = {
   accessibility_tree?: unknown;
   facts?: unknown;
   title?: unknown;
+  site_tools?: unknown;
 };
 
 function workerRedirectChain(value: unknown): Array<{ url: string }> | undefined {
@@ -488,6 +490,7 @@ async function captureWithBrowserWorker(
     },
     browserMsUsed,
     facts,
+    siteTools: parseObservedSiteTools(payload.site_tools),
   };
 }
 

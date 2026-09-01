@@ -936,6 +936,46 @@
   padding: var(--space-s) var(--space-l);
 }
 
+.findingLane summary.laneHead {
+  cursor: pointer;
+}
+
+.laneEmpty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-l);
+}
+
+.laneEmpty > .emptyCopy {
+  flex: 1 1 16rem;
+  min-width: var(--space-none);
+  margin: var(--space-none);
+  padding: var(--space-none);
+}
+
+.chatGptLaneAction {
+  min-height: calc(var(--space-xl) + var(--space-xs));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  border: 0;
+  border-radius: var(--radius-s);
+  padding: var(--space-none) var(--space-s);
+  background: var(--text-primary);
+  color: var(--surface-raised);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.chatGptLaneAction svg {
+  width: var(--text-s);
+  height: var(--text-s);
+}
+
 .findingList {
   border-bottom: 1px solid #deded7;
 }

@@ -209,6 +209,62 @@ test("public checkpoints with browser facts include measured contrast findings",
   assert.match(contrast?.measurement?.value ?? "", /4\.09:1|4\.1:1|3\.\d+:1/);
 });
 
+test("optional siteTools become agent-readiness findings without inventing design judgments", () => {
+  const absent = deriveCheckpointFindings(
+    checkpoint({
+      accessibility: {
+        ...checkpoint().accessibility,
+        unnamedInteractiveCount: 0,
+        headingOutline: [{ level: 1, name: "Example product" }],
+      },
+    }),
+  );
+  assert.equal(
+    absent.some((finding) => finding.rule === "agent-surface"),
+    false,
+  );
+
+  const empty = deriveCheckpointFindings(
+    checkpoint({
+      accessibility: {
+        ...checkpoint().accessibility,
+        unnamedInteractiveCount: 0,
+        headingOutline: [{ level: 1, name: "Example product" }],
+      },
+      siteTools: [],
+    }),
+  );
+  const none = empty.find((finding) => finding.rule === "agent-surface");
+  assert.match(none?.title ?? "", /no Site Tools/i);
+  assert.equal(
+    empty.some((finding) => finding.truth === "judged"),
+    false,
+  );
+
+  const observed = deriveCheckpointFindings(
+    checkpoint({
+      accessibility: {
+        ...checkpoint().accessibility,
+        unnamedInteractiveCount: 0,
+        headingOutline: [{ level: 1, name: "Example product" }],
+      },
+      siteTools: [
+        {
+          name: "sundae_lab_archive_workflow",
+          description:
+            "Archive a workflow in the controlled fixture and remove it from the visible list.",
+          annotations: { readOnlyHint: true },
+        },
+      ],
+    }),
+  );
+  assert.ok(
+    observed.some(
+      (finding) => finding.auditId === "sundae_lab_archive_workflow-read-only-annotation",
+    ),
+  );
+});
+
 test("redacted URL states remain distinct verification scopes", () => {
   const free = checkpoint({
     id: "checkpoint_free",

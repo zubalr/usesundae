@@ -1,3 +1,4 @@
+import { collectDesignSignal, type DesignSignal } from "./design-signal";
 import { compositeCssBackground } from "./measurements";
 import type { IdentityConfidence, Region, Viewport } from "./types";
 
@@ -27,6 +28,7 @@ export type BrowserFacts = {
   }>;
   overflow: { scrollWidth: number; clientWidth: number; rect?: Region };
   copy: { promise: string; primaryAction: string; rect: Region } | null;
+  designSignal?: DesignSignal;
 };
 
 function region(element: Element): Region {
@@ -232,5 +234,6 @@ export function captureBrowserFacts(document: Document, viewport: Viewport): Bro
             rect: region(promise),
           }
         : null,
+    designSignal: collectDesignSignal(document, view, isVisible),
   };
 }

@@ -50,9 +50,16 @@ import {
   WEBMCP_TOOL_COUNTS,
   type WebMcpStatus,
 } from "@/lib/webmcp/register";
+import { useAuditIntent } from "@/components/AuditIntent";
 import { DemoViewport } from "@/components/DemoViewport";
 import { Icon } from "@/components/Icons";
 import styles from "@/components/Workbench.module.css";
+import {
+  buildChatGptComposerUrl,
+  buildChatGptHandoffPrompt,
+  buildWorkspaceUrl,
+  createAuditLaunch,
+} from "@/lib/launch";
 
 export type TargetMode = "sample" | "remote";
 
@@ -934,15 +941,47 @@ function FindingRows({
   );
 }
 
+function DesignEmptyState({ includedDemoUrl }: { includedDemoUrl: string }) {
+  const { targetUrl, goal } = useAuditIntent();
+  function openChatGpt() {
+    try {
+      const launch = createAuditLaunch(targetUrl.trim() || includedDemoUrl, goal);
+      const workspaceUrl = buildWorkspaceUrl(window.location.origin, launch);
+      window.open(
+        buildChatGptComposerUrl(buildChatGptHandoffPrompt(launch, workspaceUrl, includedDemoUrl)),
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } catch {
+      return;
+    }
+  }
+  return (
+    <div className={styles.laneEmpty}>
+      <p className={styles.emptyCopy}>
+        No design judgment yet. Sundae measured the evidence below. Open this workspace in ChatGPT
+        to add judged findings against it.
+      </p>
+      <button className={styles.chatGptLaneAction} type="button" onClick={openChatGpt}>
+        <Icon name="agent" /> Audit with ChatGPT
+      </button>
+    </div>
+  );
+}
+
 function FindingList({
   evidenceBoard,
   visibleFindings,
   selected,
   baseline,
+  includedDemoUrl,
   onFocusFinding,
 }: WorkbenchViewProps) {
-  const productFindings = visibleFindings.filter(({ truth }) => truth === "judged");
-  const supportingFacts = visibleFindings.filter(({ truth }) => truth === "measured");
+  const designFindings = visibleFindings.filter(({ truth }) => truth === "judged");
+  const agentFindings = visibleFindings.filter(({ rule }) => rule === "agent-surface");
+  const technicalFindings = visibleFindings.filter(
+    ({ truth, rule }) => truth === "measured" && rule !== "agent-surface",
+  );
   return (
     <section className={styles.findingList} aria-label={evidenceBoard.listLabel}>
       {!baseline ? (
@@ -952,36 +991,61 @@ function FindingList({
           <span />
         </div>
       ) : null}
-      {baseline && productFindings.length > 0 ? (
-        <div className={styles.findingLane}>
-          <div className={styles.laneHead}>
-            <h3>Product findings</h3>
-            <span>{productFindings.length} supported judgments</span>
-          </div>
-          <FindingRows
-            findings={productFindings}
-            selected={selected}
-            startIndex={0}
-            onFocusFinding={onFocusFinding}
-          />
-        </div>
-      ) : null}
       {baseline ? (
-        <div className={styles.findingLane} data-lane="supporting">
-          <div className={styles.laneHead}>
-            <h3>Accessibility &amp; technical facts</h3>
-            <span>{supportingFacts.length} deterministic observations</span>
+        <>
+          <div className={styles.findingLane} data-lane="design">
+            <div className={styles.laneHead}>
+              <h3>Design</h3>
+              <span>
+                {designFindings.length} {designFindings.length === 1 ? "judgment" : "judgments"}
+              </span>
+            </div>
+            {designFindings.length > 0 ? (
+              <FindingRows
+                findings={designFindings}
+                selected={selected}
+                startIndex={0}
+                onFocusFinding={onFocusFinding}
+              />
+            ) : (
+              <DesignEmptyState includedDemoUrl={includedDemoUrl} />
+            )}
           </div>
-          <FindingRows
-            findings={supportingFacts}
-            selected={selected}
-            startIndex={productFindings.length}
-            onFocusFinding={onFocusFinding}
-          />
-          {supportingFacts.length === 0 ? (
-            <p className={styles.emptyCopy}>No deterministic fault was reproduced in this scope.</p>
-          ) : null}
-        </div>
+          <div className={styles.findingLane} data-lane="agent">
+            <div className={styles.laneHead}>
+              <h3>Agent readiness</h3>
+              <span>
+                {agentFindings.length} {agentFindings.length === 1 ? "observation" : "observations"}
+              </span>
+            </div>
+            <FindingRows
+              findings={agentFindings}
+              selected={selected}
+              startIndex={designFindings.length}
+              onFocusFinding={onFocusFinding}
+            />
+          </div>
+          <details className={styles.findingLane} data-lane="technical">
+            <summary className={styles.laneHead}>
+              <h3>Technical facts</h3>
+              <span>
+                {technicalFindings.length}{" "}
+                {technicalFindings.length === 1 ? "measurement" : "measurements"}
+              </span>
+            </summary>
+            <FindingRows
+              findings={technicalFindings}
+              selected={selected}
+              startIndex={designFindings.length + agentFindings.length}
+              onFocusFinding={onFocusFinding}
+            />
+            {technicalFindings.length === 0 ? (
+              <p className={styles.emptyCopy}>
+                No deterministic fault was reproduced in this scope.
+              </p>
+            ) : null}
+          </details>
+        </>
       ) : null}
     </section>
   );

@@ -140,3 +140,30 @@ export function auditWebMcpTools(
 
   return findings;
 }
+
+export function collectSiteToolFindings(
+  tools: readonly AuditedToolContract[],
+  viewport: Viewport,
+): Finding[] {
+  if (tools.length > 0) return auditWebMcpTools(tools, viewport);
+  return [
+    {
+      id: `${viewport}:agent-surface:no-site-tools`,
+      auditId: "no-site-tools",
+      rule: "agent-surface",
+      truth: "measured",
+      severity: "medium",
+      title: "This page exposes no Site Tools",
+      observation:
+        "An agent can read what is rendered but cannot reach any state behind an interaction. States behind menus, modals, and forms were not observed.",
+      whyItMatters:
+        "Without Site Tools, an agent is limited to the rendered snapshot and cannot reach states behind interaction.",
+      recommendation:
+        "Expose the product's important states as WebMCP Site Tools so an agent can reach them without clicking.",
+      viewport,
+      rect: null,
+      measurement: { value: "0", threshold: "1+", unit: "Site Tools" },
+      evidence: { kind: "tool-contract", ref: "document" },
+    },
+  ];
+}

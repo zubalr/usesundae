@@ -1,6 +1,7 @@
 import type { BrowserFacts } from "@/lib/audit/dom";
 import type { Viewport } from "@/lib/audit/types";
 import type { VisibleNavRoute } from "./visible-nav";
+import type { ObservedSiteTool } from "./observe-site-tools";
 
 export type CaptureSource = "cloudflare" | "local";
 
@@ -59,6 +60,8 @@ export type RemoteCheckpoint = {
   browserMsUsed?: number;
   /** In-page geometry and contrast measured inside the remote document. */
   facts?: BrowserFacts;
+  /** Site Tools registered on the captured document. Absent when the Worker did not observe a host. */
+  siteTools?: ObservedSiteTool[];
 };
 
 export type RemoteCaptureInput = {

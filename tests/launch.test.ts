@@ -68,16 +68,31 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.match(prompt, /record_audit_brief/i);
   assert.match(prompt, /record_review_result/i);
   assert.match(prompt, /UI.*UX.*Interaction/is);
-  assert.match(prompt, /maximum of three per inspected category/i);
+  assert.match(
+    prompt,
+    /maximum of three per inspected category|at most three per inspected category/i,
+  );
   assert.match(prompt, /fewer or none/i);
   assert.match(prompt, /severity.*confidence|confidence.*severity/is);
   assert.doesNotMatch(prompt, /0–3 judged findings per bucket/i);
   assert.match(prompt, /coverage gap/i);
-  assert.match(prompt, /do not restate a measured finding/i);
+  assert.match(prompt, /cite measured facts as receipts/i);
+  assert.match(prompt, /do not re-derive|do not restate/i);
+  assert.match(prompt, /contrast.*tap-target|tap-target.*contrast/i);
+  assert.match(prompt, /not the headline|do not lead/i);
+  assert.match(prompt, /DESIGN judgment/i);
+  assert.match(prompt, /hierarchy/);
+  assert.match(prompt, /primary action matches the visitor'?s goal/i);
+  assert.match(prompt, /earn their space/i);
+  assert.match(prompt, /SEO/);
+  assert.match(prompt, /ask before/i);
+  assert.doesNotMatch(prompt, /Inspect measured facts first/i);
   assert.match(prompt, /preview_fix/);
   assert.match(prompt, /verify_recapture/);
-  assert.match(prompt, /do not claim an audit or capture completed/i);
+  assert.match(prompt, /do not claim conversion or revenue/i);
+  assert.match(prompt, /keep the exact workspace link, name the missing step, and stop/i);
   assert.doesNotMatch(prompt, /Gemini|Google Cloud/i);
+  assert.ok(prompt.length < 4200);
 
   const boardRead = prompt.indexOf("get_board_context");
   const visibleNav = prompt.indexOf("`uncaptured_nav`");

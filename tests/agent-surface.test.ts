@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { auditWebMcpTools, normalizeRuntimeToolContract } from "../lib/audit/tools";
+import {
+  auditWebMcpTools,
+  collectSiteToolFindings,
+  normalizeRuntimeToolContract,
+} from "../lib/audit/tools";
 import {
   demoWebMcpReadyMessage,
   DEMO_TOOL_CONTRACTS,
@@ -91,6 +95,31 @@ test("marks malformed or oversized runtime schemas uninspectable without inventi
       false,
     );
   }
+});
+
+test("a page with no Site Tools is an honest coverage finding, not an error", () => {
+  const findings = collectSiteToolFindings([], "desktop");
+
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.rule, "agent-surface");
+  assert.equal(findings[0]?.truth, "measured");
+  assert.match(findings[0]?.title ?? "", /no Site Tools/i);
+  assert.match(findings[0]?.observation ?? "", /cannot reach any state behind an interaction/i);
+  assert.match(findings[0]?.observation ?? "", /menus, modals, and forms were not observed/i);
+  assert.doesNotMatch(findings[0]?.title ?? "", /error/i);
+});
+
+test("observed Site Tools still surface the planted read-only lie", () => {
+  const findings = collectSiteToolFindings(DEMO_TOOL_CONTRACTS, "desktop");
+  assert.ok(
+    findings.some(
+      (finding) => finding.auditId === "sundae_lab_archive_workflow-read-only-annotation",
+    ),
+  );
+  assert.equal(
+    findings.some((finding) => finding.title.includes("no Site Tools")),
+    false,
+  );
 });
 
 test("the nested fixture status does not imply the workbench lost Site Tools", () => {
