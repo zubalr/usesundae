@@ -1580,6 +1580,11 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       <AgentAuthority {...props} hostToolCount={hostToolCount} />
       {props.mode === "remote" ? <CaptureBar {...props} /> : null}
       <JourneyBar {...props} />
+      <ol className={styles.boardLegend} aria-label="Where to look">
+        <li>Ask ChatGPT to audit</li>
+        <li>Approve one finding</li>
+        <li>Preview and verify</li>
+      </ol>
       <div className={styles.workbench} id="workbench">
         <ProductPane {...props} />
         <EvidencePane {...props} />

@@ -6,7 +6,9 @@ Sundae uses page-hosted WebMCP Site Tools to make the open audit page the shared
 
 **A person and their ChatGPT agent audit the same live page together: the agent measures and organizes evidence through WebMCP, the person governs judgment, and Sundae verifies every claimed fix.**
 
-[Open Sundae](https://usesundae.vercel.app/) to prepare a workspace, or go straight to the guaranteed [published `/demo` workspace](https://usesundae.vercel.app/demo). The demo needs no login, connector, hosted auditor model, capture-provider key, or plugin. In the ChatGPT desktop app, open the built-in browser on **GPT-5.6 Sol** or **GPT-5.6 Terra** and paste the exact workspace URL; Site Tools are discovered automatically from that page. **GPT-5.6 Luna has WebMCP disabled** and will not discover them.
+[Open Sundae](https://usesundae.vercel.app/) to prepare a workspace, or go straight to the guaranteed [published `/demo` workspace](https://usesundae.vercel.app/demo). The demo needs no login, connector, hosted auditor model, capture-provider key, or plugin.
+
+Two ChatGPT routes have been verified with **GPT-5.6 Sol** and **GPT-5.6 Terra**: the desktop app's built-in browser, and ChatGPT **Work Cloud** at chatgpt.com. OpenAI currently documents only the desktop app. **GPT-5.6 Luna has WebMCP disabled** and will not discover Site Tools.
 
 ## Challenge work added during the submission period
 
@@ -40,15 +42,17 @@ Without WebMCP, this workflow collapses into a screenshot conversation, a hidden
 
 ## Judge path
 
-**Requires the ChatGPT desktop app** (latest version) with model **GPT-5.6 Sol** or **GPT-5.6 Terra**. Per OpenAI's Site tools documentation, **GPT-5.6 Luna has WebMCP disabled** and will not discover Site Tools. Site tools are also unavailable in Enterprise and Edu workspaces.
+Site Tools have been verified on **GPT-5.6 Sol** and **GPT-5.6 Terra** in two places: the ChatGPT desktop app, and ChatGPT **Work Cloud** at chatgpt.com. OpenAI's Site tools documentation currently names only the desktop app. **GPT-5.6 Luna has WebMCP disabled** and will not discover Site Tools. Site tools are also unavailable in Enterprise and Edu workspaces.
 
-1. In the ChatGPT desktop app, open the built-in browser at `https://usesundae.vercel.app/demo`.
+1. Open ChatGPT Desktop's built-in browser, or ChatGPT Work Cloud's browser, at `https://usesundae.vercel.app/demo`.
 2. Click **Site tools** in the browser address bar. You should see **11 Sundae tools**. If the panel is empty, check the model first.
 3. Ask: _"Audit this page with its Site Tools. Keep measurements, judgment, and what you did not see separate, and ask me before any decision or preview."_
 4. Watch the board: measured evidence and receipts appear as tools run, and the **Agent tool calls** counter in the top bar increments.
 5. ChatGPT asks before changing a decision or starting a preview.
 6. Accept a finding with a visible reason, then let it run `preview_fix` and `verify_recapture`.
 7. Confirm the board shows the fresh measurement, the verification state, and tool-named receipts.
+
+A host may deny an individual Site Tool call. In a real run, ChatGPT's auto-review blocked `record_audit_brief` with "Browser Use rejected this action due to browser security policy". Sundae never saw that call. The rest of the audit still completed.
 
 Without WebMCP — an ordinary browser, or an unsupported model — Sundae still provides every deterministic measurement and every human control. It does not pretend an agent is present: the top bar reads **Human controls ready** and the **Agent tool calls** counter stays at 0.
 
@@ -89,19 +93,19 @@ On `/demo`, `preview_fix` renders a **pre-authored improved variant** of the con
 
 The included `/demo` registers eleven Sundae workbench tools:
 
-| Tool                    | Purpose                                               |
-| ----------------------- | ----------------------------------------------------- |
-| `audit_current_scope`   | Measure the live included target                      |
-| `inspect_agent_surface` | Inspect the controlled target's WebMCP contracts      |
-| `get_board_context`     | Read bounded evidence, decisions, gaps, and next work |
-| `record_audit_brief`    | Orient the product before judging the interface       |
-| `record_review_result`  | Preserve a strength or an inspected no-issue result   |
-| `record_visual_finding` | Add a supported UI, UX, or Interaction judgment       |
-| `record_coverage_gap`   | Record an important surface that was not observed     |
-| `focus_finding`         | Select evidence on the visible board                  |
-| `set_finding_decision`  | Record the person's reversible decision and reason    |
-| `preview_fix`           | Render a reversible local preview                     |
-| `verify_recapture`      | Re-measure the same scope before calling a fact fixed |
+| Tool                    | Purpose                                                        |
+| ----------------------- | -------------------------------------------------------------- |
+| `audit_current_scope`   | Measure the live included target; returns the first board page |
+| `inspect_agent_surface` | Inspect the controlled target's WebMCP contracts               |
+| `get_board_context`     | Read bounded evidence, decisions, gaps, and next work          |
+| `record_audit_brief`    | Orient the product before judging the interface                |
+| `record_review_result`  | Preserve a strength or an inspected no-issue result            |
+| `record_visual_finding` | Add a supported UI, UX, or Interaction judgment                |
+| `record_coverage_gap`   | Record an important surface that was not observed              |
+| `focus_finding`         | Select evidence on the visible board                           |
+| `set_finding_decision`  | Record the person's reversible decision and reason             |
+| `preview_fix`           | Render a reversible local preview                              |
+| `verify_recapture`      | Re-measure the same scope before calling a fact fixed          |
 
 ChatGPT's built-in browser does not discover tools registered inside iframes. Sundae's 11 tools are registered at the top level, so the count shown in **Site tools** is exact. The audited fixture's own tools live inside the iframe — which is why `inspect_agent_surface` exists: Sundae reads contracts the host itself cannot reach.
 
@@ -122,11 +126,13 @@ Sundae audits public HTTPS pages its configured browser provider can render. Whe
 
 **Allow agent to capture** authorizes only the exact displayed URL for the current browser session; it does not start a capture. ChatGPT may then call `capture_public_page`. **Capture myself** is the human alternative and captures immediately. The two choices are not a sequence.
 
-Public capture uses Cloudflare Browser Run Quick Actions and never accepts credentials in URLs, private-network targets, nonstandard ports, target-site cookies, silent tabs, login flows, form submission, recursive crawling, or off-origin navigation. Existing board evidence remains intact when the provider fails.
+Public capture opens the approved page in a Cloudflare browser session and runs Sundae's own audit engine inside that page with `page.evaluate()`. Measurement happens in one browser session and typically finishes in about 6 to 9 seconds. Sundae never accepts credentials in URLs, private-network targets, nonstandard ports, target-site cookies, silent tabs, login flows, form submission, recursive crawling, or off-origin navigation. Existing board evidence remains intact when the provider fails.
 
 For local public-capture development, configure opaque values outside source control:
 
 ```text
+SUNDAE_BROWSER_WORKER_URL
+SUNDAE_BROWSER_WORKER_SECRET
 CLOUDFLARE_ACCOUNT_ID
 CLOUDFLARE_API_TOKEN
 CAPTURE_GATE_SECRET

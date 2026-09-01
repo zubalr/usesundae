@@ -85,20 +85,36 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className={styles.heroThesis}>
               <h1 id="landing-title">Audit the same live page together.</h1>
               <p>
-                Screenshot audits split the interface, model conversation, evidence, and decisions.
-                Sundae makes the open page the shared WebMCP tool host: ChatGPT records evidence
-                through Site Tools, you govern judgment, and fresh recapture is required before
-                “fixed.”
+                Sundae puts ChatGPT’s Site Tools on the live page you are looking at, so
+                measurement, judgment, and fresh recapture stay in one place.
               </p>
+              <aside className={styles.measuredFinding} aria-label="Measured capture from Todoist">
+                <p>
+                  Sundae opened Todoist and measured its primary call-to-action at 4.09:1 contrast,
+                  below the 4.5:1 threshold, on their own brand red — one of 28 controls under the
+                  44 x 44 touch target guidance.
+                </p>
+                <p className={styles.measuredSource}>
+                  Measured from a live capture of todoist.com at mobile.
+                </p>
+              </aside>
             </div>
 
             <section className={styles.liveSet} aria-label="Sundae shared audit loop">
               <section className={styles.programStage} aria-label="Included controlled demo">
                 <div className={styles.programHeader}>
                   <span>
-                    <i /> Included /demo · controlled target
+                    <i /> Live product on this page
                   </span>
-                  <span>11 page-hosted tools · zero provider keys</span>
+                  <span>Your agent measures what you can see</span>
+                </div>
+
+                <div className={styles.commandStrip}>
+                  <div className={styles.commandCopy}>
+                    <h2>Audit a public page.</h2>
+                    <p>The included /demo is a guaranteed fallback.</p>
+                  </div>
+                  <AuditLauncher includedDemoUrl={includedDemoUrl} />
                 </div>
 
                 <div className={styles.fixtureWindow}>
@@ -115,16 +131,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     <span>Live controlled product surface</span>
                     <span>Evidence stays on the board</span>
                   </div>
-                </div>
-
-                <div className={styles.commandStrip}>
-                  <div className={styles.commandCopy}>
-                    <h2>Put a page on the shared board.</h2>
-                    <p>
-                      The included demo is guaranteed. Public capture is a bounded secondary path.
-                    </p>
-                  </div>
-                  <AuditLauncher includedDemoUrl={includedDemoUrl} />
                 </div>
               </section>
 

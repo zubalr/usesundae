@@ -9,8 +9,12 @@ import {
   describeEvidenceBoard,
   describeHostToolCount,
   invalidateVerificationForFindings,
+  judgmentRecordOutcome,
+  mergeAuditWithFirstBoardPage,
   verificationLabel,
 } from "../lib/workbench/evidence";
+import { evaluatePreviewAuthority } from "../lib/workbench/preview-authority";
+import { compareFinding } from "../lib/audit/recapture";
 import {
   committedSystemBaselineKey,
   shouldCommitMeasuredSnapshot,
@@ -236,6 +240,96 @@ test("a generated DOM identity cannot be called fixed when continuity is uncerta
   assert.deepEqual(comparison.summary, { fixed: 0, still_open: 0, unverified: 1 });
 });
 
+test("a judgment records when no audit brief exists and asks for the brief next", () => {
+  const recorded = judgmentRecordOutcome({
+    findingId: "mobile:visual-judgment:sample-1",
+    previewVisible: false,
+    hasBrief: false,
+  });
+
+  assert.match(recorded.receipt, /Added mobile:visual-judgment:sample-1 as a judged finding/);
+  assert.match(recorded.receipt, /the current evidence/);
+  assert.match(recorded.next ?? "", /record_audit_brief/);
+});
+
+test("a judgment records while a preview is visible and stays linked to retained baseline evidence", () => {
+  const recorded = judgmentRecordOutcome({
+    findingId: "mobile:visual-judgment:sample-2",
+    previewVisible: true,
+    hasBrief: true,
+  });
+
+  assert.match(recorded.receipt, /retained baseline evidence while a preview is visible/);
+  assert.equal(recorded.next, undefined);
+});
+
+test("preview_fix still refuses without a reasoned acceptance", () => {
+  assert.equal(
+    evaluatePreviewAuthority({
+      findingId: "mobile:contrast:primary-action",
+      decision: "open",
+      reason: "The person approved this bounded preview.",
+      previewActive: false,
+    }).canPreview,
+    false,
+  );
+  assert.equal(
+    evaluatePreviewAuthority({
+      findingId: "mobile:contrast:primary-action",
+      decision: "accepted",
+      reason: "   ",
+      previewActive: false,
+    }).canPreview,
+    false,
+  );
+  assert.match(
+    evaluatePreviewAuthority({
+      findingId: "mobile:contrast:primary-action",
+      decision: "open",
+      previewActive: false,
+    }).previewMessage,
+    /Accept the selected finding with a reason/,
+  );
+});
+
+test("verify_recapture still refuses without a matching active preview", () => {
+  const accepted = {
+    findingId: "mobile:contrast:primary-action",
+    decision: "accepted" as const,
+    reason: "The person approved this bounded preview.",
+  };
+  assert.equal(evaluatePreviewAuthority({ ...accepted, previewActive: false }).canVerify, false);
+  assert.equal(
+    evaluatePreviewAuthority({
+      ...accepted,
+      previewActive: true,
+      previewFindingId: "mobile:contrast:other-control",
+    }).canVerify,
+    false,
+  );
+  assert.match(
+    evaluatePreviewAuthority({ ...accepted, previewActive: false }).verifyMessage,
+    /Create an active preview for this accepted finding/,
+  );
+});
+
+test("a judged finding still can never be reported as fixed", () => {
+  const judged: Finding = {
+    ...finding(5),
+    truth: "judged",
+    measurement: null,
+  };
+  assert.equal(compareFinding(judged, [], true), "unverified");
+  assert.equal(compareFinding(judged, [judged], true), "still_open");
+  const recapture = buildVerificationReceipts(
+    [judged],
+    { ...baseline, findings: [] },
+    "2030-01-01T10:04:00.000Z",
+  );
+  assert.deepEqual(recapture.summary, { fixed: 0, still_open: 0, unverified: 1 });
+  assert.equal(recapture.receipts[judged.id]?.status, "unverified");
+});
+
 test("agent board context stays useful inside the WebMCP output budget", () => {
   const hostileCopy = `${'"\\\n\t'.repeat(80)}${"🙂".repeat(80)}`;
   const findings = Array.from({ length: 14 }, (_, index) => ({
@@ -314,6 +408,67 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
   assert.equal(payload.coverage_gaps.length, 4);
   assert.match(payload.coverage_gaps[0]!, /^gap-/);
   assert.equal(context.uncaptured_nav?.length, 4);
+});
+
+test("audit_current_scope can return the first board page without truncating titles", () => {
+  const findings = Array.from({ length: 7 }, (_, index) => ({
+    ...finding(index),
+    title: `Visible finding ${index}: keep the full title for the agent`,
+  }));
+  const board = buildAgentBoardContext({
+    auditGoal: "Review activation",
+    target: {
+      kind: "included_live_target",
+      path: "/demo",
+      scopeId: "included:/demo:mobile",
+      screenshotVisible: true,
+    },
+    viewport: "mobile",
+    state: "baseline",
+    currentFindingCount: findings.length,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: "2030-01-01T10:00:00.000Z",
+    selectedFindingId: findings[0]!.id,
+    retainsBaseline: false,
+    findings,
+    decisions: {},
+    verifications: {},
+    coverageGaps: baseline.gaps,
+    trailStepCount: 0,
+  });
+  const audit = {
+    ok: true as const,
+    receipt: "Measured the baseline mobile live target in this browser.",
+    scope_id: "included:/demo:mobile",
+    finding_count: findings.length,
+  };
+  const merged = mergeAuditWithFirstBoardPage(audit, board);
+  assert.ok(merged, "A typical included-target board plus the audit receipt must fit 4000 bytes.");
+  const wrapped = {
+    ...merged,
+    tool_name: "audit_current_scope",
+    actor: "agent",
+    status: "success",
+    elapsed_ms: 12,
+  };
+  const text = createToolResult(wrapped).content[0]!.text;
+  const payload = JSON.parse(text) as {
+    truncated?: boolean;
+    receipt: string;
+    findings: Array<{ title: string }>;
+    finding_page: { offset: number; next_offset: number | null };
+  };
+  const serializedBytes = Buffer.byteLength(JSON.stringify(wrapped), "utf8");
+
+  assert.notEqual(payload.truncated, true);
+  assert.ok(
+    serializedBytes <= MAX_TOOL_TEXT_BYTES,
+    `Merged audit board used ${serializedBytes} bytes.`,
+  );
+  assert.match(payload.receipt, /Measured the baseline mobile live target/);
+  assert.equal(payload.findings[0]?.title, findings[0]!.title);
+  assert.equal(payload.finding_page.offset, 0);
+  assert.equal(payload.finding_page.next_offset, 5);
 });
 
 test("mutated review board keeps actionable structure inside the WebMCP budget", () => {

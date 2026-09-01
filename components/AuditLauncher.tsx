@@ -139,12 +139,12 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       ) : null}
 
       <div className={styles.actions}>
-        <a className={styles.demoAction} href="/demo">
-          <Icon name="focus" /> Run included /demo
-        </a>
         <button className={styles.workbenchAction} type="submit">
-          Open public workspace
+          Audit my page
         </button>
+        <a className={styles.demoAction} href="/demo">
+          Run included /demo
+        </a>
         <button className={styles.desktopAction} type="button" onClick={prepareChatGptHandoff}>
           <Icon name="agent" /> Prepare Desktop handoff
         </button>

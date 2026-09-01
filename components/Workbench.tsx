@@ -57,6 +57,8 @@ import {
   buildVerificationReceipts,
   describeEvidenceBoard,
   invalidateVerificationForFindings,
+  judgmentRecordOutcome,
+  mergeAuditWithFirstBoardPage,
 } from "@/lib/workbench/evidence";
 import { evaluatePreviewAuthority } from "@/lib/workbench/preview-authority";
 import {
@@ -88,6 +90,17 @@ function browserMsReceipt(checkpoint: RemoteCheckpoint) {
   }
   return { suffix: ` · ${ms} ms browser`, fields: { browser_ms_used: ms } };
 }
+
+function withFirstBoardPage(
+  audit: CommandResult,
+  board: ReturnType<typeof buildAgentBoardContext> | null,
+): CommandResult {
+  if (!audit.ok || !board) return audit;
+  return (
+    mergeAuditWithFirstBoardPage({ ...audit, ok: true, receipt: audit.receipt }, board) ?? audit
+  );
+}
+
 const SAMPLE_GAPS: CoverageGap[] = [
   {
     id: "gap-invite",
@@ -962,6 +975,70 @@ export function Workbench({
     [assertCurrentOperation, beginRemoteOperation, commitSnapshot, fetchRemote, pushActivity],
   );
 
+  const boardContextPayload = useCallback(
+    (findingOffset?: number) => {
+      const baseline = baselineRef.current[viewportRef.current];
+      if (!baseline) return null;
+      const current = currentRef.current[viewportRef.current];
+      const board = describeEvidenceBoard(
+        baseline,
+        current,
+        demoStateRef.current,
+        viewportRef.current,
+      );
+      const coverage = deriveCoverageSummary({
+        mode: modeRef.current,
+        baseline,
+        current,
+        trail: journeyRef.current,
+        baselinesByViewport: baselineRef.current,
+        hasVerification: baseline.findings.some(
+          ({ id }) => verificationRef.current[id] !== undefined,
+        ),
+      });
+      return buildAgentBoardContext({
+        auditGoal: currentAuditGoal,
+        target:
+          modeRef.current === "remote"
+            ? {
+                kind: "public_checkpoint",
+                displayUrl: checkpointRef.current?.target.displayUrl ?? null,
+                checkpointId: checkpointRef.current?.id ?? null,
+                scopeId: checkpointRef.current?.scopeId ?? null,
+                screenshotVisible: Boolean(checkpointRef.current?.screenshotDataUrl),
+                captureExtent: checkpointRef.current?.capture.fullPage ? "full-page" : "viewport",
+              }
+            : {
+                kind: "included_live_target",
+                path: "/demo",
+                scopeId: baseline.scopeKey ?? `included:/demo:${baseline.viewport}`,
+                screenshotVisible: true,
+              },
+        viewport: baseline.viewport,
+        state: demoStateRef.current,
+        currentFindingCount: board.currentCount,
+        retainedBaselineFindingCount: board.retainsBaseline ? board.baselineCount : 0,
+        currentMeasuredAt: current?.capturedAt ?? null,
+        selectedFindingId: selectedRef.current,
+        retainsBaseline: board.retainsBaseline,
+        findings: baseline.findings,
+        decisions: decisionsRef.current,
+        verifications: verificationRef.current,
+        coverageGaps: coverage.openGaps,
+        trailStepCount: journeyRef.current.length,
+        uncapturedNav: uncapturedVisibleNav(visibleNavRef.current, [
+          remoteUrlRef.current,
+          ...journeyRef.current.map((step) => step.displayUrl),
+        ]),
+        findingOffset,
+        auditBrief: auditBriefRef.current,
+        reviewResults: reviewResultsRef.current,
+        coverage,
+      });
+    },
+    [currentAuditGoal],
+  );
+
   const auditCurrentScope = useCallback(
     async (
       actor: Actor,
@@ -987,16 +1064,19 @@ export function Workbench({
             toolName,
           );
         }
-        return {
-          ok: true,
-          receipt: `Measured the ${snapshot.demoState} ${snapshot.viewport} live target in this browser.`,
-          scope_id: scopeId,
-          scope: snapshot.viewport,
-          state: snapshot.demoState,
-          finding_count: snapshot.findings.length,
-          coverage_gap_count: snapshot.gaps.length,
-          measured_at: snapshot.capturedAt,
-        };
+        return withFirstBoardPage(
+          {
+            ok: true,
+            receipt: `Measured the ${snapshot.demoState} ${snapshot.viewport} live target in this browser.`,
+            scope_id: scopeId,
+            scope: snapshot.viewport,
+            state: snapshot.demoState,
+            finding_count: snapshot.findings.length,
+            coverage_gap_count: snapshot.gaps.length,
+            measured_at: snapshot.capturedAt,
+          },
+          boardContextPayload(0),
+        );
       }
 
       const activeUrl = remoteUrlRef.current;
@@ -1051,21 +1131,25 @@ export function Workbench({
         `${nextCheckpoint.target.displayUrl} · ${nextCheckpoint.id}${browserMs.suffix}`,
         toolName,
       );
-      return {
-        ok: true,
-        receipt: `Created fresh checkpoint ${nextCheckpoint.id}.`,
-        checkpoint_id: nextCheckpoint.id,
-        scope_id: nextCheckpoint.scopeId,
-        state: snapshot.demoState,
-        finding_count: snapshot.findings.length,
-        coverage_gap_count: snapshot.gaps.length,
-        measured_at: snapshot.capturedAt,
-        ...browserMs.fields,
-      };
+      return withFirstBoardPage(
+        {
+          ok: true,
+          receipt: `Created fresh checkpoint ${nextCheckpoint.id}.`,
+          checkpoint_id: nextCheckpoint.id,
+          scope_id: nextCheckpoint.scopeId,
+          state: snapshot.demoState,
+          finding_count: snapshot.findings.length,
+          coverage_gap_count: snapshot.gaps.length,
+          measured_at: snapshot.capturedAt,
+          ...browserMs.fields,
+        },
+        boardContextPayload(0),
+      );
     },
     [
       assertCurrentOperation,
       beginRemoteOperation,
+      boardContextPayload,
       commitSnapshot,
       fetchRemote,
       measureFrame,
@@ -1401,13 +1485,16 @@ export function Workbench({
       reviewResultsRef.current = compatibleReviewResults;
       setReviewResults(compatibleReviewResults);
       pushActivity(actor, "Recorded visual judgment", `${finding.id} · ${finding.title}`, toolName);
+      const recorded = judgmentRecordOutcome({
+        findingId: finding.id,
+        previewVisible,
+        hasBrief: Boolean(brief),
+      });
       return {
         ok: true,
-        receipt: `Added ${finding.id} as a judged finding linked to ${previewVisible ? "the retained baseline evidence while a preview is visible" : "the current evidence"}.`,
+        receipt: recorded.receipt,
         invalidated_no_issue_count: invalidatedReviewResultCount,
-        next: brief
-          ? undefined
-          : "This judgment is unoriented. Call record_audit_brief when the host allows it, then read the board.",
+        next: recorded.next,
         finding: {
           id: finding.id,
           truth: finding.truth,
@@ -1485,66 +1572,14 @@ export function Workbench({
           : "No checkpoint is available yet.",
         toolName,
       );
-      if (!baseline)
-        return { ok: false, receipt: "The active scope has not produced a checkpoint yet." };
-      const current = currentRef.current[viewportRef.current];
-      const board = describeEvidenceBoard(
-        baseline,
-        current,
-        demoStateRef.current,
-        viewportRef.current,
+      return (
+        boardContextPayload(findingOffset) ?? {
+          ok: false,
+          receipt: "The active scope has not produced a checkpoint yet.",
+        }
       );
-      const coverage = deriveCoverageSummary({
-        mode: modeRef.current,
-        baseline,
-        current,
-        trail: journeyRef.current,
-        baselinesByViewport: baselineRef.current,
-        hasVerification: baseline.findings.some(
-          ({ id }) => verificationRef.current[id] !== undefined,
-        ),
-      });
-      return buildAgentBoardContext({
-        auditGoal: currentAuditGoal,
-        target:
-          modeRef.current === "remote"
-            ? {
-                kind: "public_checkpoint",
-                displayUrl: checkpointRef.current?.target.displayUrl ?? null,
-                checkpointId: checkpointRef.current?.id ?? null,
-                scopeId: checkpointRef.current?.scopeId ?? null,
-                screenshotVisible: Boolean(checkpointRef.current?.screenshotDataUrl),
-                captureExtent: checkpointRef.current?.capture.fullPage ? "full-page" : "viewport",
-              }
-            : {
-                kind: "included_live_target",
-                path: "/demo",
-                scopeId: baseline.scopeKey ?? `included:/demo:${baseline.viewport}`,
-                screenshotVisible: true,
-              },
-        viewport: baseline.viewport,
-        state: demoStateRef.current,
-        currentFindingCount: board.currentCount,
-        retainedBaselineFindingCount: board.retainsBaseline ? board.baselineCount : 0,
-        currentMeasuredAt: current?.capturedAt ?? null,
-        selectedFindingId: selectedRef.current,
-        retainsBaseline: board.retainsBaseline,
-        findings: baseline.findings,
-        decisions: decisionsRef.current,
-        verifications: verificationRef.current,
-        coverageGaps: coverage.openGaps,
-        trailStepCount: journeyRef.current.length,
-        uncapturedNav: uncapturedVisibleNav(visibleNavRef.current, [
-          remoteUrlRef.current,
-          ...journeyRef.current.map((step) => step.displayUrl),
-        ]),
-        findingOffset,
-        auditBrief: auditBriefRef.current,
-        reviewResults: reviewResultsRef.current,
-        coverage,
-      });
     },
-    [currentAuditGoal, pushActivity],
+    [boardContextPayload, pushActivity],
   );
 
   const focusFinding = useCallback(

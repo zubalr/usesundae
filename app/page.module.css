@@ -97,12 +97,13 @@
   display: grid;
   grid-template-columns: minmax(var(--space-none), 1.35fr) minmax(var(--space-none), 1fr);
   align-items: end;
-  gap: var(--space-2xl);
-  margin-bottom: var(--space-xl);
+  gap: var(--space-l) var(--space-2xl);
+  margin-bottom: var(--space-l);
 }
 
 .heroThesis h1,
 .heroThesis p,
+.measuredFinding p,
 .commandCopy h2,
 .commandCopy p,
 .rundown h2,
@@ -132,6 +133,26 @@
   max-width: var(--measure);
   color: var(--stage-muted);
   font-size: var(--text-l);
+}
+
+.measuredFinding {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-xs);
+  max-width: calc(var(--measure) + var(--measure));
+  padding-top: var(--space-m);
+  border-top: thin solid var(--stage-line);
+}
+
+.measuredFinding p:first-child {
+  color: var(--stage-text);
+  font-size: var(--text-m);
+}
+
+.measuredSource {
+  color: var(--stage-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
 }
 
 .liveSet {

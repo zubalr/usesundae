@@ -25,7 +25,8 @@
 .contextBar,
 .authorityBar,
 .captureBar,
-.journeyBar {
+.journeyBar,
+.boardLegend {
   flex: 0 0 auto;
 }
 
@@ -289,6 +290,44 @@
   font-size: var(--text-xs);
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.boardLegend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-m);
+  margin: var(--space-none);
+  padding: var(--space-xs) var(--space-l);
+  border-bottom: thin solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  list-style: none;
+  counter-reset: board-step;
+}
+
+.boardLegend li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  counter-increment: board-step;
+}
+
+.boardLegend li::before {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  content: counter(board-step) ".";
+}
+
+.boardLegend li + li {
+  padding-left: var(--space-s);
+}
+
+.boardLegend li + li::before {
+  content: "→ " counter(board-step) ".";
 }
 
 .captureBar {

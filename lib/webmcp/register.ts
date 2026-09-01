@@ -607,7 +607,7 @@ export async function registerWorkbenchTools(
       name: "record_audit_brief",
       title: "Record audit brief",
       description:
-        "After reading all current board pages, orient the visible baseline product before judging it. Record a provisional product type, audience, job, proposition, primary action, confidence, unresolved questions, and the target evidence_ref or checkpoint_id returned by get_board_context. The supplied audit goal remains human context and cannot be overwritten. Read the board next.",
+        "After reading all current board pages, store a provisional product type, audience, job, proposition, primary action, confidence, unresolved questions, and the target evidence_ref or checkpoint_id returned by get_board_context. The human-supplied audit goal stays on the board as context. Read the board next.",
       inputSchema: WEBMCP_INPUT_SCHEMAS.auditBrief,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: execute(

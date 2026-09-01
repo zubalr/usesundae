@@ -99,6 +99,57 @@ function jsonBytes(value: unknown) {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
 
+export function judgmentRecordOutcome(input: {
+  findingId: string;
+  previewVisible: boolean;
+  hasBrief: boolean;
+}) {
+  return {
+    receipt: `Added ${input.findingId} as a judged finding linked to ${
+      input.previewVisible
+        ? "the retained baseline evidence while a preview is visible"
+        : "the current evidence"
+    }.`,
+    next: input.hasBrief
+      ? undefined
+      : "This judgment is unoriented. Call record_audit_brief when the host allows it, then read the board.",
+  };
+}
+
+function auditToolEnvelopeBytes(payload: Record<string, unknown>) {
+  return jsonBytes({
+    ...payload,
+    tool_name: "audit_current_scope",
+    actor: "agent",
+    status: "success",
+    elapsed_ms: 12,
+  });
+}
+
+export function mergeAuditWithFirstBoardPage(
+  audit: {
+    ok: true;
+    receipt: string;
+    checkpoint_id?: unknown;
+    scope_id?: unknown;
+    browser_ms_used?: unknown;
+  },
+  board: ReturnType<typeof buildAgentBoardContext>,
+): ({ ok: true; receipt: string } & Record<string, unknown>) | null {
+  const withReceipt = { ...board, ok: true as const, receipt: audit.receipt };
+  const withAuditIds = {
+    ...withReceipt,
+    ...(audit.checkpoint_id !== undefined ? { checkpoint_id: audit.checkpoint_id } : {}),
+    ...(audit.scope_id !== undefined ? { scope_id: audit.scope_id } : {}),
+    ...(typeof audit.browser_ms_used === "number"
+      ? { browser_ms_used: audit.browser_ms_used }
+      : {}),
+  };
+  if (auditToolEnvelopeBytes(withAuditIds) <= MAX_TOOL_TEXT_BYTES) return withAuditIds;
+  if (auditToolEnvelopeBytes(withReceipt) <= MAX_TOOL_TEXT_BYTES) return withReceipt;
+  return null;
+}
+
 function agentText(value: string, maximumBytes: number) {
   let text = boundedText(value, maximumBytes);
   const encoder = new TextEncoder();

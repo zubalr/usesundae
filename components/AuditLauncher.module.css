@@ -101,14 +101,17 @@
 }
 
 .demoAction {
-  background: var(--stage-text);
-  color: var(--stage-ground);
+  border-color: transparent !important;
+  background: transparent;
+  color: color-mix(in srgb, var(--stage-text) 82%, transparent);
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-underline-offset: var(--space-2xs);
 }
 
 .workbenchAction {
-  border-color: color-mix(in srgb, var(--stage-text) 52%, transparent) !important;
-  background: transparent;
-  color: var(--stage-text);
+  background: var(--stage-text);
+  color: var(--stage-ground);
 }
 
 .desktopAction {
@@ -242,12 +245,11 @@
 
 @media (hover: hover) and (pointer: fine) {
   .demoAction:hover {
-    background: var(--stage-verification);
+    color: var(--stage-text);
   }
 
   .workbenchAction:hover {
-    border-color: var(--stage-text) !important;
-    background: color-mix(in srgb, var(--stage-text) 12%, transparent);
+    background: var(--stage-verification);
   }
 
   .desktopAction:hover {

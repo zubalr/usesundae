@@ -17,17 +17,18 @@ test("the root is either the product entrance or the dedicated workbench", () =>
   assert.doesNotMatch(page.slice(landingBranch), /<Workbench/);
 });
 
-test("the entrance makes the guaranteed demo primary and public capture secondary", () => {
+test("the entrance makes public capture primary and the included demo secondary", () => {
   const page = readSource("app", "page.tsx");
   const launcher = readSource("components", "AuditLauncher.tsx");
+  const publicAction = launcher.indexOf("Audit my page");
   const demoAction = launcher.indexOf("Run included /demo");
-  const publicAction = launcher.indexOf("Open public workspace");
 
-  assert.ok(demoAction >= 0 && demoAction < publicAction);
-  assert.match(page, /11 page-hosted tools · zero provider keys/);
+  assert.ok(publicAction >= 0 && publicAction < demoAction);
   assert.match(page, /<dd className=\{styles\.toolCount\}>11 Site Tools<\/dd>/);
   assert.match(page, /<dd className=\{styles\.toolCount\}>15 Site Tools<\/dd>/);
-  assert.match(page, /Public capture is a bounded secondary path/);
+  assert.match(page, /The included \/demo is a guaranteed fallback/);
+  assert.doesNotMatch(page, /11 page-hosted tools · zero provider keys/);
+  assert.doesNotMatch(page, /Public capture is a bounded secondary path/);
 });
 
 test("the landing uses valid named regions and definition-list groups", () => {
@@ -74,18 +75,21 @@ test("hover styling is limited to hover-capable fine pointers", () => {
   assert.match(readSource("app", "globals.css"), /button:focus-visible,[\s\S]*?a:focus-visible/);
 });
 
-test("the landing states why WebMCP is necessary without fabricating audit results", () => {
+test("the landing leads with a measured capture and explains WebMCP without fabricating results", () => {
   const page = readSource("app", "page.tsx");
   const styles = readSource("app", "page.module.css");
 
   assert.match(
     page,
-    /Screenshot audits split the interface, model conversation, evidence, and decisions/,
+    /Sundae puts ChatGPT’s Site Tools on the live page you are looking at, so[\s\S]*measurement, judgment, and fresh recapture stay in one place/,
   );
-  assert.match(page, /shared WebMCP tool host/);
-  assert.match(page, /ChatGPT records evidence[\s\S]*Site Tools/);
-  assert.match(page, /you govern judgment/);
-  assert.match(page, /fresh recapture is required before[\s\S]*fixed/);
+  assert.match(page, /measured its primary call-to-action at 4\.09:1 contrast/);
+  assert.match(page, /Measured from a live capture of todoist\.com at mobile/);
+  assert.match(
+    page,
+    /The image, conversation, evidence, and decision trail live in different places/,
+  );
+  assert.match(page, /ChatGPT operates goal-shaped Site Tools on the visible board/);
   assert.match(styles, /\.liveSet\s*\{/);
   assert.match(styles, /\.rundown\s*\{/);
   assert.match(styles, /\.playhead\s*\{/);
@@ -203,6 +207,9 @@ test("the README leads with the shared page and documents both tool surfaces", (
   assert.match(readme, /GPT-5\.6 Sol/);
   assert.match(readme, /GPT-5\.6 Terra/);
   assert.match(readme, /GPT-5\.6 Luna has WebMCP disabled/);
+  assert.match(readme, /Work Cloud/);
+  assert.match(readme, /page\.evaluate/);
+  assert.match(readme, /Browser Use rejected this action due to browser security policy/);
   assert.match(readme, /The five tools a judge will see/);
   assert.match(readme, /pre-authored improved variant/);
   assert.match(readme, /does not discover tools registered inside iframes/);
