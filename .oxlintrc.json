@@ -14,5 +14,5 @@
     "eslint/no-console": "warn",
     "no-control-regex": "off"
   },
-  "ignorePatterns": [".next", "node_modules", "scripts"]
+  "ignorePatterns": [".next", "node_modules", "scripts", "worker/src/dom-source.js"]
 }

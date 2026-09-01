@@ -15,3 +15,7 @@ coverage/
 **/.DS_Store
 .vercel
 **/.wrangler/
+
+# Generated from lib/audit/dom.ts. Rebuild with `npm run build` in worker/.
+worker/src/dom-source.js
+worker/worker-configuration.d.ts

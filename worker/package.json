@@ -1,0 +1,23 @@
+{
+  "name": "sundae-browser-capture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/bundle-dom.mjs",
+    "predeploy": "npm run build",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12",
+    "wrangler": "^4.127.1"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true,
+    "workerd@1.20260828.1": true
+  }
+}

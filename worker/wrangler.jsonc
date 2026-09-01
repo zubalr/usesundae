@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sundae-browser-capture",
+  "main": "src/index.ts",
+  "account_id": "d21ed3776239ca64aa352ebd2d66cce2",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "browser": {
+    "binding": "BROWSER",
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BROWSER_SEMAPHORE",
+        "class_name": "BrowserSemaphore",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BrowserSemaphore"],
+    },
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+  "alias": {
+    "@/lib/url": "../lib/url.ts",
+  },
+}

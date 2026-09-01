@@ -1,4 +1,5 @@
 # Deploy only the production application surface.
+worker
 /*
 !app
 !components

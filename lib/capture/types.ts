@@ -1,3 +1,4 @@
+import type { BrowserFacts } from "@/lib/audit/dom";
 import type { Viewport } from "@/lib/audit/types";
 import type { VisibleNavRoute } from "./visible-nav";
 
@@ -56,6 +57,8 @@ export type RemoteCheckpoint = {
   };
   /** Cloudflare Browser Run `X-Browser-Ms-Used`, when the provider sent a valid integer. */
   browserMsUsed?: number;
+  /** In-page geometry and contrast measured inside the remote document. */
+  facts?: BrowserFacts;
 };
 
 export type RemoteCaptureInput = {

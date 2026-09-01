@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import type { BrowserFacts } from "@/lib/audit/dom";
+
 import { summarizeAccessibilityTree } from "./accessibility";
 import { assertPublicDnsTarget, type ResolveTarget } from "./dns-policy";
 import { MAX_CAPTURE_PROVIDER_RESPONSE_BYTES, MAX_CAPTURE_SCREENSHOT_BASE64_CHARS } from "./limits";
@@ -7,10 +9,13 @@ import { extractVisibleNav } from "./visible-nav";
 import { readTextUpTo } from "./stream";
 import type { RemoteCaptureInput, RemoteCheckpoint } from "./types";
 import { normalizePublicTarget, sanitizePreviewCss, sanitizeWaitForSelector } from "./url-policy";
+import { WORKER_SECRET_HEADER } from "./worker-protocol";
 
 export type CloudflareCaptureConfig = {
-  accountId: string;
-  apiToken: string;
+  accountId?: string;
+  apiToken?: string;
+  workerUrl?: string;
+  workerSecret?: string;
 };
 
 export type CaptureProviderCategory =
@@ -282,13 +287,224 @@ async function runWithProviderTimeout<T>(
   }
 }
 
+type WorkerCapturePayload = {
+  ok?: boolean;
+  browser_ms?: unknown;
+  http_status?: unknown;
+  final_url?: unknown;
+  redirect_chain?: unknown;
+  screenshot_base64?: unknown;
+  full_page?: unknown;
+  text_or_markdown?: unknown;
+  accessibility_tree?: unknown;
+  facts?: unknown;
+  title?: unknown;
+};
+
+function workerRedirectChain(value: unknown): Array<{ url: string }> | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => {
+    const url =
+      typeof entry === "string"
+        ? entry
+        : entry && typeof entry === "object"
+          ? (entry as { url?: unknown }).url
+          : undefined;
+    return { url: typeof url === "string" ? url : "" };
+  });
+}
+
+function readBrowserFacts(value: unknown): BrowserFacts | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return value as BrowserFacts;
+}
+
+async function parseWorkerCaptureResponse(response: Response): Promise<WorkerCapturePayload> {
+  try {
+    const text = await readTextUpTo(response.body, MAX_CAPTURE_PROVIDER_RESPONSE_BYTES);
+    if (text === null) {
+      throw new CaptureResponseTooLargeError(
+        "The remote browser returned a response that was too large to inspect safely.",
+        "resource_limit",
+      );
+    }
+    return JSON.parse(text) as WorkerCapturePayload;
+  } catch (error) {
+    if (error instanceof CaptureProviderError) throw error;
+    throw new CaptureProviderError(
+      `The remote browser returned an unreadable response (${response.status}).`,
+    );
+  }
+}
+
+async function captureWithBrowserWorker(
+  config: { workerUrl: string; workerSecret: string },
+  input: RemoteCaptureInput,
+  fetchImpl: typeof fetch,
+  options?: CloudflareCaptureOptions,
+): Promise<RemoteCheckpoint> {
+  const target = normalizePublicTarget(input.url);
+  await assertPublicDnsTarget(new URL(target.captureUrl).hostname, options?.resolveTarget);
+  const viewport = viewportSizes[input.viewport];
+  const previewCss = input.previewCss ? sanitizePreviewCss(input.previewCss) : undefined;
+  const waitForSelector = input.waitForSelector
+    ? sanitizeWaitForSelector(input.waitForSelector)
+    : undefined;
+  const endpoint = `${config.workerUrl.replace(/\/+$/, "")}/capture`;
+  const captured = await runWithProviderTimeout(
+    async (signal) => {
+      const requestCapture = () =>
+        fetchImpl(endpoint, {
+          method: "POST",
+          headers: {
+            [WORKER_SECRET_HEADER]: config.workerSecret,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            url: target.captureUrl,
+            viewport: input.viewport,
+            ...(previewCss ? { preview_css: previewCss } : {}),
+            ...(input.fullPage ? { full_page: true } : {}),
+            ...(waitForSelector ? { wait_for_selector: waitForSelector } : {}),
+          }),
+          signal,
+          cache: "no-store",
+        });
+      let response = await requestCapture();
+      const delayMs = retryAfterMs(response);
+      if (delayMs !== null) {
+        await (options?.waitForRetry ?? waitForRetry)(delayMs, signal);
+        signal.throwIfAborted();
+        response = await requestCapture();
+      }
+      return { response, payload: await parseWorkerCaptureResponse(response) };
+    },
+    input.signal,
+    providerTimeoutMs(options),
+  );
+  const { response, payload } = captured;
+  if (!response.ok || payload.ok !== true) {
+    const categoryByStatus: Partial<Record<number, CaptureProviderCategory>> = {
+      400: "invalid_target",
+      408: "timeout",
+      413: "resource_limit",
+      429: "rate_limit",
+      504: "timeout",
+    };
+    throw new CaptureProviderError(
+      `The remote browser could not capture this page (${response.status}).`,
+      categoryByStatus[response.status] ?? "provider_rejection",
+    );
+  }
+  await assertSafeProviderNavigation(
+    {
+      finalUrl: payload.final_url,
+      redirectChain: workerRedirectChain(payload.redirect_chain),
+      status: payload.http_status,
+      title: payload.title,
+    },
+    target.captureUrl,
+    options?.resolveTarget,
+  );
+  if (
+    typeof payload.screenshot_base64 === "string" &&
+    payload.screenshot_base64.length > MAX_CAPTURE_SCREENSHOT_BASE64_CHARS
+  ) {
+    throw new CaptureProviderError(
+      "The remote browser returned a screenshot that was too large to inspect safely.",
+      "resource_limit",
+    );
+  }
+  const screenshot = cleanText(payload.screenshot_base64, MAX_CAPTURE_SCREENSHOT_BASE64_CHARS);
+  if (!screenshot || !/^[A-Za-z0-9+/=]+$/.test(screenshot)) {
+    throw new CaptureProviderError("The remote browser did not return a usable screenshot.");
+  }
+  const facts = readBrowserFacts(payload.facts);
+  if (!facts) {
+    throw new CaptureProviderError("The remote browser did not return page measurements.");
+  }
+  const markdown = typeof payload.text_or_markdown === "string" ? payload.text_or_markdown : "";
+  const accessibility = summarizeAccessibilityTree(payload.accessibility_tree);
+  const visibleNav = extractVisibleNav(target.displayUrl, markdown, payload.accessibility_tree);
+  const fullPage = payload.full_page === true;
+  const gaps = [
+    ...(fullPage
+      ? []
+      : [
+          {
+            id: "gap-below-fold",
+            label: "Below-the-fold visuals",
+            detail: `This ${input.viewport} screenshot is viewport-bounded at ${viewport.width} × ${viewport.height}px; content below the fold was not visually inspected.`,
+          },
+        ]),
+    {
+      id: "gap-motion-window",
+      label: "Motion beyond load",
+      detail:
+        "This checkpoint captures the settled initial render, not every animation or transition over time.",
+    },
+    {
+      id: "gap-flow-states",
+      label: "Unvisited flow states",
+      detail:
+        "In-page states (modals, empty or loading views, logged-in surfaces, and controls without a public URL) were not opened.",
+    },
+  ];
+  if (accessibility.truncated) {
+    gaps.unshift({
+      id: "gap-accessibility-tree-truncated",
+      label: "Accessibility tree truncated",
+      detail:
+        "The provider accessibility tree exceeded Sundae's safe traversal budget; semantic counts describe only the captured portion.",
+    });
+  }
+  const browserMsUsed =
+    typeof payload.browser_ms === "number" && Number.isSafeInteger(payload.browser_ms)
+      ? payload.browser_ms
+      : undefined;
+  return {
+    id: `checkpoint_${randomUUID()}`,
+    scopeId: target.scopeId,
+    source: "cloudflare",
+    capturedAt: new Date().toISOString(),
+    target: {
+      displayUrl: target.displayUrl,
+      origin: target.origin,
+    },
+    title: cleanText(payload.title, 160) || "Untitled page",
+    status: typeof payload.http_status === "number" ? payload.http_status : null,
+    viewport: input.viewport,
+    viewportSize: checkpointViewportSize(screenshot, viewport, fullPage),
+    screenshotDataUrl: `data:image/png;base64,${screenshot}`,
+    textExcerpt: cleanText(markdown, 4000),
+    accessibility,
+    gaps,
+    visibleNav,
+    preview: { applied: Boolean(previewCss) },
+    capture: {
+      fullPage,
+      ...(waitForSelector ? { waitForSelector } : {}),
+    },
+    browserMsUsed,
+    facts,
+  };
+}
+
 export async function captureWithCloudflare(
   config: CloudflareCaptureConfig,
   input: RemoteCaptureInput,
   fetchImpl: typeof fetch = fetch,
   options?: CloudflareCaptureOptions,
 ): Promise<RemoteCheckpoint> {
-  if (!config.accountId.trim() || !config.apiToken.trim()) {
+  const workerUrl = config.workerUrl?.trim() ?? "";
+  const workerSecret = config.workerSecret?.trim() ?? "";
+  if (workerUrl && workerSecret) {
+    return captureWithBrowserWorker({ workerUrl, workerSecret }, input, fetchImpl, options);
+  }
+  const accountId = config.accountId?.trim() ?? "";
+  const apiToken = config.apiToken?.trim() ?? "";
+  if (!accountId || !apiToken) {
     throw new CaptureProviderError("Remote capture is not configured on this deployment.");
   }
 
@@ -299,7 +515,7 @@ export async function captureWithCloudflare(
   const waitForSelector = input.waitForSelector
     ? sanitizeWaitForSelector(input.waitForSelector)
     : undefined;
-  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/browser-rendering/snapshot`;
+  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/browser-rendering/snapshot`;
   const snapshotBody = (fullPage: boolean) => {
     const body: Record<string, unknown> = {
       url: target.captureUrl,
@@ -320,7 +536,7 @@ export async function captureWithCloudflare(
         fetchImpl(endpoint, {
           method: "POST",
           headers: {
-            authorization: `Bearer ${config.apiToken}`,
+            authorization: `Bearer ${apiToken}`,
             "content-type": "application/json",
           },
           body: JSON.stringify(snapshotBody(fullPage)),

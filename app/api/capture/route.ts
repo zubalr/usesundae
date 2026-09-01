@@ -20,11 +20,17 @@ export function GET(request: Request) {
   return handleCaptureGateGet(request, gate, { allowedOrigin: allowedOrigin() });
 }
 
-export async function POST(request: Request) {
+function captureConfig() {
+  const workerUrl = process.env.SUNDAE_BROWSER_WORKER_URL?.trim();
+  const workerSecret = process.env.SUNDAE_BROWSER_WORKER_SECRET?.trim();
+  if (workerUrl && workerSecret) return { workerUrl, workerSecret };
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
-  const config = accountId && apiToken ? { accountId, apiToken } : null;
-  return handleCapturePost(request, config, fetch, {
+  return accountId && apiToken ? { accountId, apiToken } : null;
+}
+
+export async function POST(request: Request) {
+  return handleCapturePost(request, captureConfig(), fetch, {
     allowedOrigin: allowedOrigin(),
     limiter,
     gate,

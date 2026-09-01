@@ -1,6 +1,6 @@
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { boundedText } from "@/lib/text";
-import { presentFindings } from "./derive-findings";
+import { collectMeasuredFindings, presentFindings } from "./derive-findings";
 import type {
   AuditSnapshot,
   DesignCategory,
@@ -192,7 +192,16 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
     });
   }
 
-  return presentFindings(findings, checkpoint.viewportSize.width);
+  const fromFacts = checkpoint.facts
+    ? collectMeasuredFindings(checkpoint.facts).map((finding) => ({
+        ...finding,
+        checkpointId: checkpoint.id,
+        scopeKey: checkpoint.scopeId,
+        evidence: finding.evidence ?? { kind: "dom" as const, ref: checkpoint.id },
+      }))
+    : [];
+
+  return presentFindings([...findings, ...fromFacts], checkpoint.viewportSize.width);
 }
 
 export function createJudgedFinding(

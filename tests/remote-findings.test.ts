@@ -174,6 +174,41 @@ test("visual evidence regions cannot extend beyond the captured screenshot", () 
   assert.deepEqual(finding.rect, { x: 1400, y: 880, width: 40, height: 20 });
 });
 
+test("public checkpoints with browser facts include measured contrast findings", () => {
+  const findings = deriveCheckpointFindings(
+    checkpoint({
+      accessibility: {
+        ...checkpoint().accessibility,
+        unnamedInteractiveCount: 0,
+        headingOutline: [{ level: 1, name: "Example product" }],
+      },
+      facts: {
+        viewport: "desktop",
+        viewportSize: { width: 1440, height: 900 },
+        tapTargets: [],
+        controls: [],
+        contrastSamples: [
+          {
+            auditId: "start-for-free",
+            identityConfidence: "unstable",
+            label: "Start for free",
+            foreground: "rgb(140, 140, 140)",
+            background: "rgb(255, 255, 255)",
+            rect: { x: 24, y: 80, width: 120, height: 20 },
+          },
+        ],
+        overflow: { scrollWidth: 1440, clientWidth: 1440 },
+        copy: null,
+      },
+    }),
+  );
+
+  const contrast = findings.find((finding) => finding.rule === "contrast");
+  assert.equal(contrast?.title, "Start for free falls below text contrast guidance");
+  assert.equal(contrast?.checkpointId, "checkpoint_1");
+  assert.match(contrast?.measurement?.value ?? "", /4\.09:1|4\.1:1|3\.\d+:1/);
+});
+
 test("redacted URL states remain distinct verification scopes", () => {
   const free = checkpoint({
     id: "checkpoint_free",
