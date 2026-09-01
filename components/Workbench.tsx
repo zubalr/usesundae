@@ -1331,12 +1331,12 @@ export function Workbench({
 
   const recordVisualFinding = useCallback(
     async (input: JudgedFindingInput, actor: Actor, toolName?: string): Promise<CommandResult> => {
-      if (demoStateRef.current !== "baseline")
-        throw new Error(
-          "Record judgments on a baseline checkpoint, then preview and verify separately.",
-        );
+      // A judgment always cites baseline evidence, so a visible preview does not
+      // change what it attaches to, and a missing brief only means the audit is
+      // unoriented. Both were ordering rules, not authority or evidence rules, and
+      // refusing here stranded a reviewer who had already seen something worth saying.
       const brief = auditBriefRef.current;
-      if (!brief) throw new Error("Record the provisional audit brief before adding judgments.");
+      const previewVisible = demoStateRef.current !== "baseline";
       const baseline = baselineRef.current[viewportRef.current];
       if (
         (baseline?.findings.filter((finding) => finding.rule === "visual-judgment").length ?? 0) >=
@@ -1364,7 +1364,7 @@ export function Workbench({
       }
       const normalized = normalizeJudgedFindingInput({
         ...input,
-        productJob: input.productJob ?? brief.productJob,
+        productJob: input.productJob ?? brief?.productJob,
       });
       const sequence = judgmentSequence.current++;
       let finding: Finding;
@@ -1403,8 +1403,11 @@ export function Workbench({
       pushActivity(actor, "Recorded visual judgment", `${finding.id} · ${finding.title}`, toolName);
       return {
         ok: true,
-        receipt: `Added ${finding.id} as a judged finding linked to the current evidence.`,
+        receipt: `Added ${finding.id} as a judged finding linked to ${previewVisible ? "the retained baseline evidence while a preview is visible" : "the current evidence"}.`,
         invalidated_no_issue_count: invalidatedReviewResultCount,
+        next: brief
+          ? undefined
+          : "This judgment is unoriented. Call record_audit_brief when the host allows it, then read the board.",
         finding: {
           id: finding.id,
           truth: finding.truth,
