@@ -409,7 +409,8 @@ test("agent board context stays useful inside the WebMCP output budget", () => {
     `The complete board context and receipt metadata used ${wrappedBytes} bytes.`,
   );
   assert.notEqual(payload.truncated, true);
-  assert.equal(payload.findings[0]?.id, selected.id.slice(0, 120));
+  // An identifier the agent is handed has to be the identifier the board accepts.
+  assert.equal(payload.findings[0]?.id, selected.id);
   assert.equal(payload.findings[0]?.checkpoint_id.startsWith("checkpoint_9_"), true);
   assert.equal(payload.findings[0]?.evidence_role, "retained_baseline");
   assert.equal(payload.target.checkpoint_id.startsWith("checkpoint_"), true);
@@ -1230,4 +1231,35 @@ test("activity actors have explicit accessible labels", () => {
     }),
     "Read evidence board · get_board_context",
   );
+});
+
+test("every identifier the agent receives round-trips back to the board", () => {
+  const checkpointId = "checkpoint_8ce11e12-8d0b-4b4e-a22e-7e8e7d449acc";
+  const scopeId = "scope_e343623418d668d26db9592d533a3b12";
+  const board = buildAgentBoardContext({
+    auditGoal: "",
+    target: {
+      kind: "public_checkpoint",
+      displayUrl: "https://linear.app/",
+      checkpointId,
+      scopeId,
+      screenshotVisible: true,
+      captureExtent: "viewport",
+    },
+    viewport: "desktop",
+    state: "baseline",
+    currentFindingCount: 1,
+    retainedBaselineFindingCount: 0,
+    currentMeasuredAt: null,
+    selectedFindingId: null,
+    retainsBaseline: false,
+    findings: [],
+    decisions: {},
+    verifications: {},
+    coverageGaps: [],
+    trailStepCount: 0,
+  });
+
+  assert.equal(board.target.checkpoint_id, checkpointId);
+  assert.equal(board.target.scope_id, scopeId);
 });

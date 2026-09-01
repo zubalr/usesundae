@@ -159,6 +159,18 @@ function agentText(value: string, maximumBytes: number) {
   return text;
 }
 
+/**
+ * An identifier has to round-trip. A checkpoint id is 47 characters, so cutting
+ * it to 40 handed the agent a reference the board could never match, and
+ * record_audit_brief rejected its own evidence. Prose gets truncated for budget;
+ * identifiers never do. The cap here is a safety valve no real id approaches.
+ */
+const MAX_IDENTIFIER_BYTES = 200;
+
+function agentId(value: string) {
+  return agentText(value, MAX_IDENTIFIER_BYTES);
+}
+
 function agentTitle(value: string, maximumBytes: number) {
   const normalized = value.replace(/\s+/g, " ").trim();
   const encoder = new TextEncoder();
@@ -184,15 +196,15 @@ function compactAgentTarget(target: AgentBoardTarget) {
     return {
       kind: target.kind,
       path: agentText(target.path, 40),
-      scope_id: agentText(target.scopeId, 40),
+      scope_id: agentId(target.scopeId),
       evidence_ref: "included-live-target",
     };
   }
   return {
     kind: target.kind,
     display_url: target.displayUrl ? agentText(target.displayUrl, 48) : null,
-    checkpoint_id: target.checkpointId ? agentText(target.checkpointId, 40) : null,
-    scope_id: target.scopeId ? agentText(target.scopeId, 40) : null,
+    checkpoint_id: target.checkpointId ? agentId(target.checkpointId) : null,
+    scope_id: target.scopeId ? agentId(target.scopeId) : null,
     capture_extent: target.captureExtent,
   };
 }
@@ -334,7 +346,7 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
       gaps: input.coverageGaps.length,
     },
     findings: findingPage.findings.map((finding) => ({
-      id: agentText(finding.id, 120),
+      id: agentId(finding.id),
       truth: finding.truth,
       claim_type: finding.claimType,
       category: finding.category,
@@ -358,7 +370,7 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
         finding.instanceCount && finding.instanceCount > 1 ? finding.instanceCount : undefined,
       group_key: finding.groupKey ? agentText(finding.groupKey, 80) : undefined,
       above_the_fold: finding.aboveTheFold,
-      checkpoint_id: finding.checkpointId ? agentText(finding.checkpointId, 40) : undefined,
+      checkpoint_id: finding.checkpointId ? agentId(finding.checkpointId) : undefined,
       evidence_role: input.retainsBaseline && !input.auditBrief ? "retained_baseline" : undefined,
     })),
     finding_page: findingPage.page,
@@ -372,7 +384,7 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
       visibleReviewResults.length > 0
         ? visibleReviewResults.map(
             (result) =>
-              `${result.kind}|${result.category}|${result.confidence}|${agentText(result.scopeId, 32)}|${agentText(result.evidenceRef, 32)}`,
+              `${result.kind}|${result.category}|${result.confidence}|${agentId(result.scopeId)}|${agentId(result.evidenceRef)}`,
           )
         : undefined,
     review_results_omitted:
