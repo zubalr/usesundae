@@ -293,7 +293,7 @@ export function Workbench({
   const committedSystemBaselineRef = useRef<string | null>(null);
   const auditEndTimerRef = useRef<number | null>(null);
   const modeRef = useRef<TargetMode>(initialMode);
-  const viewportRef = useRef<Viewport>("mobile");
+  const viewportRef = useRef<Viewport>("desktop");
   const demoStateRef = useRef<DemoState>("baseline");
   const baselineRef = useRef<SnapshotMap>({});
   const currentRef = useRef<SnapshotMap>({});
@@ -324,7 +324,7 @@ export function Workbench({
   const didAutoStartRef = useRef(false);
 
   const [mode, setMode] = useState<TargetMode>(initialMode);
-  const [viewport, setViewport] = useState<Viewport>("mobile");
+  const [viewport, setViewport] = useState<Viewport>("desktop");
   const [demoState, setDemoState] = useState<DemoState>("baseline");
   const [urlDraft, setUrlDraft] = useState(initialUrl);
   const [waitForSelectorDraft, setWaitForSelectorDraft] = useState("");

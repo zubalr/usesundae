@@ -7,7 +7,7 @@ import type { DemoState, Viewport } from "@/lib/audit/types";
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import type { CaptureProgressStage } from "@/lib/workbench/capture-progress";
 import { captureProgressLabel } from "@/lib/workbench/capture-progress";
-import { findingsInReadingOrder } from "@/lib/workbench/pin-order";
+import { findingsWithBoardNumbers } from "@/lib/workbench/pin-order";
 import type { VisibleFinding } from "@/lib/workbench/types";
 import styles from "./DemoViewport.module.css";
 
@@ -46,7 +46,7 @@ export function DemoViewport({
   const hostRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const size = checkpoint?.viewportSize ?? SIZES[viewport];
-  const pins = findingsInReadingOrder(findings);
+  const pins = findingsWithBoardNumbers(findings);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -120,7 +120,7 @@ export function DemoViewport({
           )}
 
           <div className={styles.overlay} role="group" aria-label="Measured finding pins">
-            {pins.map((finding, index) => {
+            {pins.map((finding) => {
               const { x, y, width, height } = finding.rect;
               const minimumLogicalHit = 44 / Math.max(scale, 0.01);
               const hitWidth = Math.max(width + 14, minimumLogicalHit);
@@ -150,7 +150,7 @@ export function DemoViewport({
                   onClick={() => onSelect(finding.id)}
                 >
                   <span className={styles.pinBox} />
-                  <b>{index + 1}</b>
+                  <b>{finding.boardNumber}</b>
                 </button>
               );
             })}

@@ -1,19 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { findingsInReadingOrder } from "../lib/workbench/pin-order";
+import { findingsWithBoardNumbers } from "../lib/workbench/pin-order";
 
-test("pin numbers follow top-to-bottom, then left-to-right visual order", () => {
-  const ordered = findingsInReadingOrder([
-    { id: "late", rect: { x: 40, y: 240, width: 20, height: 20 } },
-    { id: "top-right", rect: { x: 200, y: 10, width: 20, height: 20 } },
+test("a pin carries the number its finding has on the board, not its screen position", () => {
+  const pins = findingsWithBoardNumbers([
+    { id: "strongest", rect: { x: 40, y: 240, width: 20, height: 20 } },
+    { id: "second", rect: { x: 200, y: 10, width: 20, height: 20 } },
     { id: "ghost", rect: null },
-    { id: "top-left", rect: { x: 12, y: 10, width: 20, height: 20 } },
-    { id: "mid", rect: { x: 80, y: 90, width: 20, height: 20 } },
+    { id: "third", rect: { x: 12, y: 10, width: 20, height: 20 } },
   ]);
 
   assert.deepEqual(
-    ordered.map((finding) => finding.id),
-    ["top-left", "top-right", "mid", "late"],
+    pins.map((pin) => [pin.id, pin.boardNumber]),
+    [
+      ["strongest", 1],
+      ["second", 2],
+      ["third", 4],
+    ],
   );
+});
+
+test("a finding without geometry keeps its board number for the list and draws no pin", () => {
+  const pins = findingsWithBoardNumbers([
+    { id: "no-region", rect: null },
+    { id: "pinned", rect: { x: 10, y: 10, width: 20, height: 20 } },
+  ]);
+
+  assert.deepEqual(
+    pins.map((pin) => pin.id),
+    ["pinned"],
+  );
+  assert.equal(pins[0]?.boardNumber, 2);
 });

@@ -103,7 +103,9 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
 
   const unnamed = checkpoint.accessibility.unnamedInteractiveCount;
   const interactive = checkpoint.accessibility.interactiveCount;
-  if (unnamed > 0) {
+  // When the in-page engine ran, it names each unnamed control individually.
+  // Reporting the tree-level count beside those repeats the same defect.
+  if (unnamed > 0 && !checkpoint.facts) {
     findings.push({
       ...common,
       id: `${checkpoint.viewport}:accessible-name:${scope}-interactive-summary`,
