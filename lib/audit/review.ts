@@ -123,8 +123,10 @@ export function compareFindingsForReview(left: Finding, right: Finding) {
   const severityDifference = severityOrder[left.severity] - severityOrder[right.severity];
   const confidenceDifference =
     confidenceOrder[left.confidence ?? "low"] - confidenceOrder[right.confidence ?? "low"];
+  const scoreDifference = (right.prominenceScore ?? 0) - (left.prominenceScore ?? 0);
   return (
     laneDifference ||
+    scoreDifference ||
     severityDifference ||
     confidenceDifference ||
     left.title.localeCompare(right.title)

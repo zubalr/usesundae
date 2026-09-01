@@ -52,6 +52,10 @@ export type Finding = {
   rect: Region | null;
   measurement: Measurement | null;
   identityConfidence?: IdentityConfidence;
+  groupKey?: string;
+  instanceCount?: number;
+  aboveTheFold?: boolean;
+  prominenceScore?: number;
   checkpointId?: string;
   scopeKey?: string;
   evidence?: EvidenceReference;

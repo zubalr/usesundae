@@ -1,11 +1,14 @@
 import {
   accessibleNamePasses,
-  contrastRatio,
+  contrastRatioOrNull,
   findingIdentity,
   tapTargetPasses,
 } from "./measurements";
 import type { BrowserFacts } from "./dom";
-import type { Finding } from "./types";
+import type { Finding, Region, Severity } from "./types";
+
+const FOLD_PX = 700;
+const SEVERITY_WEIGHT: Record<Severity, number> = { high: 3, medium: 2, low: 1 };
 
 function baseFinding(facts: BrowserFacts, input: Omit<Finding, "id" | "viewport">): Finding {
   return {
@@ -15,7 +18,68 @@ function baseFinding(facts: BrowserFacts, input: Omit<Finding, "id" | "viewport"
   };
 }
 
-export function deriveFindings(facts: BrowserFacts): Finding[] {
+export function isAuditableSurface(rect: Finding["rect"], viewportWidth: number) {
+  if (!rect) return true;
+  return (
+    rect.width >= 8 &&
+    rect.height >= 8 &&
+    rect.width * rect.height >= 120 &&
+    rect.x + rect.width > 0 &&
+    rect.x < viewportWidth &&
+    rect.y >= 0
+  );
+}
+
+function tapTargetShapeClass(rect: Pick<Region, "width" | "height">) {
+  const icon = Math.abs(rect.width - rect.height) < 12 && rect.width < 60;
+  return icon ? "icon control" : rect.height < 30 ? "inline text link" : "button or tile";
+}
+
+function prominenceScore(finding: Finding) {
+  const weight = SEVERITY_WEIGHT[finding.severity];
+  const rect = finding.rect;
+  if (!rect) return weight * 10;
+  return weight * Math.sqrt(rect.width * rect.height) * (FOLD_PX / (FOLD_PX + rect.y));
+}
+
+function groupAndRankFindings(findings: Finding[]) {
+  const groups = new Map<string, Finding[]>();
+  for (const finding of findings) {
+    const key = finding.groupKey ?? finding.id;
+    const members = groups.get(key);
+    if (members) members.push(finding);
+    else groups.set(key, [finding]);
+  }
+
+  const ranked: Finding[] = [];
+  for (const members of groups.values()) {
+    const worst = members.reduce((lead, candidate) =>
+      prominenceScore(candidate) > prominenceScore(lead) ? candidate : lead,
+    );
+    const instanceCount = members.length;
+    ranked.push({
+      ...worst,
+      instanceCount,
+      aboveTheFold: worst.rect !== null && worst.rect.y < FOLD_PX,
+      prominenceScore: prominenceScore(worst),
+      observation:
+        instanceCount > 1
+          ? `${worst.observation} ${instanceCount} instances · worst shown.`
+          : worst.observation,
+    });
+  }
+  return ranked.toSorted(
+    (left, right) => (right.prominenceScore ?? 0) - (left.prominenceScore ?? 0),
+  );
+}
+
+export function presentFindings(findings: Finding[], viewportWidth: number) {
+  return groupAndRankFindings(
+    findings.filter((finding) => isAuditableSurface(finding.rect, viewportWidth)),
+  );
+}
+
+export function collectMeasuredFindings(facts: BrowserFacts): Finding[] {
   const findings: Finding[] = [];
   const overflowBy = Math.max(0, facts.overflow.scrollWidth - facts.overflow.clientWidth);
 
@@ -79,6 +143,7 @@ export function deriveFindings(facts: BrowserFacts): Finding[] {
         whyItMatters: "Small targets can be harder to activate accurately on touch screens.",
         recommendation: "Increase the interactive hit area to at least 44 × 44 CSS px.",
         rect: target.rect,
+        groupKey: tapTargetShapeClass(target.rect),
         measurement: {
           value: `${target.rect.width} × ${target.rect.height}`,
           threshold: "44 × 44",
@@ -89,8 +154,8 @@ export function deriveFindings(facts: BrowserFacts): Finding[] {
   }
 
   for (const sample of facts.contrastSamples) {
-    const ratio = contrastRatio(sample.foreground, sample.background);
-    if (ratio >= 4.5) continue;
+    const ratio = contrastRatioOrNull(sample.foreground, sample.background);
+    if (ratio === null || ratio >= 4.5) continue;
     findings.push(
       baseFinding(facts, {
         auditId: sample.auditId,
@@ -103,10 +168,15 @@ export function deriveFindings(facts: BrowserFacts): Finding[] {
         whyItMatters: "Low-contrast supporting copy can become difficult to read.",
         recommendation: "Use a darker text color while preserving the visual hierarchy.",
         rect: sample.rect,
+        groupKey: `${sample.foreground} / ${sample.background}`,
         measurement: { value: `${ratio}:1`, threshold: "4.5:1", unit: "contrast ratio" },
       }),
     );
   }
 
   return findings;
+}
+
+export function deriveFindings(facts: BrowserFacts): Finding[] {
+  return presentFindings(collectMeasuredFindings(facts), facts.viewportSize.width);
 }

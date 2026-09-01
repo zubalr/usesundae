@@ -1,3 +1,4 @@
+import { compositeCssBackground } from "./measurements";
 import type { IdentityConfidence, Region, Viewport } from "./types";
 
 type BrowserIdentity = {
@@ -98,13 +99,11 @@ function accessibleName(element: Element, document: Document) {
 }
 
 function opaqueBackground(element: Element, view: Window) {
-  let current: Element | null = element;
-  while (current) {
-    const color = view.getComputedStyle(current).backgroundColor;
-    if (color && color !== "transparent" && color !== "rgba(0, 0, 0, 0)") return color;
-    current = current.parentElement;
+  const layers: string[] = [];
+  for (let current: Element | null = element; current; current = current.parentElement) {
+    layers.push(view.getComputedStyle(current).backgroundColor);
   }
-  return "rgb(255, 255, 255)";
+  return compositeCssBackground(layers);
 }
 
 export function captureBrowserFacts(document: Document, viewport: Viewport): BrowserFacts {

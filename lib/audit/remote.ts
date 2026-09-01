@@ -1,5 +1,6 @@
 import type { RemoteCheckpoint } from "@/lib/capture/types";
 import { boundedText } from "@/lib/text";
+import { presentFindings } from "./derive-findings";
 import type {
   AuditSnapshot,
   DesignCategory,
@@ -191,7 +192,7 @@ export function deriveCheckpointFindings(checkpoint: RemoteCheckpoint): Finding[
     });
   }
 
-  return findings;
+  return presentFindings(findings, checkpoint.viewportSize.width);
 }
 
 export function createJudgedFinding(

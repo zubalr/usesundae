@@ -65,6 +65,18 @@ Sundae deliberately separates:
 
 ChatGPT performs the design critique through Site Tools using visible screenshot and page evidence. Sundae stores the category and product-job tag; it does not auto-classify an industry or call a server-side model.
 
+### One group is one fix
+
+A real product page yields hundreds of measurements, and a list of 91 findings is a census, not an audit. Sundae groups measured findings by the change that would resolve them, then ranks the groups by prominence — severity weighted by rendered area and distance from the fold.
+
+- **Contrast** groups by the exact foreground/background colour pair. One pair is one design-token fix however often it recurs.
+- **Tap targets** group by shape class — icon control, inline text link, or button or tile — because each class is one CSS fix.
+- Everything else stays per-instance.
+
+Each group reports its instance count and shows the worst instance, so nothing is hidden: `44 instances · worst shown`. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are not findings and are dropped before grouping. The demo fixture is grouped by the same rules as any public page — no fixture exception.
+
+Contrast is measured against a **composited** background: Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without this, a 4%-opacity white overlay — the standard surface treatment in dark design systems — is read as pure white, and legible text measures as a failure. On `linear.app` that error reported 17.51:1 text as 1.06:1. A measured fact has to survive a dark theme.
+
 On `/demo`, `preview_fix` renders a **pre-authored improved variant** of the controlled fixture — Sundae does not claim the agent wrote the fix. What is real is the re-measurement: the improved state genuinely repairs the measured accessible-name, tap-target, contrast, and horizontal-overflow findings, and `verify_recapture` proves it by fresh measurement rather than by assertion. On a public checkpoint the agent supplies bounded CSS itself.
 
 ## Page-hosted tool surface

@@ -300,6 +300,10 @@ export function buildAgentBoardContext(input: AgentBoardContextInput) {
           ? undefined
           : input.verifications[finding.id]?.status,
       measurement: finding.measurement ? agentText(finding.measurement.value, 20) : undefined,
+      instance_count:
+        finding.instanceCount && finding.instanceCount > 1 ? finding.instanceCount : undefined,
+      group_key: finding.groupKey ? agentText(finding.groupKey, 80) : undefined,
+      above_the_fold: finding.aboveTheFold,
       checkpoint_id: finding.checkpointId ? agentText(finding.checkpointId, 40) : undefined,
       evidence_role: input.retainsBaseline && !input.auditBrief ? "retained_baseline" : undefined,
     })),

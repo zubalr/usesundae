@@ -896,6 +896,9 @@ function FindingRows({
               {finding.measurement
                 ? `${finding.measurement.value} · needs ${finding.measurement.threshold}`
                 : "Evidence-linked product judgment"}
+              {finding.instanceCount && finding.instanceCount > 1
+                ? ` · ${finding.instanceCount} instances · worst shown`
+                : ""}
             </small>
           </span>
           <Icon name="chevron" />
@@ -1285,6 +1288,18 @@ function FindingInspector(props: WorkbenchViewProps) {
               <dd>{selected.measurement.threshold}</dd>
             </div>
           </>
+        ) : null}
+        {selected.instanceCount && selected.instanceCount > 1 ? (
+          <div>
+            <dt>Instances</dt>
+            <dd>{selected.instanceCount} · worst shown</dd>
+          </div>
+        ) : null}
+        {selected.aboveTheFold != null ? (
+          <div>
+            <dt>Fold</dt>
+            <dd>{selected.aboveTheFold ? "Above the fold" : "Below the fold"}</dd>
+          </div>
         ) : null}
         <div>
           <dt>Route</dt>
