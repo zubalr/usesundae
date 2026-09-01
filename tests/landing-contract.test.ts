@@ -93,12 +93,14 @@ test("the landing leads with a measured capture and explains WebMCP without fabr
   const page = readSource("app", "page.tsx");
   const styles = readSource("app", "page.module.css");
 
-  assert.match(page, /AI audits your product&apos;s design\./);
+  assert.match(page, /AI audits your product&rsquo;s design\./);
   assert.doesNotMatch(page, /together/i);
   assert.match(page, /Every finding is a measurement you can check/);
   assert.match(page, /fixes[\s\S]*proved by fresh evidence/);
-  assert.match(page, /measured its primary call-to-action at 4\.09:1 contrast/);
-  assert.match(page, /Measured from a live capture of todoist\.com at mobile/);
+  assert.match(page, /measured the primary call-to-action at 4\.09:1\s+contrast/);
+  assert.match(page, /Measured from a live public capture at mobile/);
+  // The landing keeps its measurements and names no third party while doing it.
+  assert.doesNotMatch(page, /todoist|linear\.app|notion|figma|stripe/i);
   assert.match(
     page,
     /The image, conversation, evidence, and decision trail live in different places/,

@@ -93,19 +93,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <main aria-label="Sundae product review entrance">
           <section className={styles.hero} aria-labelledby="landing-title">
             <div className={styles.heroThesis}>
-              <h1 id="landing-title">AI audits your product&apos;s design.</h1>
+              <h1 id="landing-title">AI audits your product&rsquo;s design.</h1>
               <p>
                 Every finding is a measurement you can check, on a page you can inspect, with fixes
                 proved by fresh evidence.
               </p>
-              <aside className={styles.measuredFinding} aria-label="Measured capture from Todoist">
+              <aside
+                className={styles.measuredFinding}
+                aria-label="Measured finding from a live capture"
+              >
                 <p>
-                  Sundae opened Todoist and measured its primary call-to-action at 4.09:1 contrast,
-                  below the 4.5:1 threshold, on their own brand red — one of 28 controls under the
-                  44 x 44 touch target guidance.
+                  On a live product page, Sundae measured the primary call-to-action at 4.09:1
+                  contrast — under the 4.5:1 threshold, on the brand&rsquo;s own red — and counted
+                  it among 28 controls below the 44 × 44 touch-target guidance.
                 </p>
                 <p className={styles.measuredSource}>
-                  Measured from a live capture of todoist.com at mobile.
+                  Measured from a live public capture at mobile.
                 </p>
               </aside>
             </div>
@@ -152,10 +155,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                         {String(index + 1).padStart(2, "0")}
                       </span>
                       <div>
-                        <strong>{step.title}</strong>
+                        <div className={styles.stepHead}>
+                          <strong>{step.title}</strong>
+                          <span className={styles.stepOwner}>{step.owner}</span>
+                        </div>
                         <p>{step.detail}</p>
                       </div>
-                      <span className={styles.stepOwner}>{step.owner}</span>
                     </li>
                   ))}
                 </ol>
@@ -215,7 +220,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <h2 id="judges-title">For WebMCP Challenge judges</h2>
               <p>
                 WebMCP is the warrant for the audit. Site Tools have been verified on GPT-5.6 Sol
-                and GPT-5.6 Terra in two places: the ChatGPT desktop app&apos;s built-in browser,
+                and GPT-5.6 Terra in two places: the ChatGPT desktop app&rsquo;s built-in browser,
                 and ChatGPT Work Cloud at chatgpt.com. GPT-5.6 Luna has WebMCP disabled and will not
                 discover Site Tools. Site tools are also unavailable in Enterprise and Edu
                 workspaces. A host may deny an individual tool call; the rest of the audit still
@@ -229,7 +234,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
             <ol className={styles.judgeSteps}>
               <li>
-                Open ChatGPT Desktop&apos;s built-in browser, or ChatGPT Work Cloud, at the exact{" "}
+                Open ChatGPT Desktop&rsquo;s built-in browser, or ChatGPT Work Cloud, at the exact{" "}
                 <a href="/demo">published /demo workspace</a>.
               </li>
               <li>
@@ -258,7 +263,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <dt>Included /demo</dt>
                 <dd className={styles.toolCount}>11 Site Tools</dd>
                 <dd className={styles.toolDescription}>
-                  Complete zero-key proof on Sundae&apos;s controlled product.
+                  Complete zero-key proof on Sundae&rsquo;s controlled product.
                 </dd>
               </div>
               <div>
@@ -275,14 +280,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <h3 id="desktop-title">ChatGPT Desktop discovers the tools from the page.</h3>
                 <p>
                   A webpage cannot force-open ChatGPT. Prepare the exact workspace here, then open
-                  it in ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud. If Site Tools
-                  are unavailable, Sundae says so and keeps the human controls usable.
+                  it in ChatGPT Desktop&rsquo;s built-in browser or ChatGPT Work Cloud. If Site
+                  Tools are unavailable, Sundae says so and keeps the human controls usable.
                 </p>
               </div>
               <ol>
                 <li>Prepare the included demo or an approved public workspace.</li>
                 <li>
-                  Open ChatGPT Desktop&apos;s built-in browser or ChatGPT Work Cloud and paste the
+                  Open ChatGPT Desktop&rsquo;s built-in browser or ChatGPT Work Cloud and paste the
                   exact URL.
                 </li>
                 <li>Wait for Site Tools to appear before asking ChatGPT to audit.</li>

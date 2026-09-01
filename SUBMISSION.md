@@ -34,13 +34,13 @@ Without WebMCP (an ordinary browser, or an unsupported model), Sundae still prov
 
 Type a public URL and press Enter. Capture starts with zero extra clicks. Measurement happens in one Cloudflare browser session: under ten seconds on a small page, closer to thirty on a large one where the design-signal walk reaches its 1,500-node cap.
 
-On Todoist, a live mobile capture measured the primary call-to-action at 4.09:1 contrast, below the 4.5:1 threshold, on their own brand red, as one of 28 controls under the 44 × 44 touch target guidance.
+On a live product page, a mobile capture measured the primary call-to-action at 4.09:1 contrast, below the 4.5:1 threshold, on the brand's own red, as one of 28 controls under the 44 × 44 touch target guidance.
 
-Contrast is measured against a composited background. Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without that, a 4% white veil over a dark surface (a standard treatment in dark design systems) is read as pure white. On `linear.app` that error reported 17.51:1 text as 1.06:1. The bug was found in a real capture, fixed, and kept as a regression.
+Contrast is measured against a composited background. Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without that, a 4% white veil over a dark surface (a standard treatment in dark design systems) is read as pure white. On one production dark-theme site that error reported 17.51:1 text as 1.06:1. The bug was found in a real capture, fixed, and kept as a regression.
 
 Measured findings are grouped by the change that would resolve them, then ranked by prominence. Contrast groups by colour pair. Tap targets group by shape class. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are not findings.
 
-The included `/demo` is a controlled product with a pre-authored improved variant. Sundae does not claim the agent wrote that fix. What is real is the re-measurement: `verify_recapture` returns `{fixed:1, still_open:0, unverified:0}` after accept. `npm run check` currently passes 205 tests covering the audit engine, WebMCP registration, capture policy, landing contract, and workbench authority.
+The included `/demo` is a controlled product with a pre-authored improved variant. Sundae does not claim the agent wrote that fix. What is real is the re-measurement: `verify_recapture` returns `{fixed:1, still_open:0, unverified:0}` after accept. `npm run check` currently passes 226 tests covering the audit engine, WebMCP registration, capture policy, landing contract, and workbench authority.
 
 ## Potential Impact
 

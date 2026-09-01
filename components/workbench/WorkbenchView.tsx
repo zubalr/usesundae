@@ -418,7 +418,7 @@ function CaptureBar({
             inputMode="url"
             value={urlDraft}
             onChange={(event) => onChangeUrlDraft(event.target.value)}
-            placeholder="linear.app or www.example.com/page"
+            placeholder="yourproduct.com or www.example.com/pricing"
             spellCheck={false}
             autoCapitalize="none"
             autoComplete="url"

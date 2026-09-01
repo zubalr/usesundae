@@ -82,7 +82,7 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
             value={targetUrl}
             maxLength={MAX_PUBLIC_URL_LENGTH}
             onChange={(event) => setTargetUrl(event.target.value)}
-            placeholder="linear.app"
+            placeholder="yourproduct.com"
             autoComplete="url"
             autoCapitalize="none"
             spellCheck={false}

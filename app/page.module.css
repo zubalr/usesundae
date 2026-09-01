@@ -107,14 +107,9 @@
 .method h2,
 .method h3,
 .method p,
-.availability h2,
-.availability h3,
-.availability p,
 .judgePath h2,
 .judgePath h3,
 .judgePath p,
-.desktopGuide h2,
-.desktopGuide p,
 .toolLedger,
 .footer {
   margin-block: var(--space-none);
@@ -138,7 +133,6 @@
 .measuredFinding {
   display: grid;
   gap: var(--space-s);
-  max-width: calc(var(--measure) + var(--measure));
   padding-block: var(--space-l);
   border-block: thin solid var(--stage-line);
 }
@@ -232,7 +226,7 @@
   gap: var(--space-m);
   padding: var(--space-xs) var(--space-m);
   border-top: thin solid var(--stage-line);
-  background: color-mix(in srgb, var(--stage-ground) 88%, transparent);
+  background: var(--stage-ground);
   color: var(--stage-muted);
 }
 
@@ -245,10 +239,29 @@
 }
 
 .rundown {
+  /* The connector rule, the step dots, and the playhead all ride one rail.
+     Each was computed from its own expression before, so the rule missed the
+     dots and landed exactly on the left edge of the copy, striking through
+     every line of it. The rail is the centre of the gap between the step
+     number and the copy column, so it depends on the row's inline padding and
+     on .stepNumber staying at its min-inline-size. The dot is centred on that
+     same point by translation, which keeps it exact whatever its border adds
+     to its box. */
+  --rundown-rail: calc(var(--space-m) + var(--space-xl) + (var(--space-l) / 2));
+  --rundown-dot: calc(var(--space-l) / -2);
   position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(var(--space-none), 1fr);
   min-width: var(--space-none);
   overflow: visible;
   background: var(--stage-ground);
+}
+
+/* The steps stretch to the height of the stage beside them. Left at their
+   natural height the list stopped short and the playhead ran on alone. */
+.rundown ol {
+  display: grid;
+  grid-auto-rows: minmax(min-content, 1fr);
 }
 
 .rundown > header {
@@ -278,17 +291,21 @@
 .rundown li {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(var(--space-none), 1fr) auto;
-  gap: var(--space-s);
+  grid-template-columns: auto minmax(var(--space-none), 1fr);
+  gap: var(--space-l);
   min-block-size: calc(var(--space-3xl) + var(--space-s));
   align-content: center;
   padding: var(--space-s) var(--space-m);
   border-bottom: thin solid var(--stage-line);
 }
 
+.rundown li:last-child {
+  border-bottom: var(--space-none);
+}
+
 .rundown li::before {
   position: absolute;
-  inset-inline-start: calc(var(--space-2xl) + var(--space-2xs));
+  inset-inline-start: var(--rundown-rail);
   inset-block: var(--space-none);
   border-inline-start: thin solid var(--stage-line);
   content: "";
@@ -305,27 +322,35 @@
   font-weight: var(--weight-bold);
 }
 
-.rundown li > div {
-  position: relative;
+.rundown li strong {
+  color: var(--stage-text);
+  font-size: var(--text-s);
+  line-height: var(--leading-tight);
 }
 
-.rundown li > div::before {
+/* The owner label sits on the title's line rather than in a third column.
+   A third column is sized by its own longest word, so "You" and "Required"
+   pulled every row's copy to a different right edge, and the stack of badge
+   borders cut a ragged line down the right of the text. */
+.stepHead {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-s);
+}
+
+.stepHead::before {
   position: absolute;
-  inset-block-start: var(--space-2xs);
-  inset-inline-start: calc((var(--space-l) + var(--space-2xs)) * -1);
+  inset-block-start: 50%;
+  inset-inline-start: var(--rundown-dot);
+  translate: -50% -50%;
   inline-size: var(--space-s);
   block-size: var(--space-s);
   border: thin solid var(--stage-attention);
   border-radius: var(--radius-full);
   background: var(--stage-ground);
   content: "";
-}
-
-.rundown li strong {
-  display: block;
-  color: var(--stage-text);
-  font-size: var(--text-s);
-  line-height: var(--leading-tight);
 }
 
 .rundown li p {
@@ -336,7 +361,7 @@
 }
 
 .stepOwner {
-  align-self: start;
+  flex: none;
   padding: var(--space-2xs) var(--space-xs);
   border: thin solid var(--stage-line);
   color: var(--stage-muted);
@@ -348,7 +373,7 @@
   color: var(--stage-verification);
 }
 
-.rundown li[data-owner="human"] > div::before {
+.rundown li[data-owner="human"] .stepHead::before {
   border-color: var(--stage-verification);
 }
 
@@ -358,7 +383,7 @@
   color: var(--stage-verification);
 }
 
-.rundown li:last-child > div::before {
+.rundown li:last-child .stepHead::before {
   border-color: var(--stage-verification);
   background-color: var(--stage-verification);
 }
@@ -367,7 +392,7 @@
   position: absolute;
   z-index: 2;
   inset-block: var(--space-xl) var(--space-none);
-  inset-inline-start: calc(var(--space-2xl) + var(--space-2xs));
+  inset-inline-start: var(--rundown-rail);
   border-inline-start: thin solid var(--stage-attention);
   transform: scaleY(0);
   transform-origin: top;
@@ -473,11 +498,13 @@
   color: var(--text-secondary);
 }
 
-/* Twelve columns, matching .method. A single narrow column left the right half
-   of this section empty at desktop widths. */
+/* Twelve columns, matching .method. Every child needs an explicit column here:
+   an unplaced grid child auto-flows into a single 1/12 track, which collapsed
+   the ledger, the desktop guide, and the tool table into 88px slivers. */
 .judgePath {
   display: grid;
   grid-template-columns: repeat(12, minmax(var(--space-none), 1fr));
+  align-content: start;
   gap: var(--space-2xl) var(--space-l);
   padding-block: var(--space-3xl);
   border-top: thin solid var(--border);
@@ -485,10 +512,12 @@
 
 .judgeLead {
   grid-column: 1 / 6;
+  grid-row: 1 / 3;
 }
 
 .judgeHandoff {
-  grid-column: 7 / 13;
+  grid-column: 7 / -1;
+  grid-row: 1;
   display: grid;
   align-content: start;
   justify-items: start;
@@ -496,7 +525,12 @@
 }
 
 .judgeSteps {
-  grid-column: 7 / 13;
+  grid-column: 7 / -1;
+  grid-row: 2;
+}
+
+.availabilityLead {
+  grid-column: 1 / 6;
 }
 
 .judgeSteps,
@@ -512,18 +546,32 @@
   counter-reset: judge-step;
 }
 
-.judgeSteps li {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-s);
-  color: var(--text-secondary);
+/* Not a grid. A grid container blockifies every element child, so the inline
+   link in step one and the <code> spans in step four each became a separate
+   grid item and broke onto their own row, splitting the sentences apart. The
+   counter is positioned into reserved space instead, and the copy stays prose. */
+.judgeSteps li,
+.desktopGuide li {
+  position: relative;
+  padding-inline-start: calc(var(--space-xl) + var(--space-2xs));
   font-size: var(--text-s);
+  line-height: var(--leading-normal);
+}
+
+.judgeSteps li::before,
+.desktopGuide li::before {
+  position: absolute;
+  inset-inline-start: var(--space-none);
+  font-family: var(--font-mono);
+}
+
+.judgeSteps li {
+  color: var(--text-secondary);
   counter-increment: judge-step;
 }
 
 .judgeSteps li::before {
   color: var(--success);
-  font-family: var(--font-mono);
   content: counter(judge-step, decimal-leading-zero);
 }
 
@@ -532,9 +580,11 @@
   display: inline-flex;
   align-items: center;
   color: var(--text-primary);
+  text-underline-offset: var(--space-2xs);
 }
 
 .toolLedger {
+  grid-column: 7 / -1;
   display: grid;
   grid-template-columns: repeat(2, minmax(var(--space-none), 1fr));
   border: thin solid var(--border);
@@ -575,6 +625,7 @@
 }
 
 .desktopGuide {
+  grid-column: 1 / -1;
   position: relative;
   isolation: isolate;
   display: grid;
@@ -588,6 +639,7 @@
 }
 
 .toolTableFrame {
+  grid-column: 1 / -1;
   overflow-x: auto;
 }
 
@@ -633,17 +685,12 @@
 }
 
 .desktopGuide li {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-s);
   color: var(--stage-muted);
-  font-size: var(--text-s);
   counter-increment: handoff;
 }
 
 .desktopGuide li::before {
   color: var(--stage-verification);
-  font-family: var(--font-mono);
   content: counter(handoff, decimal-leading-zero);
 }
 
@@ -662,6 +709,9 @@
   gap: var(--space-l);
   border-top: thin solid var(--border);
   color: var(--text-secondary);
+}
+
+.footer span {
   font-size: var(--text-s);
 }
 
@@ -707,6 +757,19 @@
   .desktopGuide > a:hover {
     background: transparent;
     color: var(--stage-verification);
+  }
+}
+
+/* Below this width the rundown's copy column falls under about 230px and the
+   six steps read as fragments. Stack the set rather than squeezing it. */
+@media (max-width: 75rem) {
+  .liveSet {
+    grid-template-columns: 1fr;
+  }
+
+  .programStage {
+    border-right: var(--space-none);
+    border-bottom: thin solid var(--stage-line);
   }
 }
 
@@ -762,7 +825,10 @@
   }
 
   .causalProof,
-  .toolLedger {
+  .availabilityLead,
+  .toolLedger,
+  .desktopGuide,
+  .toolTableFrame {
     margin-top: var(--space-2xl);
   }
 
@@ -824,24 +890,29 @@
     min-block-size: var(--space-2xl);
   }
 
+  /* A 16:9 window at phone width leaves about 160px of fixture under the
+     label, which clipped the product mock mid-headline. A portrait window
+     shows the surface the copy is pointing at. */
   .fixtureWindow {
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 3 / 4;
   }
 
   .commandStrip {
     padding: var(--space-m);
   }
 
+  .rundown {
+    --rundown-rail: calc(var(--space-s) + var(--space-xl) + (var(--space-l) / 2));
+  }
+
   .rundown li {
-    grid-template-columns: auto minmax(var(--space-none), 1fr) auto;
-    gap: var(--space-xs);
+    grid-template-columns: auto minmax(var(--space-none), 1fr);
+    gap: var(--space-l);
     min-block-size: calc(var(--space-2xl) + var(--space-m));
     padding: var(--space-xs) var(--space-s);
   }
 
   .stepOwner {
-    grid-column: auto;
-    justify-self: end;
     padding: var(--space-2xs);
   }
 
