@@ -3,9 +3,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://usesundae.vercel.app"),
-  title: "Sundae — The shared WebMCP product-audit workspace",
+  title: "Sundae — Review a live product with your AI",
   description:
-    "A person and ChatGPT audit the same live page: Site Tools record evidence, the person governs decisions, and fresh recapture is required before anything is called fixed.",
+    "Inspect a real page with ChatGPT, keep every finding tied to evidence, and verify improvements on the same visible workspace.",
   robots: { index: true, follow: true },
   icons: {
     icon: [
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Sundae — The shared WebMCP product-audit workspace",
+    title: "Sundae — Review a live product with your AI",
     description:
-      "A person and ChatGPT audit the same live page: Site Tools record evidence, the person governs decisions, and fresh recapture is required before anything is called fixed.",
+      "Inspect a real page with ChatGPT, keep every finding tied to evidence, and verify improvements on the same visible workspace.",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Sundae workbench mark: ink rail, coral rule, teal evidence bar",
+        alt: "Sundae split workbench: live product on the left, evidence and a verified finding on the right, with the line Review a live product with your AI—and see the proof.",
       },
     ],
   },

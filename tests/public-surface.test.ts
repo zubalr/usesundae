@@ -129,6 +129,10 @@ test("the evidence pane leads with findings, then strengths, gaps, brief, and re
   assert.ok(findings >= 0 && inspector > findings);
   assert.ok(strengths > inspector && coverage > strengths);
   assert.ok(brief > coverage && receipts > brief);
+  const receiptsSource = workbench.slice(workbench.indexOf("function ActivityReceipts"));
+  assert.match(receiptsSource, /<h3 id="receipts-title">Action receipts<\/h3>/);
+  assert.doesNotMatch(receiptsSource, /<details[\s\S]*?<h3 id="receipts-title">Action receipts/);
+  assert.match(receiptsSource, /Earlier receipts/);
   assert.match(
     workbench,
     /<details className=\{styles\.authorityBar\} aria-label="Agent authority">/,
@@ -139,7 +143,8 @@ test("the evidence pane leads with findings, then strengths, gaps, brief, and re
   assert.match(workbench, /Ask ChatGPT to audit/);
   assert.match(workbench, /Approve one finding/);
   assert.match(workbench, /Preview and verify/);
-  assert.match(workbench, /"Re-measure"/);
+  assert.match(workbench, /"Refresh evidence"/);
+  assert.doesNotMatch(workbench, /"Re-measure"/);
   assert.doesNotMatch(workbench, /Audit live target/);
   assert.doesNotMatch(workbench, /Recapture page/);
   assert.match(workbench, />Design</);
@@ -150,11 +155,16 @@ test("the evidence pane leads with findings, then strengths, gaps, brief, and re
   assert.match(workbench, /Technical facts/);
   assert.doesNotMatch(workbench, /Product findings/);
   assert.doesNotMatch(workbench, /Accessibility &(?:amp;)? technical facts/);
-  assert.match(
-    workbench,
-    /No design judgment yet\. Sundae measured the evidence below\. Open this workspace in ChatGPT\s+to add judged findings against it\./,
-  );
-  assert.match(workbench, /Audit with ChatGPT/);
+  assert.match(workbench, /Measurements are ready/);
+  assert.match(workbench, /Continue the review in ChatGPT/);
+  assert.match(workbench, /No design judgment yet/);
+  assert.match(workbench, /A live review with your AI/);
+  assert.match(workbench, /Inspect Site Tools/);
+  assert.match(workbench, /What the review found/);
+  assert.match(workbench, /What already works/);
+  assert.match(workbench, /What was reviewed/);
+  assert.match(workbench, /Review context/);
+  assert.match(workbench, /Included audit specimen/);
   assert.match(workbench, /<details[\s\S]*Technical facts/);
   assert.doesNotMatch(workbench, /<details[^>]*\sopen[\s\S]{0,200}Technical facts/);
   assert.match(workbench, /aria-label=\{evidenceBoard\.listLabel\}/);
@@ -178,7 +188,7 @@ test("the workbench accepts bare domains and contains desktop pane scrolling", (
   assert.match(styles, /\.evidencePane\s*\{[\s\S]*?overflow-y:\s*auto;/);
   assert.match(
     styles,
-    /@media \(max-width: 900px\)[\s\S]*?\.app\s*\{[\s\S]*?height:\s*auto;[\s\S]*?overflow:\s*visible;/,
+    /@media \(max-width: 900px\)[\s\S]*?\.app\s*\{[\s\S]*?height:\s*auto;[\s\S]*?overflow-x:\s*clip;/,
   );
 });
 
@@ -209,8 +219,29 @@ test("accepting a finding orchestrates preview or honest re-measure through exis
   assert.match(controller, /acceptFollowThroughKind/);
   assert.match(controller, /runAcceptFollowThrough|previewFix\(/);
   assert.match(controller, /auditCurrentScope/);
-  assert.match(controller, /acceptFollowThroughReceipt/);
+  assert.match(controller, /setFindingDecisionWithFollowThrough/);
   assert.doesNotMatch(controller, /lib\/audit\/recapture/);
+});
+
+test("agent decisions stay atomic while the human callback keeps follow-through", () => {
+  const controller = readFileSync(pathFromRoot("components", "Workbench.tsx"), "utf8");
+  const actualCommands = controller.slice(
+    controller.indexOf("const actualCommands"),
+    controller.indexOf("commandRef.current = actualCommands"),
+  );
+  const followThrough = controller.slice(
+    controller.indexOf("const setFindingDecisionWithFollowThrough"),
+    controller.indexOf("const actualCommands"),
+  );
+
+  assert.match(actualCommands, /setFindingDecision(?:\s*:\s*setFindingDecision)?,/);
+  assert.doesNotMatch(actualCommands, /setFindingDecision:\s*setFindingDecisionWithFollowThrough/);
+  assert.match(
+    controller,
+    /onSetFindingDecision=\{\(findingId, decision, reason\) =>\s*runVisibleCommand\(setFindingDecisionWithFollowThrough\(/,
+  );
+  assert.match(followThrough, /return runAcceptFollowThrough\(/);
+  assert.doesNotMatch(followThrough, /follow_through_error/);
 });
 
 test("public viewport capture retains the existing responsive audit", () => {

@@ -40,7 +40,7 @@ Contrast is measured against a composited background. Sundae walks the ancestor 
 
 Measured findings are grouped by the change that would resolve them, then ranked by prominence. Contrast groups by colour pair. Tap targets group by shape class. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are not findings.
 
-The included `/demo` is a controlled product with a pre-authored improved variant. Sundae does not claim the agent wrote that fix. What is real is the re-measurement: `verify_recapture` returns `{fixed:1, still_open:0, unverified:0}` after accept. `npm run check` currently passes 226 tests covering the audit engine, WebMCP registration, capture policy, landing contract, and workbench authority.
+The included `/demo` is a controlled product with a pre-authored improved variant. Sundae does not claim the agent wrote that fix. What is real is the re-measurement: `verify_recapture` returns `{fixed:1, still_open:0, unverified:0}` after accept. `npm run check` currently passes 234 tests covering the audit engine, WebMCP registration, capture policy, landing contract, and workbench authority.
 
 ## Potential Impact
 

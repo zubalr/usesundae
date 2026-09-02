@@ -4,6 +4,14 @@
   gap: var(--space-s);
 }
 
+.launcherLead {
+  margin: var(--space-none);
+  color: var(--stage-text);
+  font-size: var(--text-m);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+}
+
 .fields {
   display: grid;
   grid-template-columns: minmax(var(--space-none), 1.1fr) minmax(var(--space-none), 0.9fr);
@@ -286,8 +294,16 @@
 }
 
 @media (max-width: 40rem) {
+  .launcher {
+    gap: var(--space-xs);
+  }
+
   .fields {
     grid-template-columns: 1fr;
+  }
+
+  .demoAction {
+    min-block-size: var(--space-xl);
   }
 
   .actions,

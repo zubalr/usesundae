@@ -8,6 +8,7 @@ import {
   accessibleNamePasses,
   contrastRatioOrNull,
   findingIdentity,
+  TAP_TARGET_MIN_PX,
   tapTargetPasses,
 } from "./measurements";
 import type { BrowserFacts } from "./dom";
@@ -152,14 +153,14 @@ export function collectMeasuredFindings(facts: BrowserFacts): Finding[] {
         truth: "measured",
         severity: "medium",
         title: `${target.label} is difficult to target`,
-        observation: `The action measures ${target.rect.width} × ${target.rect.height} CSS px; the threshold is 44 × 44.`,
+        observation: `The action measures ${target.rect.width} × ${target.rect.height} CSS px; the threshold is ${TAP_TARGET_MIN_PX} × ${TAP_TARGET_MIN_PX}.`,
         whyItMatters: "Small targets can be harder to activate accurately on touch screens.",
-        recommendation: "Increase the interactive hit area to at least 44 × 44 CSS px.",
+        recommendation: `Increase the interactive hit area to at least ${TAP_TARGET_MIN_PX} × ${TAP_TARGET_MIN_PX} CSS px.`,
         rect: target.rect,
         groupKey: tapTargetShapeClass(target.rect),
         measurement: thresholdMeasurement(
           `${target.rect.width} × ${target.rect.height}`,
-          "44 × 44",
+          `${TAP_TARGET_MIN_PX} × ${TAP_TARGET_MIN_PX}`,
           "CSS px",
           "lower-is-worse",
         ),

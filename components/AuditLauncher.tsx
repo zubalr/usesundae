@@ -73,9 +73,10 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       onSubmit={openPublicWorkspace}
       noValidate
     >
+      <p className={styles.launcherLead}>Review a public page</p>
       <div className={styles.fields}>
         <label className={styles.urlField}>
-          <span>Public page</span>
+          <span>Page URL</span>
           <input
             type="text"
             inputMode="url"
@@ -90,14 +91,14 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
         </label>
         <label className={styles.goalField}>
           <span>
-            Audit focus <small>Optional</small>
+            What should we review? <small>Optional</small>
           </span>
           <input
             type="text"
             value={goal}
             maxLength={MAX_AUDIT_GOAL_LENGTH}
             onChange={(event) => setGoal(event.target.value)}
-            placeholder="Activation, pricing, visual hierarchy…"
+            placeholder="Activation, pricing clarity, onboarding…"
           />
         </label>
       </div>
@@ -110,13 +111,14 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
 
       <div className={styles.actions}>
         <button className={styles.workbenchAction} type="submit">
-          Audit my page
+          Start the review
         </button>
       </div>
 
       <p className={styles.demoHint}>
+        See the complete review on our sample product.{" "}
         <a className={styles.demoAction} href="/demo">
-          No URL handy? Try it on our sample product.
+          Try the live demo
         </a>
       </p>
 

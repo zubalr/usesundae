@@ -44,13 +44,19 @@
 
 .masthead nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2xs);
+}
+
+.judgeNav {
+  color: var(--stage-muted);
 }
 
 .masthead .wordmark,
 .masthead nav a,
-.desktopGuide > a,
+.openDemo,
 .footer a {
   min-block-size: calc(var(--space-xl) + var(--space-xs));
   display: inline-flex;
@@ -66,7 +72,7 @@
 
 .masthead .wordmark:active,
 .masthead nav a:active,
-.desktopGuide > a:active,
+.openDemo:active,
 .footer a:active {
   transform: scale(0.98);
 }
@@ -95,13 +101,13 @@
 
 .heroThesis {
   display: grid;
-  gap: var(--space-l);
+  gap: var(--space-m);
   margin-bottom: var(--space-l);
 }
 
 .heroThesis h1,
 .heroThesis p,
-.measuredFinding p,
+.proofReceipt p,
 .rundown h2,
 .rundown p,
 .method h2,
@@ -111,17 +117,9 @@
 .judgePath h3,
 .judgePath p,
 .toolLedger,
-.footer {
+.footer,
+.disclosures p {
   margin-block: var(--space-none);
-}
-
-.heroThesis h1 {
-  max-width: 16ch;
-  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.035em;
-  line-height: var(--leading-tight);
-  text-wrap: balance;
 }
 
 .heroThesis p {
@@ -130,25 +128,92 @@
   font-size: var(--text-l);
 }
 
-.measuredFinding {
-  display: grid;
-  gap: var(--space-s);
-  padding-block: var(--space-l);
-  border-block: thin solid var(--stage-line);
+.heroThesis h1 {
+  max-width: 18ch;
+  font-size: clamp(var(--text-2xl), 6vw, var(--text-3xl));
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.035em;
+  line-height: var(--leading-tight);
+  text-wrap: balance;
 }
 
-.measuredFinding p:first-child {
-  max-width: var(--measure);
+.heroThesis .eyebrow {
+  max-width: none;
+  margin-block: var(--space-none);
+  color: var(--stage-attention);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.heroEntry {
+  display: grid;
+  grid-template-columns: minmax(var(--space-none), 1.15fr) minmax(var(--space-3xl), 0.85fr);
+  margin-bottom: var(--space-l);
+  border: thin solid var(--stage-line);
+  background: var(--stage-panel);
+}
+
+.proofReceipt {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-content: start;
+  gap: var(--space-s);
+  overflow: clip;
+  padding: var(--space-l);
+  border-left: thin solid var(--stage-line);
+}
+
+.proofTitle {
   color: var(--stage-text);
-  font-size: clamp(var(--text-l), 2.4vw, var(--text-xl));
+  font-size: var(--text-l);
+  font-weight: var(--weight-bold);
   letter-spacing: -0.02em;
   line-height: var(--leading-tight);
 }
 
-.measuredSource {
+.proofReceipt p {
+  color: var(--stage-muted);
+  font-size: var(--text-s);
+}
+
+.proofEvidence {
   color: var(--stage-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+}
+
+.proofTrail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: var(--space-none);
+  padding: var(--space-none);
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
+
+.proofTrail li {
+  color: var(--stage-muted);
+}
+
+.proofTrail li + li::before {
+  margin-inline-end: var(--space-xs);
+  color: var(--stage-line);
+  content: "→";
+}
+
+.proofTrail li:first-child {
+  color: var(--stage-attention);
+}
+
+.proofTrail li:last-child {
+  color: var(--stage-verification);
 }
 
 .liveSet {
@@ -165,7 +230,6 @@
 }
 
 .programHeader,
-.fixtureLabel,
 .rundown > header,
 .stepOwner {
   font-family: var(--font-mono);
@@ -221,20 +285,31 @@
   position: absolute;
   inset-inline: var(--space-none);
   inset-block-end: var(--space-none);
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-m);
+  display: grid;
+  gap: var(--space-2xs);
   padding: var(--space-xs) var(--space-m);
   border-top: thin solid var(--stage-line);
   background: var(--stage-ground);
   color: var(--stage-muted);
 }
 
+.fixtureLabel span:first-child {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}
+
+.fixtureLabel span:last-child {
+  font-size: var(--text-xs);
+  text-wrap: pretty;
+}
+
 .commandStrip {
   display: grid;
   gap: var(--space-l);
+  min-width: var(--space-none);
   padding: var(--space-l);
-  border-top: thin solid var(--stage-line);
   background: var(--stage-panel);
 }
 
@@ -282,7 +357,8 @@
 
 .rundown ol,
 .operatingRules,
-.desktopGuide ol {
+.desktopSteps,
+.judgeSteps {
   margin: var(--space-none);
   padding: var(--space-none);
   list-style: none;
@@ -293,7 +369,7 @@
   display: grid;
   grid-template-columns: auto minmax(var(--space-none), 1fr);
   gap: var(--space-l);
-  min-block-size: calc(var(--space-3xl) + var(--space-s));
+  min-block-size: calc(var(--space-2xl) + var(--space-l));
   align-content: center;
   padding: var(--space-s) var(--space-m);
   border-bottom: thin solid var(--stage-line);
@@ -393,10 +469,9 @@
   z-index: 2;
   inset-block: var(--space-xl) var(--space-none);
   inset-inline-start: var(--rundown-rail);
-  border-inline-start: thin solid var(--stage-attention);
-  transform: scaleY(0);
+  border-inline-start: thin solid var(--stage-verification);
+  transform: scaleY(1);
   transform-origin: top;
-  animation: audit-signal-path var(--duration-rundown) var(--ease-in-out) var(--duration-slow) both;
   pointer-events: none;
 }
 
@@ -406,9 +481,8 @@
   inset-inline-start: calc(var(--space-2xs) * -1);
   inline-size: var(--space-xs);
   block-size: var(--space-xs);
-  background: var(--stage-attention);
+  background: var(--stage-verification);
   content: "";
-  animation: audit-signal-tip var(--duration-rundown) var(--ease-in-out) var(--duration-slow) both;
 }
 
 .method {
@@ -423,9 +497,7 @@
 }
 
 .methodLead h2,
-.judgeLead h2,
-.availabilityLead h3,
-.desktopGuide h3 {
+.judgeLead h2 {
   max-width: 18ch;
   font-size: var(--text-2xl);
   letter-spacing: -0.03em;
@@ -434,9 +506,7 @@
 }
 
 .methodLead p,
-.judgeLead p,
-.availabilityLead p,
-.desktopGuide p {
+.judgeLead p {
   max-width: var(--measure);
   margin-top: var(--space-l);
   color: var(--text-secondary);
@@ -498,9 +568,6 @@
   color: var(--text-secondary);
 }
 
-/* Twelve columns, matching .method. Every child needs an explicit column here:
-   an unplaced grid child auto-flows into a single 1/12 track, which collapsed
-   the ledger, the desktop guide, and the tool table into 88px slivers. */
 .judgePath {
   display: grid;
   grid-template-columns: repeat(12, minmax(var(--space-none), 1fr));
@@ -521,7 +588,15 @@
   display: grid;
   align-content: start;
   justify-items: start;
+  gap: var(--space-l);
   max-width: var(--measure);
+}
+
+.openDemo {
+  border: thin solid var(--success);
+  background: var(--success);
+  color: var(--success-on);
+  font-weight: var(--weight-bold);
 }
 
 .judgeSteps {
@@ -529,62 +604,58 @@
   grid-row: 2;
 }
 
-.availabilityLead {
-  grid-column: 1 / 6;
+.disclosures {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-s);
+  border-top: thin solid var(--border);
+  padding-top: var(--space-l);
 }
 
-.judgeSteps,
-.desktopGuide ol {
-  margin: var(--space-none);
-  padding: var(--space-none);
-  list-style: none;
+.disclosures details {
+  border-bottom: thin solid var(--border);
 }
 
+.disclosures summary {
+  min-block-size: calc(var(--space-xl) + var(--space-xs));
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: var(--text-s);
+  font-weight: var(--weight-bold);
+}
+
+.disclosures details > *:not(summary) {
+  margin-block: var(--space-s) var(--space-l);
+}
+
+.desktopSteps,
 .judgeSteps {
   display: grid;
   gap: var(--space-s);
-  counter-reset: judge-step;
+  counter-reset: landing-step;
 }
 
-/* Not a grid. A grid container blockifies every element child, so the inline
-   link in step one and the <code> spans in step four each became a separate
-   grid item and broke onto their own row, splitting the sentences apart. The
-   counter is positioned into reserved space instead, and the copy stays prose. */
-.judgeSteps li,
-.desktopGuide li {
+.desktopSteps li,
+.judgeSteps li {
   position: relative;
   padding-inline-start: calc(var(--space-xl) + var(--space-2xs));
+  color: var(--text-secondary);
   font-size: var(--text-s);
   line-height: var(--leading-normal);
+  counter-increment: landing-step;
 }
 
-.judgeSteps li::before,
-.desktopGuide li::before {
+.desktopSteps li::before,
+.judgeSteps li::before {
   position: absolute;
   inset-inline-start: var(--space-none);
-  font-family: var(--font-mono);
-}
-
-.judgeSteps li {
-  color: var(--text-secondary);
-  counter-increment: judge-step;
-}
-
-.judgeSteps li::before {
   color: var(--success);
-  content: counter(judge-step, decimal-leading-zero);
-}
-
-.judgeSteps a {
-  min-block-size: calc(var(--space-xl) + var(--space-xs));
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-primary);
-  text-underline-offset: var(--space-2xs);
+  font-family: var(--font-mono);
+  content: counter(landing-step, decimal-leading-zero);
 }
 
 .toolLedger {
-  grid-column: 7 / -1;
   display: grid;
   grid-template-columns: repeat(2, minmax(var(--space-none), 1fr));
   border: thin solid var(--border);
@@ -624,22 +695,7 @@
   font-size: var(--text-s);
 }
 
-.desktopGuide {
-  grid-column: 1 / -1;
-  position: relative;
-  isolation: isolate;
-  display: grid;
-  grid-template-columns: minmax(var(--space-none), 1.4fr) minmax(var(--space-none), 1fr) auto;
-  align-items: end;
-  gap: var(--space-2xl);
-  padding: var(--space-2xl);
-  border: thin solid var(--stage-line);
-  background: var(--stage-ground);
-  color: var(--stage-text);
-}
-
 .toolTableFrame {
-  grid-column: 1 / -1;
   overflow-x: auto;
 }
 
@@ -674,33 +730,6 @@
   font-size: var(--text-xs);
 }
 
-.desktopGuide p {
-  color: var(--stage-muted);
-}
-
-.desktopGuide ol {
-  display: grid;
-  gap: var(--space-s);
-  counter-reset: handoff;
-}
-
-.desktopGuide li {
-  color: var(--stage-muted);
-  counter-increment: handoff;
-}
-
-.desktopGuide li::before {
-  color: var(--stage-verification);
-  content: counter(handoff, decimal-leading-zero);
-}
-
-.desktopGuide > a {
-  border: thin solid var(--stage-verification);
-  background: var(--stage-verification);
-  color: var(--stage-ground);
-  white-space: nowrap;
-}
-
 .footer {
   min-block-size: var(--space-3xl);
   display: grid;
@@ -727,36 +756,15 @@
   text-underline-offset: var(--space-2xs);
 }
 
-@keyframes audit-signal-path {
-  from {
-    transform: scaleY(0);
-  }
-
-  to {
-    transform: scaleY(1);
-  }
-}
-
-@keyframes audit-signal-tip {
-  0%,
-  82% {
-    background-color: var(--stage-attention);
-  }
-
-  100% {
-    background-color: var(--stage-verification);
-  }
-}
-
 @media (hover: hover) and (pointer: fine) {
   .masthead .wordmark:hover,
   .masthead nav a:hover {
     color: var(--stage-verification);
   }
 
-  .desktopGuide > a:hover {
+  .openDemo:hover {
     background: transparent;
-    color: var(--stage-verification);
+    color: var(--success);
   }
 }
 
@@ -783,17 +791,22 @@
   }
 
   .heroThesis,
-  .liveSet,
-  .desktopGuide {
+  .heroEntry,
+  .liveSet {
     grid-template-columns: 1fr;
   }
 
   .heroThesis {
-    gap: var(--space-l);
+    gap: var(--space-m);
   }
 
   .heroThesis h1 {
-    max-width: 14ch;
+    max-width: 20ch;
+  }
+
+  .proofReceipt {
+    border-left: var(--space-none);
+    border-top: thin solid var(--stage-line);
   }
 
   .programStage {
@@ -802,34 +815,21 @@
     border-bottom: thin solid var(--stage-line);
   }
 
-  .programHeader {
-    order: 1;
-  }
-
-  .fixtureWindow {
-    order: 3;
-  }
-
-  .commandStrip {
-    order: 2;
-  }
-
   .method,
   .judgePath {
     display: block;
   }
 
   .judgeHandoff,
-  .judgeSteps {
+  .judgeSteps,
+  .disclosures {
     margin-top: var(--space-2xl);
   }
 
   .causalProof,
-  .availabilityLead,
   .toolLedger,
-  .desktopGuide,
   .toolTableFrame {
-    margin-top: var(--space-2xl);
+    margin-top: var(--space-l);
   }
 
   .operatingRules {
@@ -844,15 +844,6 @@
   .operatingRules li:nth-child(4) {
     border-top: thin solid var(--border);
   }
-
-  .desktopGuide {
-    align-items: start;
-    gap: var(--space-l);
-  }
-
-  .desktopGuide > a {
-    justify-self: start;
-  }
 }
 
 @media (max-width: 40rem) {
@@ -864,20 +855,43 @@
     width: calc(100% - var(--space-l));
   }
 
+  .masthead {
+    min-block-size: var(--space-xl);
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2xs);
+  }
+
+  .masthead .wordmark,
+  .masthead nav a {
+    min-block-size: var(--space-xl);
+    padding-inline: var(--space-xs);
+  }
+
+  .masthead nav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .hero {
-    padding-block: var(--space-l) var(--space-none);
+    padding-block: var(--space-s) var(--space-none);
   }
 
   .heroThesis {
-    gap: var(--space-m);
-    margin-bottom: var(--space-l);
+    gap: var(--space-s);
+    margin-bottom: var(--space-s);
+  }
+
+  .heroEntry {
+    margin-bottom: var(--space-s);
   }
 
   .heroThesis h1 {
+    max-width: 20ch;
     font-size: var(--text-2xl);
   }
 
-  .heroThesis p {
+  .heroThesis p:not(.eyebrow) {
     font-size: var(--text-m);
   }
 
@@ -898,7 +912,7 @@
   }
 
   .commandStrip {
-    padding: var(--space-m);
+    padding: var(--space-s);
   }
 
   .rundown {
@@ -922,9 +936,7 @@
   }
 
   .methodLead h2,
-  .judgeLead h2,
-  .availabilityLead h3,
-  .desktopGuide h3 {
+  .judgeLead h2 {
     font-size: var(--text-xl);
   }
 
@@ -961,7 +973,7 @@
 @media (prefers-reduced-motion: reduce) {
   .masthead .wordmark:active,
   .masthead nav a:active,
-  .desktopGuide > a:active,
+  .openDemo:active,
   .footer a:active {
     transform: none;
   }

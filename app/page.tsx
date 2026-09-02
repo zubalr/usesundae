@@ -1,6 +1,7 @@
 import { AuditIntentProvider } from "@/components/AuditIntent";
 import { AuditLauncher, ChatGptNextStep } from "@/components/AuditLauncher";
 import { Workbench } from "@/components/Workbench";
+import { includedDemoProofReceipt } from "@/lib/demo/included-receipt";
 import { MAX_AUDIT_GOAL_LENGTH, MAX_PUBLIC_URL_LENGTH, resolvePublicDemoUrl } from "@/lib/launch";
 import styles from "./page.module.css";
 
@@ -10,33 +11,18 @@ type HomePageProps = {
 
 const RUNDOWN_STEPS = [
   {
-    title: "Product job",
-    detail: "Orient the visible product, audience, and task before critique.",
+    title: "Understand",
+    detail: "Your agent identifies the visible product, audience, and job.",
     owner: "ChatGPT",
   },
   {
-    title: "Visual system",
-    detail: "Judge hierarchy, type, spacing, color, and product meaning.",
-    owner: "ChatGPT",
-  },
-  {
-    title: "UX architecture",
-    detail: "Trace clarity, next-step friction, and visible dead ends.",
-    owner: "ChatGPT",
-  },
-  {
-    title: "Interaction + motion",
-    detail: "Inspect affordance, feedback, focus, and observed states.",
-    owner: "ChatGPT",
-  },
-  {
-    title: "Human decision",
-    detail: "You accept, defer, or dismiss before any preview begins.",
+    title: "Decide",
+    detail: "Evidence and judgment stay separate; you choose what matters.",
     owner: "You",
   },
   {
-    title: "Fresh recapture",
-    detail: "Sundae re-measures the same scope before calling a fact fixed.",
+    title: "Prove",
+    detail: "Preview safely, then recheck before anything is called fixed.",
     owner: "Required",
   },
 ] as const;
@@ -78,6 +64,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     );
   }
 
+  const proof = includedDemoProofReceipt();
+
   return (
     <AuditIntentProvider initialTarget="" initialGoal={initialGoal}>
       <div className={styles.landing} id="top">
@@ -86,30 +74,44 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             sundae
           </a>
           <nav aria-label="Landing page navigation">
-            <a href="#judges">For WebMCP Challenge judges →</a>
+            <a href="#method">How it works</a>
+            <a href="/demo">Live demo</a>
+            <a href="https://github.com/zubalr/usesundae">GitHub</a>
+            <a className={styles.judgeNav} href="#judges">
+              Judge path
+            </a>
           </nav>
         </header>
 
         <main aria-label="Sundae product review entrance">
           <section className={styles.hero} aria-labelledby="landing-title">
             <div className={styles.heroThesis}>
-              <h1 id="landing-title">AI audits your product&rsquo;s design.</h1>
+              <p className={styles.eyebrow}>A live design review with your AI</p>
+              <h1 id="landing-title">Design reviews shouldn&rsquo;t disappear into chat.</h1>
               <p>
-                Every finding is a measurement you can check, on a page you can inspect, with fixes
-                proved by fresh evidence.
+                Sundae turns a public page into a shared workspace for you and ChatGPT. See the
+                product, the evidence, and every decision in one place—then preview and verify the
+                change.
               </p>
+            </div>
+
+            <div className={styles.heroEntry}>
+              <div className={styles.commandStrip}>
+                <AuditLauncher includedDemoUrl={includedDemoUrl} />
+              </div>
               <aside
-                className={styles.measuredFinding}
-                aria-label="Measured finding from a live capture"
+                className={styles.proofReceipt}
+                aria-label="Included demo finding and review path"
               >
-                <p>
-                  On a live product page, Sundae measured the primary call-to-action at 4.09:1
-                  contrast — under the 4.5:1 threshold, on the brand&rsquo;s own red — and counted
-                  it among 28 controls below the 44 × 44 touch-target guidance.
-                </p>
-                <p className={styles.measuredSource}>
-                  Measured from a live public capture at mobile.
-                </p>
+                <p className={styles.proofTitle}>{proof.title}</p>
+                <p>{proof.meaning}</p>
+                <p className={styles.proofEvidence}>{proof.evidence}</p>
+                <ol className={styles.proofTrail}>
+                  <li>Measure</li>
+                  <li>you decide</li>
+                  <li>preview</li>
+                  <li>recheck</li>
+                </ol>
               </aside>
             </div>
 
@@ -122,10 +124,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <span>Your agent measures what you can see</span>
                 </div>
 
-                <div className={styles.commandStrip}>
-                  <AuditLauncher includedDemoUrl={includedDemoUrl} />
-                </div>
-
                 <div className={styles.fixtureWindow}>
                   <iframe
                     className={styles.fixturePreview}
@@ -136,16 +134,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     sandbox="allow-same-origin allow-scripts"
                     scrolling="no"
                   />
-                  <div className={styles.fixtureLabel} aria-hidden="true">
-                    <span>Live controlled product surface</span>
-                    <span>Evidence stays on the board</span>
+                  <div className={styles.fixtureLabel}>
+                    <span>Included audit specimen</span>
+                    <span>
+                      This sample is deliberately flawed so you can inspect, preview, and verify the
+                      complete Sundae workflow.
+                    </span>
                   </div>
                 </div>
               </section>
 
               <aside className={styles.rundown} aria-labelledby="rundown-title">
                 <header>
-                  <h2 id="rundown-title">Audit rundown</h2>
+                  <h2 id="rundown-title">How a review runs</h2>
                   <span>One visible session</span>
                 </header>
                 <ol>
@@ -171,10 +172,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           <section className={styles.method} id="method" aria-labelledby="method-title">
             <div className={styles.methodLead}>
-              <h2 id="method-title">The audit stays on a page you can inspect.</h2>
+              <h2 id="method-title">Your agent works where the product is.</h2>
               <p>
-                Other tools assert findings in a chat. Sundae leaves the measurement, the judgment,
-                and the proof on the same board you are looking at.
+                Sundae keeps the live page, evidence, decisions, and verification together. You can
+                see what ChatGPT saw and control what happens next.
               </p>
             </div>
 
@@ -217,111 +218,110 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           <section className={styles.judgePath} id="judges" aria-labelledby="judges-title">
             <div className={styles.judgeLead}>
-              <h2 id="judges-title">For WebMCP Challenge judges</h2>
+              <h2 id="judges-title">Try the complete WebMCP loop in two minutes.</h2>
               <p>
-                WebMCP is the warrant for the audit. Site Tools have been verified on GPT-5.6 Sol
-                and GPT-5.6 Terra in two places: the ChatGPT desktop app&rsquo;s built-in browser,
-                and ChatGPT Work Cloud at chatgpt.com. GPT-5.6 Luna has WebMCP disabled and will not
-                discover Site Tools. Site Tools are also unavailable in Enterprise and Edu
-                workspaces. A host may deny an individual tool call; the rest of the audit still
-                completes.
+                Open the included demo, ask ChatGPT to review the visible board, choose one finding,
+                then preview and verify it. No account or capture key is needed for the sample.
               </p>
             </div>
 
             <div className={styles.judgeHandoff}>
+              <a className={styles.openDemo} href="/demo">
+                Open the live demo
+              </a>
               <ChatGptNextStep includedDemoUrl={includedDemoUrl} />
             </div>
 
             <ol className={styles.judgeSteps}>
-              <li>
-                Open ChatGPT Desktop&rsquo;s built-in browser, or ChatGPT Work Cloud, at the exact{" "}
-                <a href="/demo">published /demo workspace</a>.
-              </li>
-              <li>
-                Click <strong>Site tools</strong> in the browser address bar. You should see 11
-                Sundae tools. If the panel is empty, check the model first.
-              </li>
-              <li>
-                Ask ChatGPT to audit the page with its Site Tools, keep measurements and judgment
-                separate, and ask you before any decision or preview.
-              </li>
-              <li>
-                Accept a finding with a visible reason, then let it run <code>preview_fix</code> and{" "}
-                <code>verify_recapture</code>.
-              </li>
+              <li>Open the demo.</li>
+              <li>Ask ChatGPT to review it with Site Tools.</li>
+              <li>Choose one finding.</li>
+              <li>Preview and verify the improvement.</li>
             </ol>
 
-            <div className={styles.availabilityLead}>
-              <h3>One product, two honest scopes.</h3>
-              <p>
-                Start with the guaranteed contest workspace. Use public capture only when the
-                configured browser provider can render the approved page.
-              </p>
-            </div>
-            <dl className={styles.toolLedger}>
-              <div>
-                <dt>Included /demo</dt>
-                <dd className={styles.toolCount}>11 Site Tools</dd>
-                <dd className={styles.toolDescription}>
-                  Complete zero-key proof on Sundae&rsquo;s controlled product.
-                </dd>
-              </div>
-              <div>
-                <dt>Approved public page</dt>
-                <dd className={styles.toolCount}>15 Site Tools</dd>
-                <dd className={styles.toolDescription}>
-                  Four bounded capture commands; no login, cookies, or recursive crawl.
-                </dd>
-              </div>
-            </dl>
-
-            <div className={styles.desktopGuide} id="desktop" aria-labelledby="desktop-title">
-              <div>
-                <h3 id="desktop-title">ChatGPT Desktop discovers the tools from the page.</h3>
+            <div className={styles.disclosures}>
+              <details>
+                <summary>Browser and model support</summary>
                 <p>
-                  A webpage cannot force-open ChatGPT. Prepare the exact workspace here, then open
-                  it in ChatGPT Desktop&rsquo;s built-in browser or ChatGPT Work Cloud. If Site
-                  Tools are unavailable, Sundae says so and keeps the human controls usable.
+                  Site Tools have been verified on GPT-5.6 Sol and GPT-5.6 Terra in two places: the
+                  ChatGPT desktop app&rsquo;s built-in browser, and ChatGPT Work Cloud at
+                  chatgpt.com. GPT-5.6 Luna has WebMCP disabled and will not discover Site Tools.
+                  Site Tools are also unavailable in Enterprise and Edu workspaces. A webpage cannot
+                  force-open ChatGPT. Prepare the exact workspace here, then open it in ChatGPT
+                  Desktop&rsquo;s built-in browser or ChatGPT Work Cloud. If Site Tools are
+                  unavailable, Sundae says so and keeps the human controls usable.
                 </p>
-              </div>
-              <ol>
-                <li>Prepare the included demo or an approved public workspace.</li>
-                <li>
-                  Open ChatGPT Desktop&rsquo;s built-in browser or ChatGPT Work Cloud and paste the
-                  exact URL.
-                </li>
-                <li>Wait for Site Tools to appear before asking ChatGPT to audit.</li>
-              </ol>
-              <a href="#launch">Prepare the handoff</a>
-            </div>
+                <ol className={styles.desktopSteps}>
+                  <li>Prepare the included demo or an approved public workspace.</li>
+                  <li>
+                    Open ChatGPT Desktop&rsquo;s built-in browser or ChatGPT Work Cloud and paste
+                    the exact URL.
+                  </li>
+                  <li>Wait for Site Tools to appear before asking ChatGPT to review.</li>
+                </ol>
+              </details>
 
-            <div className={styles.toolTableFrame}>
-              <table className={styles.toolTable}>
-                <caption>The 11 Site Tools on the included /demo</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Tool</th>
-                    <th scope="col">Purpose</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {DEMO_TOOLS.map(([name, purpose]) => (
-                    <tr key={name}>
-                      <th scope="row">
-                        <code>{name}</code>
-                      </th>
-                      <td>{purpose}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <details>
+                <summary>View the Site Tools</summary>
+                <p>
+                  The included /demo registers eleven Sundae workbench tools. A public workspace
+                  adds four bounded capture commands, for 15 tools total.
+                </p>
+                <dl className={styles.toolLedger}>
+                  <div>
+                    <dt>Included /demo</dt>
+                    <dd className={styles.toolCount}>11 Site Tools</dd>
+                    <dd className={styles.toolDescription}>
+                      Complete zero-key proof on Sundae&rsquo;s controlled product.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Approved public page</dt>
+                    <dd className={styles.toolCount}>15 Site Tools</dd>
+                    <dd className={styles.toolDescription}>
+                      Four bounded capture commands; no login, cookies, or recursive crawl.
+                    </dd>
+                  </div>
+                </dl>
+                <div className={styles.toolTableFrame}>
+                  <table className={styles.toolTable}>
+                    <caption>The 11 Site Tools on the included /demo</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Tool</th>
+                        <th scope="col">Purpose</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {DEMO_TOOLS.map(([name, purpose]) => (
+                        <tr key={name}>
+                          <th scope="row">
+                            <code>{name}</code>
+                          </th>
+                          <td>{purpose}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+
+              <details>
+                <summary>Capture boundaries</summary>
+                <p>
+                  A host may deny an individual tool call; the rest of the audit still completes.
+                  Start with the guaranteed contest workspace. Use public capture only when the
+                  configured browser provider can render the approved page. Sundae does not log in,
+                  use target-site cookies, submit forms, or crawl beyond the approved scope.
+                </p>
+              </details>
             </div>
           </section>
         </main>
 
         <footer className={styles.footer}>
           <strong>sundae</strong>
-          <span>Measured findings. Human authority. Fresh proof.</span>
+          <span>Every finding shows its evidence. Every decision stays yours.</span>
           <a href="https://github.com/zubalr/usesundae">Source on GitHub</a>
         </footer>
       </div>

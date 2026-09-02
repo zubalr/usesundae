@@ -74,6 +74,7 @@
   --stage-primary: light-dark(var(--c-cobalt), var(--c-cobalt-dark));
   --stage-attention: light-dark(var(--c-signal-coral), var(--c-signal-coral-dark));
   --stage-verification: light-dark(var(--c-signal-teal), var(--c-signal-teal-dark));
+  --focus-ring-width: 3px;
 
   /* The audit workbench is an evidence canvas: screenshots, severity markers,
      and measurement overlays retain one stable colour interpretation in both
@@ -178,9 +179,10 @@ a {
 }
 
 button:focus-visible,
-a:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 3px;
+a:focus-visible,
+summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-width);
 }
 
 ::selection {

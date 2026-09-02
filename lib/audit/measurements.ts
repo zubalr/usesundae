@@ -110,8 +110,10 @@ export function contrastRatioOrNull(foreground: string, background: string) {
   }
 }
 
+export const TAP_TARGET_MIN_PX = 44;
+
 export function tapTargetPasses(rect: { width: number; height: number }) {
-  return rect.width >= 44 && rect.height >= 44;
+  return rect.width >= TAP_TARGET_MIN_PX && rect.height >= TAP_TARGET_MIN_PX;
 }
 
 export function accessibleNamePasses(name: string | null | undefined) {

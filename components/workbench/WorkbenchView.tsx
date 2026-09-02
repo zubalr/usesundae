@@ -275,7 +275,7 @@ function AuditTopbar({
       ? "Awaiting capture"
       : auditing
         ? "Capturing…"
-        : "Re-measure";
+        : "Refresh evidence";
   const agentToolCalls = countAgentToolCalls(activity);
 
   return (
@@ -283,7 +283,7 @@ function AuditTopbar({
       <a className={styles.brand} href="#workbench" aria-label="Sundae workbench home">
         <span className={styles.wordmark}>sundae</span>
         <span className={styles.brandRule} />
-        <span className={styles.brandCopy}>Evidence for human + agent</span>
+        <span className={styles.brandCopy}>A live review with your AI</span>
       </a>
       <div className={styles.topbarActions}>
         <p className={styles.agentCallCount} aria-live="polite">
@@ -353,7 +353,7 @@ function ScopeBar({
       ) : null}
       {mode === "sample" ? (
         <button type="button" onClick={onInspectAgentSurface}>
-          <Icon name="agent" /> Audit agent surface
+          <Icon name="agent" /> Inspect Site Tools
         </button>
       ) : null}
       {mode === "remote" && checkpoint && demoState === "baseline" && uncapturedNav.length > 0 ? (
@@ -528,7 +528,7 @@ function ProductPane({
                 ? "Public capture ready"
                 : mode === "remote"
                   ? "Rendered product"
-                  : "Live product"}
+                  : "Included audit specimen"}
           </h1>
           <p>
             {progressLabel
@@ -537,7 +537,7 @@ function ProductPane({
                 ? "The exact target is prefilled above. Capture it before Sundae creates evidence."
                 : mode === "remote"
                   ? "Screenshot, text, and accessibility evidence from one bounded checkpoint."
-                  : "Measured directly from the rendered document in this browser."}
+                  : "This sample is deliberately flawed so you can inspect, preview, and verify the complete Sundae workflow."}
           </p>
         </div>
         <div className={styles.viewportSwitch} role="group" aria-label="Audit viewport">
@@ -642,7 +642,7 @@ function AuditBriefPanel({
         <summary className={styles.subhead}>
           <div>
             <span>Orientation</span>
-            <h3 id="audit-brief-title">Provisional product brief</h3>
+            <h3 id="audit-brief-title">Review context</h3>
           </div>
           <span>
             {auditBrief
@@ -807,7 +807,7 @@ function ReviewResultsPanel({
   return (
     <section className={styles.reviewResults} aria-labelledby="review-results-title">
       <div className={styles.subhead}>
-        <h3 id="review-results-title">Strengths and clear categories</h3>
+        <h3 id="review-results-title">What already works</h3>
         <span>{reviewResults.length} review results</span>
       </div>
       <div className={styles.resultList}>
@@ -1001,12 +1001,16 @@ function DesignEmptyState({ includedDemoUrl }: { includedDemoUrl: string }) {
   }
   return (
     <div className={styles.laneEmpty}>
-      <p className={styles.emptyCopy}>
-        No design judgment yet. Sundae measured the evidence below. Open this workspace in ChatGPT
-        to add judged findings against it.
-      </p>
+      <div>
+        <h3>Measurements are ready</h3>
+        <p className={styles.emptyCopy}>
+          Continue this workspace in ChatGPT for a product-aware design review. Then choose one
+          finding to preview and verify.
+        </p>
+        <p className={styles.emptyCopy}>No design judgment yet.</p>
+      </div>
       <button className={styles.chatGptLaneAction} type="button" onClick={openChatGpt}>
-        <Icon name="agent" /> Audit with ChatGPT
+        <Icon name="agent" /> Continue the review in ChatGPT
       </button>
     </div>
   );
@@ -1046,17 +1050,17 @@ function FindingList({
               </span>
             </div>
             {designSignalFindings.length > 0 ? (
-              <div className={styles.signalGroup} aria-label="Design signal">
-                <div className={styles.signalHead}>
+              <details className={styles.signalGroup} aria-label="Design signal">
+                <summary className={styles.signalHead}>
                   <h4>Design signal</h4>
                   <span>descriptive counts · no threshold</span>
-                </div>
+                </summary>
                 <SignalRows
                   findings={designSignalFindings}
                   selected={selected}
                   onFocusFinding={onFocusFinding}
                 />
-              </div>
+              </details>
             ) : null}
             {designFindings.length > 0 ? (
               <FindingRows
@@ -1520,7 +1524,7 @@ function CoveragePanel({
     <section className={styles.gaps} aria-labelledby="coverage-title">
       <details>
         <summary className={styles.subhead}>
-          <h3 id="coverage-title">Observed scope</h3>
+          <h3 id="coverage-title">What was reviewed</h3>
           <span>
             {coverage.surfaces.length} surfaces · {coverage.openGapCount} open gaps
           </span>
@@ -1631,7 +1635,24 @@ function CoveragePanel({
   );
 }
 
+function ActivityReceiptEntry({ entry }: { entry: Activity }) {
+  return (
+    <li>
+      <span data-actor={entry.actor} role="img" aria-label={activityActorLabel(entry.actor)}>
+        {entry.actor === "agent" ? <Icon name="agent" /> : entry.actor.slice(0, 1).toUpperCase()}
+      </span>
+      <div>
+        <b>{activityTitle(entry)}</b>
+        <p>{entry.detail}</p>
+      </div>
+      <time dateTime={entry.at}>{shortTime(entry.at)}</time>
+    </li>
+  );
+}
+
 function ActivityReceipts({ activity, activityLimit }: WorkbenchViewProps) {
+  const latest = activity[0];
+  const older = activity.slice(1, 20);
   return (
     <section className={styles.receipts} aria-labelledby="receipts-title">
       <div className={styles.subhead}>
@@ -1641,26 +1662,22 @@ function ActivityReceipts({ activity, activityLimit }: WorkbenchViewProps) {
         </span>
       </div>
       <ol>
-        {activity.slice(0, 20).map((entry) => (
-          <li key={entry.id}>
-            <span data-actor={entry.actor} role="img" aria-label={activityActorLabel(entry.actor)}>
-              {entry.actor === "agent" ? (
-                <Icon name="agent" />
-              ) : (
-                entry.actor.slice(0, 1).toUpperCase()
-              )}
-            </span>
-            <div>
-              <b>{activityTitle(entry)}</b>
-              <p>{entry.detail}</p>
-            </div>
-            <time dateTime={entry.at}>{shortTime(entry.at)}</time>
-          </li>
-        ))}
-        {activity.length === 0 ? (
+        {latest ? (
+          <ActivityReceiptEntry entry={latest} />
+        ) : (
           <li className={styles.emptyReceipt}>The first capture will appear here.</li>
-        ) : null}
+        )}
       </ol>
+      {older.length > 0 ? (
+        <details>
+          <summary>Earlier receipts</summary>
+          <ol>
+            {older.map((entry) => (
+              <ActivityReceiptEntry key={entry.id} entry={entry} />
+            ))}
+          </ol>
+        </details>
+      ) : null}
     </section>
   );
 }
@@ -1673,7 +1690,7 @@ function EvidencePane(props: WorkbenchViewProps) {
     <section className={styles.evidencePane} aria-labelledby="evidence-title">
       <div className={styles.evidenceHead}>
         <div>
-          <h2 id="evidence-title">Evidence board</h2>
+          <h2 id="evidence-title">What the review found</h2>
           <p aria-live="polite">{evidenceBoard.summary}</p>
         </div>
         <div className={styles.truthSummary}>

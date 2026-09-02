@@ -50,7 +50,6 @@ import {
 } from "@/lib/workbench/approval";
 import {
   acceptFollowThroughKind,
-  acceptFollowThroughReceipt,
   runAcceptFollowThrough,
 } from "@/lib/workbench/accept-follow-through";
 import type { CaptureProgressStage } from "@/lib/workbench/capture-progress";
@@ -2042,27 +2041,18 @@ export function Workbench({
         previewCss: cssDraftRef.current,
       });
       if (kind === "none" || !accept.ok) return accept;
-      try {
-        return await runAcceptFollowThrough({
-          kind,
-          accept,
-          findingId,
-          actor,
-          waitForSelector: waitForSelectorRef.current,
-          toolName,
-          previewCss: modeRef.current === "remote" ? cssDraftRef.current : undefined,
-          previewFix,
-          verifyRecapture,
-          auditCurrentScope,
-        });
-      } catch (cause) {
-        const message = cause instanceof Error ? cause.message : "Follow-through did not complete.";
-        return {
-          ...accept,
-          receipt: `${acceptFollowThroughReceipt(kind, accept.receipt)} ${message}`,
-          follow_through_error: message,
-        };
-      }
+      return runAcceptFollowThrough({
+        kind,
+        accept,
+        findingId,
+        actor,
+        waitForSelector: waitForSelectorRef.current,
+        toolName,
+        previewCss: modeRef.current === "remote" ? cssDraftRef.current : undefined,
+        previewFix,
+        verifyRecapture,
+        auditCurrentScope,
+      });
     },
     [auditCurrentScope, previewFix, setFindingDecision, verifyRecapture],
   );
@@ -2080,7 +2070,7 @@ export function Workbench({
     recordVisualFinding,
     recordCoverageGap,
     focusFinding,
-    setFindingDecision: setFindingDecisionWithFollowThrough,
+    setFindingDecision,
     previewFix,
     verifyRecapture,
   };

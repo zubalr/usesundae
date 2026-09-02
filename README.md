@@ -4,7 +4,7 @@ A screenshot chat can critique a website, but it separates the live interface fr
 
 Sundae uses page-hosted WebMCP Site Tools to make the open audit page the shared operating surface. ChatGPT records evidence and supported judgment on the board the person is already viewing; the person governs decisions and previews; Sundae requires a fresh same-scope recapture before a measured issue is called fixed.
 
-**AI audits your product's design. It shows its work.** Every finding is a measurement you can check, on a page you can inspect, with fixes proved by fresh evidence. WebMCP is why you can believe it: ChatGPT records evidence on the board the person is already viewing; the person governs decisions; Sundae requires a fresh same-scope recapture before a measured issue is called fixed.
+**Design reviews shouldn't disappear into chat.** Every finding shows its evidence. Every decision stays yours. ChatGPT records evidence on the board the person is already viewing; the person governs decisions; Sundae requires a fresh same-scope recapture before a measured issue is called fixed.
 
 [Open Sundae](https://usesundae.vercel.app/) to prepare a workspace, or go straight to the guaranteed [published `/demo` workspace](https://usesundae.vercel.app/demo). The demo needs no login, connector, hosted auditor model, capture-provider key, or plugin.
 
@@ -77,7 +77,7 @@ A real product page yields hundreds of measurements, and a list of 91 findings i
 - **Tap targets** group by shape class — icon control, inline text link, or button or tile — because each class is one CSS fix.
 - Everything else stays per-instance.
 
-Each group reports its instance count and shows the worst instance, so nothing is hidden: `44 instances · worst shown`. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are not findings and are dropped before grouping. The demo fixture is grouped by the same rules as any public page — no fixture exception.
+Each group reports its instance count and shows the worst instance, so nothing is hidden: `44 instances · worst shown`. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are not findings and are dropped before grouping. The demo fixture is grouped by the same rules as a public page — no fixture exception.
 
 Contrast is measured against a **composited** background: Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without this, a 4%-opacity white overlay — the standard surface treatment in dark design systems — is read as pure white, and legible text measures as a failure. On one production dark-theme site that error reported 17.51:1 text as 1.06:1. A measured fact has to survive a dark theme.
 

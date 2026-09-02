@@ -35,10 +35,12 @@ function hexRgb(hex) {
 }
 
 const paper = primitive("c-paper");
+const paperBrightHex = primitive("c-paper-bright");
 const ink = primitive("c-ink");
 const coral = primitive("c-coral");
 const teal = primitive("c-teal");
 const [paperR, paperG, paperB] = hexRgb(paper);
+const [paperBrightR, paperBrightG, paperBrightB] = hexRgb(paperBrightHex);
 const [inkR, inkG, inkB] = hexRgb(ink);
 const [coralR, coralG, coralB] = hexRgb(coral);
 const [tealR, tealG, tealB] = hexRgb(teal);
@@ -129,6 +131,61 @@ function markColor(x, y, size) {
   return [paperR, paperG, paperB];
 }
 
+function writeBitmapText(setPixel, originX, originY, scale, color, text) {
+  const glyphs = {
+    " ": ["00000", "00000", "00000", "00000", "00000"],
+    "-": ["00000", "00000", "11111", "00000", "00000"],
+    "—": ["00000", "00000", "11111", "00000", "00000"],
+    ".": ["00000", "00000", "00000", "00000", "00100"],
+    ",": ["00000", "00000", "00000", "00100", "01000"],
+    "'": ["00100", "00100", "00000", "00000", "00000"],
+    a: ["00000", "01110", "10001", "10001", "01111"],
+    b: ["10000", "11110", "10001", "10001", "11110"],
+    c: ["00000", "01111", "10000", "10000", "01111"],
+    d: ["00001", "01111", "10001", "10001", "01111"],
+    e: ["01110", "10001", "11111", "10000", "01110"],
+    f: ["00111", "01000", "11110", "01000", "01000"],
+    g: ["01111", "10001", "01111", "00001", "01110"],
+    h: ["10000", "10000", "11110", "10001", "10001"],
+    i: ["00100", "00000", "01100", "00100", "01110"],
+    l: ["01100", "00100", "00100", "00100", "01110"],
+    n: ["00000", "11110", "10001", "10001", "10001"],
+    o: ["00000", "01110", "10001", "10001", "01110"],
+    p: ["11110", "10001", "11110", "10000", "10000"],
+    r: ["00000", "10110", "11000", "10000", "10000"],
+    s: ["01110", "10000", "01110", "00001", "01110"],
+    t: ["01000", "11110", "01000", "01000", "00111"],
+    u: ["00000", "10001", "10001", "10001", "01111"],
+    v: ["00000", "10001", "10001", "01010", "00100"],
+    w: ["00000", "10001", "10101", "10101", "01010"],
+    y: ["10001", "10001", "01111", "00001", "01110"],
+    A: ["01110", "10001", "11111", "10001", "10001"],
+    I: ["11111", "00100", "00100", "00100", "11111"],
+    R: ["11110", "10001", "11110", "10100", "10010"],
+  };
+  let cursor = originX;
+  for (const letter of text) {
+    const glyph = glyphs[letter] ?? glyphs["."];
+    for (let gy = 0; gy < glyph.length; gy += 1) {
+      for (let gx = 0; gx < 5; gx += 1) {
+        if (glyph[gy][gx] !== "1") continue;
+        for (let dy = 0; dy < scale; dy += 1) {
+          for (let dx = 0; dx < scale; dx += 1) {
+            setPixel(cursor + gx * scale + dx, originY + gy * scale + dy, color);
+          }
+        }
+      }
+    }
+    cursor += 6 * scale;
+  }
+}
+
+function fillRect(setPixel, x, y, width, height, color) {
+  for (let py = y; py < y + height; py += 1) {
+    for (let px = x; px < x + width; px += 1) setPixel(px, py, color);
+  }
+}
+
 mkdirSync(OUT, { recursive: true });
 
 writeFileSync(
@@ -155,26 +212,61 @@ function setOg(x, y, color) {
   if (y < 0 || y >= 630 || x < 0 || x >= 1200) return;
   ogPixels[y][x] = color;
 }
-for (let y = 0; y < 630; y += 1) {
-  for (let x = 0; x < 1200; x += 1) {
-    if (x < 72) setOg(x, y, [inkR, inkG, inkB]);
-    else if (x < 84) setOg(x, y, [coralR, coralG, coralB]);
-    else if (y < 8) setOg(x, y, [coralR, coralG, coralB]);
-  }
-}
-for (let i = 0; i < 3; i += 1) {
-  const top = 180 + i * 72;
-  const color = i === 1 ? [tealR, tealG, tealB] : [inkR, inkG, inkB];
-  for (let y = top; y < top + 28; y += 1) {
-    for (let x = 160; x < 520; x += 1) setOg(x, y, color);
-  }
-}
-writeSundaeWordmark(setOg, 160, 72, 8, [inkR, inkG, inkB]);
+
+const inkColor = [inkR, inkG, inkB];
+const coralColor = [coralR, coralG, coralB];
+const tealColor = [tealR, tealG, tealB];
+const paperColor = [paperR, paperG, paperB];
+const paperBright = [paperBrightR, paperBrightG, paperBrightB];
+
+fillRect(setOg, 0, 0, 72, 630, inkColor);
+fillRect(setOg, 72, 0, 12, 630, coralColor);
+fillRect(setOg, 84, 0, 1116, 8, coralColor);
+
+writeSundaeWordmark(setOg, 128, 40, 7, inkColor);
+writeBitmapText(setOg, 128, 92, 3, coralColor, "A live review with your AI");
+
+const stageX = 128;
+const stageY = 140;
+const stageW = 1000;
+const stageH = 360;
+const split = 520;
+fillRect(setOg, stageX, stageY, stageW, stageH, inkColor);
+fillRect(setOg, stageX + split, stageY, 4, stageH, coralColor);
+fillRect(setOg, stageX + split + 4, stageY, stageW - split - 4, stageH, paperBright);
+
+fillRect(setOg, stageX + 28, stageY + 28, 180, 18, coralColor);
+fillRect(setOg, stageX + 28, stageY + 64, 360, 28, paperColor);
+fillRect(setOg, stageX + 28, stageY + 108, 280, 16, paperColor);
+fillRect(setOg, stageX + 28, stageY + 148, 140, 36, coralColor);
+fillRect(setOg, stageX + 28, stageY + 208, 420, 12, paperColor);
+fillRect(setOg, stageX + 28, stageY + 232, 300, 12, paperColor);
+fillRect(setOg, stageX + 28, stageY + 280, 72, 48, paperColor);
+fillRect(setOg, stageX + 116, stageY + 280, 72, 48, paperColor);
+fillRect(setOg, stageX + 204, stageY + 280, 160, 48, tealColor);
+
+const evidenceX = stageX + split + 28;
+fillRect(setOg, evidenceX, stageY + 28, 220, 14, inkColor);
+fillRect(setOg, evidenceX, stageY + 64, 400, 72, paperColor);
+fillRect(setOg, evidenceX, stageY + 64, 6, 72, coralColor);
+fillRect(setOg, evidenceX + 20, stageY + 78, 300, 14, inkColor);
+fillRect(setOg, evidenceX + 20, stageY + 100, 240, 10, coralColor);
+fillRect(setOg, evidenceX, stageY + 160, 400, 72, paperColor);
+fillRect(setOg, evidenceX, stageY + 160, 6, 72, tealColor);
+fillRect(setOg, evidenceX + 20, stageY + 174, 280, 14, inkColor);
+fillRect(setOg, evidenceX + 20, stageY + 196, 200, 10, tealColor);
+fillRect(setOg, evidenceX, stageY + 256, 400, 56, paperColor);
+fillRect(setOg, evidenceX + 20, stageY + 276, 160, 16, tealColor);
+
+writeBitmapText(setOg, 128, 528, 4, inkColor, "Review a live product with your AI");
+writeBitmapText(setOg, 128, 568, 4, inkColor, "and see the proof.");
+
 const og = png(1200, 630, (x, y) => ogPixels[y][x]);
 writeFileSync(join(OUT, "og.png"), og);
 
 const digest = createHash("sha256")
   .update(paper)
+  .update(paperBrightHex)
   .update(ink)
   .update(coral)
   .update(teal)

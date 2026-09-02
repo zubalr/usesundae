@@ -20,6 +20,13 @@ export function acceptFollowThroughReceipt(kind: AcceptFollowThroughKind, accept
   return acceptReceipt;
 }
 
+function incompleteFollowThroughError(acceptReceipt: string, cause: unknown) {
+  const message = cause instanceof Error ? cause.message : "Follow-through did not complete.";
+  return new Error(
+    `${acceptReceipt} Accepted decision recorded; follow-through incomplete: ${message.slice(0, 280)}`,
+  );
+}
+
 export async function runAcceptFollowThrough(input: {
   kind: Exclude<AcceptFollowThroughKind, "none">;
   accept: CommandResult;
@@ -33,9 +40,32 @@ export async function runAcceptFollowThrough(input: {
   verifyRecapture: WorkbenchCommands["verifyRecapture"];
   auditCurrentScope: WorkbenchCommands["auditCurrentScope"];
 }): Promise<CommandResult> {
-  const receipt = acceptFollowThroughReceipt(input.kind, input.accept.receipt);
-  if (input.kind === "remeasure_no_preview") {
-    const remasure = await input.auditCurrentScope(
+  try {
+    const receipt = acceptFollowThroughReceipt(input.kind, input.accept.receipt);
+    if (input.kind === "remeasure_no_preview") {
+      const remasure = await input.auditCurrentScope(
+        input.actor,
+        input.signal,
+        input.waitForSelector,
+        input.toolName,
+      );
+      return {
+        ...input.accept,
+        receipt,
+        follow_through: "remeasured_no_preview",
+        remasure,
+      };
+    }
+
+    const preview = await input.previewFix(
+      input.previewCss,
+      input.actor,
+      input.signal,
+      input.waitForSelector,
+      input.toolName,
+    );
+    const verification = await input.verifyRecapture(
+      input.findingId,
       input.actor,
       input.signal,
       input.waitForSelector,
@@ -44,30 +74,12 @@ export async function runAcceptFollowThrough(input: {
     return {
       ...input.accept,
       receipt,
-      follow_through: "remeasured_no_preview",
-      remasure,
+      follow_through: "previewed_and_verified",
+      preview,
+      verification,
     };
+  } catch (cause) {
+    if (cause instanceof Error && cause.name === "AbortError") throw cause;
+    throw incompleteFollowThroughError(input.accept.receipt, cause);
   }
-
-  const preview = await input.previewFix(
-    input.previewCss,
-    input.actor,
-    input.signal,
-    input.waitForSelector,
-    input.toolName,
-  );
-  const verification = await input.verifyRecapture(
-    input.findingId,
-    input.actor,
-    input.signal,
-    input.waitForSelector,
-    input.toolName,
-  );
-  return {
-    ...input.accept,
-    receipt,
-    follow_through: "previewed_and_verified",
-    preview,
-    verification,
-  };
 }
