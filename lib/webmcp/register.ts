@@ -701,7 +701,7 @@ export async function registerWorkbenchTools(
       name: "record_coverage_gap",
       title: "Record coverage gap",
       description:
-        "Name an important page, state, motion window, or journey step not observed in this audit. Increases honesty; does not claim the missing surface failed. Read the board next.",
+        "Name an important page, state, motion window, or journey step not observed in this audit. Records the coverage limit without claiming the missing surface failed. Read the board next.",
       inputSchema: WEBMCP_INPUT_SCHEMAS.gap,
       annotations: { readOnlyHint: false, untrustedContentHint: true },
       execute: execute("record_coverage_gap", gapInput, ({ label, detail }) =>
