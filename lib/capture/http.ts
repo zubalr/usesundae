@@ -20,7 +20,7 @@ import { captureGateCookieHeader, type CaptureGate, readCaptureGateCookie } from
 
 const MAX_REQUEST_BYTES = 16_384;
 // Per-process, not global: the limiter lives in serverless module scope, so the
-// real ceiling is this value times the number of warm instances. Cloudflare's
+// effective ceiling is this value times the number of warm instances. Cloudflare's
 // own account limit is 200 concurrent browsers and cannot be lowered, so a hard
 // account-wide cap needs shared state (a Durable Object semaphore), not this.
 const DEFAULT_MAX_CONCURRENT_CAPTURES = 2;

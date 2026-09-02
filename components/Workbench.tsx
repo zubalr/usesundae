@@ -292,7 +292,7 @@ export function Workbench({
   const committedSystemBaselineRef = useRef<string | null>(null);
   const auditEndTimerRef = useRef<number | null>(null);
   // The included fixture is a phone-shaped product mock whose planted defects are
-  // mobile-scoped. A real public site is audited at desktop, because squeezing a
+  // mobile-scoped. A public site is audited at desktop, because squeezing a
   // desktop layout into 390px turns its own product mockups into false findings.
   const initialViewport: Viewport = initialMode === "sample" ? "mobile" : "desktop";
   const modeRef = useRef<TargetMode>(initialMode);

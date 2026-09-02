@@ -537,7 +537,7 @@ function ProductPane({
                 ? "The exact target is prefilled above. Capture it before Sundae creates evidence."
                 : mode === "remote"
                   ? "Screenshot, text, and accessibility evidence from one bounded checkpoint."
-                  : "This sample is deliberately flawed so you can inspect, preview, and verify the complete Sundae workflow."}
+                  : "This sample contains known flaws so you can inspect, preview, and verify the complete Sundae workflow."}
           </p>
         </div>
         <div className={styles.viewportSwitch} role="group" aria-label="Audit viewport">

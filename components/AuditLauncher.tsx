@@ -116,7 +116,7 @@ export function AuditLauncher({ includedDemoUrl }: { includedDemoUrl: string }) 
       </div>
 
       <p className={styles.demoHint}>
-        See the complete review on our sample product.{" "}
+        See the full review on our sample product.{" "}
         <a className={styles.demoAction} href="/demo">
           Try the live demo
         </a>

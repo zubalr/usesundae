@@ -1,10 +1,8 @@
 # Sundae
 
-A screenshot chat can critique a website, but it separates the live interface from the model, its evidence, and the person's decisions. A hidden audit API has the same problem: the agent acts somewhere the person cannot inspect.
+**Design reviews shouldn't disappear into chat.**
 
-Sundae uses page-hosted WebMCP Site Tools to make the open audit page the shared operating surface. ChatGPT records evidence and supported judgment on the board the person is already viewing; the person governs decisions and previews; Sundae requires a fresh same-scope recapture before a measured issue is called fixed.
-
-**Design reviews shouldn't disappear into chat.** Every finding shows its evidence. Every decision stays yours. ChatGPT records evidence on the board the person is already viewing; the person governs decisions; Sundae requires a fresh same-scope recapture before a measured issue is called fixed.
+Sundae puts the live page and ChatGPT beside an evidence board you control. Each finding points back to what the model saw. You choose what to accept and preview. Sundae runs a fresh capture before it marks a measured issue fixed.
 
 [Open Sundae](https://usesundae.vercel.app/) to prepare a workspace, or go straight to the guaranteed [published `/demo` workspace](https://usesundae.vercel.app/demo). The demo needs no login, connector, hosted auditor model, capture-provider key, or plugin.
 
@@ -12,7 +10,7 @@ Two ChatGPT routes have been verified with **GPT-5.6 Sol** and **GPT-5.6 Terra**
 
 ## Challenge work added during the submission period
 
-Sundae did not exist before this challenge. The submission period opened on August 25, 2026; this repository was created on August 29, 2026, and every commit in its history falls inside the submission window. There is no prior work to separate from challenge work — all of it is challenge work.
+Sundae did not exist before this challenge. The submission period opened on August 25, 2026; this repository was created on August 29, 2026, and every commit in its history falls inside the submission window. The whole repository is challenge work.
 
 | Date   | Commit                          | Challenge work                                                               | Scale                   |
 | ------ | ------------------------------- | ---------------------------------------------------------------------------- | ----------------------- |
@@ -23,14 +21,14 @@ Sundae did not exist before this challenge. The submission period opened on Augu
 | Aug 30 | `5a907ee`                       | Structure audits by visible product job                                      | 20 files, +288/−22      |
 | Aug 30 | `e585331`                       | Evidence-derived public navigation capture                                   | 24 files, +776/−96      |
 | Aug 30 | `712fdf5`                       | Page-native WebMCP audit workspace                                           | 34 files, +911/−2,128   |
-| Aug 30 | `386a1d0`…`926fcff` (7 commits) | Navigation capture atomicity, honest partial reporting, receipt alignment    | 19 files, +203/−58      |
+| Aug 30 | `386a1d0`…`926fcff` (7 commits) | Navigation capture atomicity, partial-report accuracy, receipt alignment     | 19 files, +203/−58      |
 | Aug 31 | `a3040a6`                       | Audit brief, review results, product-job categories                          | 33 files, +2,509/−240   |
 | Aug 31 | `0cb3518`                       | Shared WebMCP product review surface                                         | 33 files, +2,401/−797   |
 | Aug 31 | `4311342`, `b82c32e`            | Multi-route board context, bounded partial navigation                        | 4 files, +138/−6        |
 
 ## Why WebMCP
 
-Sundae is not a report API hidden behind a chat. Its page-hosted tools operate the evidence board the person can see and control:
+Sundae's page-hosted tools operate the evidence board the person can see and control:
 
 1. ChatGPT measures the approved scope and reads the visible board.
 2. It keeps measured facts, supported design judgment, and what was not seen distinct.
@@ -38,7 +36,7 @@ Sundae is not a report API hidden behind a chat. Its page-hosted tools operate t
 4. Sundae renders a reversible preview and requires fresh matching evidence before a measured issue is called fixed.
 5. Tool-named receipts leave each agent action inspectable on the same page.
 
-Without WebMCP, this workflow collapses into a screenshot conversation, a hidden API report, or brittle click automation. WebMCP gives the user's agent goal-shaped commands with explicit authority while preserving a human-readable operating surface.
+Without WebMCP, this workflow collapses into a screenshot conversation, a hidden API report, or brittle click automation. WebMCP gives the agent specific commands while the person keeps control of the page.
 
 ## Judge path
 
@@ -52,36 +50,36 @@ Site Tools have been verified on **GPT-5.6 Sol** and **GPT-5.6 Terra** in two pl
 6. Accept a finding with a visible reason, then let it run `preview_fix` and `verify_recapture`.
 7. Confirm the board shows the fresh measurement, the verification state, and tool-named receipts.
 
-A host may deny an individual Site Tool call. In a real run, ChatGPT's auto-review blocked `record_audit_brief` with "Browser Use rejected this action due to browser security policy". Sundae never saw that call. The rest of the audit still completed.
+A host may deny an individual Site Tool call. In a production run, ChatGPT's auto-review blocked `record_audit_brief` with "Browser Use rejected this action due to browser security policy". Sundae never saw that call. The rest of the audit still completed.
 
-Without WebMCP — an ordinary browser, or an unsupported model — Sundae still provides every deterministic measurement and every human control. It does not pretend an agent is present: the top bar reads **Human controls ready** and the **Agent tool calls** counter stays at 0.
+In an ordinary browser or with an unsupported model, Sundae still provides every deterministic measurement and every human control. The top bar reads **Human controls ready**, and the **Agent tool calls** counter stays at 0.
 
 ## Evidence contract
 
-Sundae deliberately separates:
+Sundae separates:
 
-- **Measured** — deterministic observations from the rendered page, accessibility tree, or inspected WebMCP contract.
-- **Judged** — evidence-linked UI, UX, or Interaction critique for the visible product job.
-- **Not seen** — routes, states, or motion windows outside the captured evidence.
-- **Decision** — a reversible person-governed workflow state.
-- **Preview** — a source-neutral visual proposal, never proof that the product changed.
-- **Verification** — a fresh same-scope measurement. A judged finding remains unverified unless it is reassessed.
+- **Measured:** deterministic observations from the rendered page, accessibility tree, or inspected WebMCP contract.
+- **Judged:** evidence-linked UI, UX, or Interaction critique for the visible product job.
+- **Not seen:** routes, states, or motion windows outside the captured evidence.
+- **Decision:** a reversible state chosen by the person.
+- **Preview:** a temporary visual proposal. It does not prove that the product changed.
+- **Verification:** a fresh same-scope measurement. A judged finding remains unverified unless it is reassessed.
 
 ChatGPT performs the design critique through Site Tools using visible screenshot and page evidence. Sundae stores the category and product-job tag; it does not auto-classify an industry or call a server-side model.
 
 ### One group is one fix
 
-A real product page yields hundreds of measurements, and a list of 91 findings is a census, not an audit. Sundae groups measured findings by the change that would resolve them, then ranks the groups by prominence — severity weighted by rendered area and distance from the fold.
+A product page can yield hundreds of measurements. A list of 91 findings is only a census. Sundae groups measured findings by the change that would resolve them, then ranks each group using severity, rendered area, and distance from the fold.
 
 - **Contrast** groups by the exact foreground/background colour pair. One pair is one design-token fix however often it recurs.
-- **Tap targets** group by shape class — icon control, inline text link, or button or tile — because each class is one CSS fix.
+- **Tap targets** group by shape class because an icon control, inline link, and button need different CSS fixes.
 - Everything else stays per-instance.
 
-Each group reports its instance count and shows the worst instance, so nothing is hidden: `44 instances · worst shown`. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are not findings and are dropped before grouping. The demo fixture is grouped by the same rules as a public page — no fixture exception.
+Each group reports its instance count and shows the worst instance: `44 instances · worst shown`. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are dropped before grouping. The same grouping rules apply to public pages and the demo fixture.
 
-Contrast is measured against a **composited** background: Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without this, a 4%-opacity white overlay — the standard surface treatment in dark design systems — is read as pure white, and legible text measures as a failure. On one production dark-theme site that error reported 17.51:1 text as 1.06:1. A measured fact has to survive a dark theme.
+Contrast is measured against a **composited** background. Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without this, the engine reads a 4% white overlay as pure white and can flag legible text. On one production dark-theme site, that error reported 17.51:1 text as 1.06:1.
 
-On `/demo`, `preview_fix` renders a **pre-authored improved variant** of the controlled fixture — Sundae does not claim the agent wrote the fix. What is real is the re-measurement: the improved state genuinely repairs the measured accessible-name, tap-target, contrast, and horizontal-overflow findings, and `verify_recapture` proves it by fresh measurement rather than by assertion. On a public checkpoint the agent supplies bounded CSS itself.
+On `/demo`, `preview_fix` renders a **pre-authored improved variant** of the controlled fixture. The receipt attributes that fix to the fixture, not the agent. Then `verify_recapture` measures the improved state and reports which accessible-name, tap-target, contrast, and horizontal-overflow findings remain. On a public checkpoint, the agent supplies bounded CSS.
 
 ## Page-hosted tool surface
 
@@ -107,7 +105,7 @@ The included `/demo` registers eleven Sundae workbench tools:
 | `preview_fix`           | Render a reversible local preview                              |
 | `verify_recapture`      | Re-measure the same scope before calling a fact fixed          |
 
-ChatGPT's built-in browser does not discover tools registered inside iframes. Sundae's 11 tools are registered at the top level, so the count shown in **Site tools** is exact. The audited fixture's own tools live inside the iframe — which is why `inspect_agent_surface` exists: Sundae reads contracts the host itself cannot reach.
+ChatGPT's built-in browser does not discover tools registered inside iframes. Sundae's 11 tools are registered at the top level, so the count shown in **Site tools** is exact. The audited fixture's own tools live inside the iframe. `inspect_agent_surface` reads those contracts because the host cannot reach them directly.
 
 A public workspace adds four bounded capture commands, for 15 tools total:
 
@@ -152,12 +150,12 @@ npm run build
 
 Key paths:
 
-- `app/` — landing page, complete `/demo` workspace redirect, controlled fixture, and capture API.
-- `components/Workbench.tsx` — shared command implementation and audit state.
-- `lib/webmcp/` — page-hosted tool contracts, registration, and bounded results.
-- `lib/audit/` — measured findings, structured judgment, contract inspection, and recapture comparison.
-- `lib/capture/` — URL policy, Cloudflare snapshot adapter, evidence extraction, and failure boundaries.
-- `tests/` and `evals/` — deterministic product, contract, and prompt regressions.
+- `app/`: landing page, `/demo` workspace redirect, controlled fixture, and capture API.
+- `components/Workbench.tsx`: shared command implementation and audit state.
+- `lib/webmcp/`: page-hosted tool contracts, registration, and bounded results.
+- `lib/audit/`: measured findings, structured judgment, contract inspection, and recapture comparison.
+- `lib/capture/`: URL policy, Cloudflare snapshot adapter, evidence extraction, and failure boundaries.
+- `tests/` and `evals/`: deterministic product, contract, and prompt regressions.
 
 ## License
 

@@ -107,7 +107,7 @@ export function DemoViewport({
               ref={iframeRef}
               className={styles.frame}
               src={`/demo?state=${demoState}`}
-              title={`Sundae Lab target — ${demoState} state`}
+              title={`Sundae Lab target: ${demoState} state`}
               width={size.width}
               height={size.height}
               allow="tools"

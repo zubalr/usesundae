@@ -17,12 +17,12 @@ const RUNDOWN_STEPS = [
   },
   {
     title: "Decide",
-    detail: "Evidence and judgment stay separate; you choose what matters.",
+    detail: "Measurements and opinions stay separate. You choose what matters.",
     owner: "You",
   },
   {
     title: "Prove",
-    detail: "Preview safely, then recheck before anything is called fixed.",
+    detail: "Preview the change, then recapture the same scope.",
     owner: "Required",
   },
 ] as const;
@@ -89,9 +89,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <p className={styles.eyebrow}>A live design review with your AI</p>
               <h1 id="landing-title">Design reviews shouldn&rsquo;t disappear into chat.</h1>
               <p>
-                Sundae turns a public page into a shared workspace for you and ChatGPT. See the
-                product, the evidence, and every decision in one place—then preview and verify the
-                change.
+                Sundae puts the public page and ChatGPT beside the evidence board you control.
+                Preview a change there. Then check it again before calling it fixed.
               </p>
             </div>
 
@@ -137,8 +136,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <div className={styles.fixtureLabel}>
                     <span>Included audit specimen</span>
                     <span>
-                      This sample is deliberately flawed so you can inspect, preview, and verify the
-                      complete Sundae workflow.
+                      This sample includes known flaws so you can inspect the full review, preview,
+                      and verification flow.
                     </span>
                   </div>
                 </div>
@@ -174,8 +173,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className={styles.methodLead}>
               <h2 id="method-title">Your agent works where the product is.</h2>
               <p>
-                Sundae keeps the live page, evidence, decisions, and verification together. You can
-                see what ChatGPT saw and control what happens next.
+                The live page, evidence, decisions, and verification stay together. You can see what
+                ChatGPT saw and choose what happens next.
               </p>
             </div>
 
@@ -183,15 +182,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <article>
                 <h3>Screenshot chat</h3>
                 <p>
-                  The image, conversation, evidence, and decision trail live in different places.
-                  The result is hard to inspect and easy to overclaim.
+                  A screenshot splits the product from its evidence and decision trail. Reviewing
+                  the result means jumping between windows.
                 </p>
               </article>
               <article>
                 <h3>Sundae</h3>
                 <p>
-                  Findings sit on the live page. You see the measurement, you control the decision,
-                  and a fresh capture has to prove a fix.
+                  Sundae pins each finding to the live page. You see the measurement, choose the
+                  decision, and require a fresh capture before a fix is verified.
                 </p>
               </article>
             </div>
@@ -199,7 +198,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <ol className={styles.operatingRules}>
               <li>
                 <strong>Measure</strong>
-                <span>Deterministic facts remain distinct from design judgment.</span>
+                <span>Measurements stay separate from design judgment.</span>
               </li>
               <li>
                 <strong>Orient</strong>
@@ -207,21 +206,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </li>
               <li>
                 <strong>Decide</strong>
-                <span>Only the person authorizes accept, defer, dismiss, or preview state.</span>
+                <span>
+                  You choose whether to accept, defer, or dismiss a finding and whether to preview a
+                  change.
+                </span>
               </li>
               <li>
                 <strong>Verify</strong>
-                <span>A reversible preview is not proof; a fresh matching recapture is.</span>
+                <span>
+                  A fresh recapture must reproduce the original scope before Sundae marks a measured
+                  issue fixed.
+                </span>
               </li>
             </ol>
           </section>
 
           <section className={styles.judgePath} id="judges" aria-labelledby="judges-title">
             <div className={styles.judgeLead}>
-              <h2 id="judges-title">Try the complete WebMCP loop in two minutes.</h2>
+              <h2 id="judges-title">Run the WebMCP review in two minutes.</h2>
               <p>
-                Open the included demo, ask ChatGPT to review the visible board, choose one finding,
-                then preview and verify it. No account or capture key is needed for the sample.
+                Open the demo and ask ChatGPT to read the board. Choose one finding, preview it, and
+                check it against a new measurement. The sample needs no account or capture key.
               </p>
             </div>
 
@@ -272,7 +277,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     <dt>Included /demo</dt>
                     <dd className={styles.toolCount}>11 Site Tools</dd>
                     <dd className={styles.toolDescription}>
-                      Complete zero-key proof on Sundae&rsquo;s controlled product.
+                      Run the full demo without capture keys.
                     </dd>
                   </div>
                   <div>
@@ -310,9 +315,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <summary>Capture boundaries</summary>
                 <p>
                   A host may deny an individual tool call; the rest of the audit still completes.
-                  Start with the guaranteed contest workspace. Use public capture only when the
-                  configured browser provider can render the approved page. Sundae does not log in,
-                  use target-site cookies, submit forms, or crawl beyond the approved scope.
+                  Start with the included demo. Use public capture only when the configured browser
+                  provider can render the approved page. Sundae does not log in, use target-site
+                  cookies, submit forms, or crawl beyond the approved scope.
                 </p>
               </details>
             </div>

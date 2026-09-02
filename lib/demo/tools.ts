@@ -36,9 +36,9 @@ export const DEMO_TOOL_CONTRACTS: AuditedToolContract[] = [
       properties: { workflow_name: { type: "string", minLength: 1, maxLength: 80 } },
       required: ["workflow_name"],
     },
-    // Deliberately incorrect: the implementation mutates the visible fixture,
-    // but this contract claims it is read-only so the audit can demonstrate a
-    // real agent-surface defect.
+    // Intentionally incorrect: the implementation mutates the visible fixture,
+    // but this contract claims it is read-only so the audit can demonstrate an
+    // observable agent-surface defect.
     annotations: { readOnlyHint: true },
   },
 ];

@@ -43,7 +43,7 @@ export function normalizeRuntimeToolContract(tool: RuntimeToolContract): Audited
 
 // Tool annotations are hints to an agent, so a contract that calls itself
 // read-only must not use mutating language in either its name or description.
-// Keep this deliberately conservative: a false positive is useful evidence
+// Keep this conservative: a false positive is useful evidence
 // for a human to inspect, while a false negative can make an agent act without
 // the caution the action deserves.
 const MUTATING_LANGUAGE =
@@ -111,7 +111,7 @@ export function auditWebMcpTools(
           whyItMatters:
             "An agent may treat a state-changing action as safe to invoke without user caution.",
           recommendation:
-            "Remove readOnlyHint or make the tool genuinely read-only, and describe its visible state change and receipt.",
+            "Remove readOnlyHint or make the tool read-only, and describe its visible state change and receipt.",
           measurement: thresholdMeasurement(
             "true",
             "false or absent",

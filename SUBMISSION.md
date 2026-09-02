@@ -1,8 +1,8 @@
 # Sundae: WebMCP Challenge submission
 
-AI audits your product's design. It shows its work.
+ChatGPT reviews your product on the page you are already looking at.
 
-Every finding is a measurement you can check, on a page you can inspect, with fixes proved by fresh evidence. WebMCP is why you can believe it.
+Each finding points to visible evidence. You choose what changes. A fresh capture checks the result.
 
 Live app: [https://usesundae.vercel.app](https://usesundae.vercel.app)
 Guaranteed judge path: [https://usesundae.vercel.app/demo](https://usesundae.vercel.app/demo)
@@ -10,11 +10,11 @@ Source: [https://github.com/zubalr/usesundae](https://github.com/zubalr/usesunda
 
 Sundae did not exist before this challenge. The repository was created on 29 August 2026. Every commit falls inside the submission window.
 
-## WebMCP Leverage
+## Why WebMCP
 
-The audit is the value. WebMCP is why you can believe the findings.
+WebMCP keeps the audit and its evidence on the same page.
 
-A screenshot chat can critique a website, but the image, the conversation, the evidence, and the person's decisions live in different places. A hidden audit API has the same split: the agent acts somewhere the person cannot inspect. Sundae registers page-hosted Site Tools on the open audit page, so ChatGPT records evidence and supported judgment on the board the person is already viewing.
+A screenshot chat splits the website from the evidence and the person's decisions. A hidden audit API moves the agent's work offscreen. Sundae registers Site Tools on the open audit page, so ChatGPT writes measurements and supported judgment to the board the person is viewing.
 
 The included `/demo` workspace registers 11 tools:
 
@@ -22,13 +22,13 @@ The included `/demo` workspace registers 11 tools:
 
 A public workspace adds four bounded capture commands (`capture_public_page`, `capture_visible_nav`, `capture_below_fold`, `capture_journey_step`) for 15 tools total. Each input is a closed schema. Mutating commands are not marked read-only. Page- or capture-derived output is marked untrusted.
 
-Human authority is visible. ChatGPT cannot start a preview without a reasoned acceptance. `preview_fix` still refuses before accept. `verify_recapture` re-measures the same scope; a reversible preview is not proof. Tool-named receipts stay on the board, and the top bar counts agent tool calls.
+You control every state change. ChatGPT cannot start a preview without a reasoned acceptance, and `preview_fix` refuses before accept. `verify_recapture` measures the same scope again before a measured issue can be marked fixed. Tool-named receipts stay on the board, and the top bar counts agent tool calls.
 
-Site Tools have been verified on GPT-5.6 Sol and GPT-5.6 Terra in two places: the ChatGPT desktop app's built-in browser, and ChatGPT Work Cloud at chatgpt.com. A real ChatGPT run on GPT-5.6 Sol completed the whole loop. GPT-5.6 Luna has WebMCP disabled and will not discover Site Tools. Site tools are also unavailable in Enterprise and Edu workspaces.
+Site Tools have been verified on GPT-5.6 Sol and GPT-5.6 Terra in the ChatGPT desktop app's built-in browser and in ChatGPT Work Cloud at chatgpt.com. A production run on GPT-5.6 Sol completed the whole loop. GPT-5.6 Luna has WebMCP disabled and will not discover Site Tools. Site Tools are also unavailable in Enterprise and Edu workspaces.
 
 A host may deny an individual tool call. In that Sol run, ChatGPT's auto-review blocked `record_audit_brief` with "Browser Use rejected this action due to browser security policy". Sundae never saw that call. The rest of the audit still completed.
 
-Without WebMCP (an ordinary browser, or an unsupported model), Sundae still provides every deterministic measurement and every human control. The top bar reads "Human controls ready" and the agent tool-call counter stays at 0. It does not pretend an agent is present.
+In an ordinary browser or with an unsupported model, Sundae still provides every deterministic measurement and every human control. The top bar reads "Human controls ready", and the agent tool-call counter stays at 0.
 
 ## Execution
 
@@ -36,29 +36,29 @@ Type a public URL and press Enter. Capture starts with zero extra clicks. Measur
 
 On a live product page, a mobile capture measured the primary call-to-action at 4.09:1 contrast, below the 4.5:1 threshold, on the brand's own red, as one of 28 controls under the 44 × 44 touch target guidance.
 
-Contrast is measured against a composited background. Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without that, a 4% white veil over a dark surface (a standard treatment in dark design systems) is read as pure white. On one production dark-theme site that error reported 17.51:1 text as 1.06:1. The bug was found in a real capture, fixed, and kept as a regression.
+Contrast is measured against a composited background. Sundae walks the ancestor chain and blends every translucent layer rather than stopping at the first non-transparent colour. Without that, the engine reads a 4% white veil over a dark surface as pure white. On one production dark-theme site, that error reported 17.51:1 text as 1.06:1. The test suite now covers that case.
 
 Measured findings are grouped by the change that would resolve them, then ranked by prominence. Contrast groups by colour pair. Tap targets group by shape class. Controls that are invisible, offscreen, or smaller than 8 × 8 CSS px are not findings.
 
-The included `/demo` is a controlled product with a pre-authored improved variant. Sundae does not claim the agent wrote that fix. What is real is the re-measurement: `verify_recapture` returns `{fixed:1, still_open:0, unverified:0}` after accept. `npm run check` currently passes 234 tests covering the audit engine, WebMCP registration, capture policy, landing contract, and workbench authority.
+The included `/demo` is a controlled product with a pre-authored improved variant. The receipt attributes the change to the fixture. After accept, `verify_recapture` measures the same scope and returns `{fixed:1, still_open:0, unverified:0}`. `npm run check` currently passes 235 tests covering the audit engine, WebMCP registration, capture policy, landing contract, and workbench authority.
 
-## Potential Impact
+## Potential impact
 
 Founders already ask ChatGPT what is wrong with a live page. They get a confident paragraph and no way to check it. Sundae keeps the audit on the page: a measurement you can inspect, a decision you govern, and a fix proved by a fresh capture.
 
 The first useful loop does not require a plugin, a connector, or a hosted auditor model. Open `/demo` in ChatGPT Desktop's built-in browser or in ChatGPT Work Cloud, wait for 11 Site Tools, and ask ChatGPT to audit. Public HTTPS pages follow the same board after a typed URL.
 
-Sundae does not infer conversion, revenue, retention, security, legal compliance, SEO rank, or backend correctness from rendered UI evidence. It says "not seen" until fresh evidence justifies a stronger claim. That limit is the product, not a missing feature.
+Sundae does not infer conversion, revenue, retention, security, legal compliance, SEO rank, or backend correctness from rendered UI evidence. It says "not seen" until fresh evidence supports a stronger claim. These limits keep the audit tied to what was observed.
 
-## Creativity & Ambition
+## Creativity and ambition
 
-The ambitious move is making the page the control layer.
+Sundae makes the page itself the control layer.
 
 ChatGPT's built-in browser does not discover tools registered inside iframes. Sundae's 11 tools are registered at the top level so the Site tools count is exact. The audited fixture's own tools live inside the iframe, which is why `inspect_agent_surface` exists: Sundae reads contracts the host itself cannot reach.
 
-The workbench is a shared operating surface, not a report dumped into chat. Findings lead. Pins number by visual reading order. Accept runs preview or an honest re-measure without weakening the authority gate. A cold `/demo` load writes exactly one baseline receipt that no agent produced.
+The workbench gives the person and ChatGPT one board. Findings lead. Pins follow visual reading order. Accept starts a preview when one exists; otherwise it runs another measurement and labels the result. A cold `/demo` load writes exactly one baseline receipt that no agent produced.
 
-The contest asked for thorough WebMCP use and a high-quality human-agent experience. Sundae treats those as one requirement: the agent has goal-shaped commands with explicit authority, and the person can see every command, every receipt, and every refusal on the same page.
+The contest scores WebMCP use and the human-agent experience. Sundae handles both on one page. The agent gets specific commands for evidence, judgment, decisions, preview, and verification. The person can see every command, receipt, and refusal.
 
 ## How to judge
 

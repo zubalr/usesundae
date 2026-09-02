@@ -18,8 +18,8 @@ export function includedDemoProofReceipt() {
   }
   return {
     findingId: findingIdentity("mobile", "tap-target", INCLUDED_DEMO_PRIMARY_ACTION_ID),
-    title: "A real issue in the included demo",
-    meaning: `Its primary mobile action is configured with a ${size}px minimum height, below Sundae's ${TAP_TARGET_MIN_PX}px tap-target guidance.`,
-    evidence: `CSS minimum height ${size}px · guidance ${TAP_TARGET_MIN_PX}px`,
+    title: "An issue built into the demo",
+    meaning: `The demo sets its primary mobile action to a ${size}px minimum height. Sundae's tap-target guidance is ${TAP_TARGET_MIN_PX}px.`,
+    evidence: `CSS minimum ${size}px · guidance ${TAP_TARGET_MIN_PX}px`,
   };
 }

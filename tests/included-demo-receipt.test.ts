@@ -26,8 +26,8 @@ test("the hero proof states the included demo's source-level tap-target evidence
   assert.equal(receipt.findingId, findingIdentity("mobile", "tap-target", "primary-action"));
   assert.match(receipt.evidence, new RegExp(`${size}px`));
   assert.match(receipt.evidence, new RegExp(`${TAP_TARGET_MIN_PX}px`));
-  assert.match(receipt.evidence, /CSS minimum height/);
-  assert.match(receipt.meaning, /configured with/);
+  assert.match(receipt.evidence, /CSS minimum/);
+  assert.match(receipt.meaning, /demo sets/);
   assert.doesNotMatch(`${receipt.meaning}\n${receipt.evidence}`, /measures|measured/i);
   assert.match(landing, /includedDemoProofReceipt/);
   assert.match(landing, /proof\.title/);

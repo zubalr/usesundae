@@ -213,7 +213,7 @@ test("judged finding details keep exact scope and verification visible", () => {
   assert.match(workbench, /<dt>Verification<\/dt>/);
 });
 
-test("accepting a finding orchestrates preview or honest re-measure through existing commands", () => {
+test("accepting a finding orchestrates preview or labeled re-measure through existing commands", () => {
   const controller = readFileSync(pathFromRoot("components", "Workbench.tsx"), "utf8");
 
   assert.match(controller, /acceptFollowThroughKind/);

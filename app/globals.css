@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   Tokens. Two layers, deliberately.
+   Tokens. Two layers.
 
    1. PRIMITIVES  raw values, never referenced outside this file
    2. SEMANTIC    what a component may use, named by role not by colour

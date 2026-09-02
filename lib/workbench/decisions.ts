@@ -13,7 +13,7 @@ export const DECISION_OPTIONS = {
   },
   dismissed: {
     label: "Dismissed",
-    defaultReason: "Reviewed and not actionable for this product state.",
+    defaultReason: "Reviewed and out of scope for this product state.",
   },
 } as const;
 

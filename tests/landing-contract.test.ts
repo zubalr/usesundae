@@ -27,7 +27,7 @@ test("the entrance makes public capture primary and the included demo secondary"
   assert.ok(publicAction >= 0 && publicAction < demoAction);
   assert.ok(demoAction > publicAction && chatAction > demoAction);
   assert.match(launcher, /Review a public page/);
-  assert.match(launcher, /See the complete review on our sample product/);
+  assert.match(launcher, /See the full review on our sample product/);
   assert.match(page, /id="judges"[\s\S]*<ChatGptNextStep/);
   assert.doesNotMatch(
     page.slice(
@@ -97,7 +97,10 @@ test("the landing leads with a shared workspace and keeps measurements as eviden
 
   assert.match(page, /Design reviews shouldn&rsquo;t disappear into chat\./);
   assert.match(page, /A live design review with your AI/);
-  assert.match(page, /Every finding shows its evidence\. Every decision stays yours\./);
+  assert.match(
+    page,
+    /Sundae puts the public page and ChatGPT beside the evidence board you control/,
+  );
   assert.doesNotMatch(page, /Every finding is a measurement/);
   assert.doesNotMatch(page, /AI audits your product/);
   assert.match(page, /includedDemoProofReceipt/);
@@ -107,14 +110,11 @@ test("the landing leads with a shared workspace and keeps measurements as eviden
   assert.doesNotMatch(page, /4\.09:1/);
   assert.doesNotMatch(page, /28 undersized/);
   assert.doesNotMatch(page, /any public page/);
-  assert.match(page, /a public page/);
+  assert.match(page, /the public page/);
   assert.doesNotMatch(page, /todoist|linear\.app|notion|figma|stripe/i);
-  assert.match(
-    page,
-    /The image, conversation, evidence, and decision trail live in different places/,
-  );
-  assert.match(page, /Findings sit on the live page/);
-  assert.match(page, /Try the complete WebMCP loop in two minutes/);
+  assert.match(page, /A screenshot splits the product from its evidence and decision trail/);
+  assert.match(page, /Sundae pins each finding to the live page/);
+  assert.match(page, /Run the WebMCP review in two minutes/);
   assert.match(page, /Judge path/);
   assert.doesNotMatch(page, /For WebMCP Challenge judges/);
   assert.match(page, /GPT-5\.6 Luna has WebMCP disabled/);
@@ -149,6 +149,23 @@ test("the landing leads with a shared workspace and keeps measurements as eviden
     styles,
     /\.hero\s*\{[\s\S]*?padding-block:\s*var\(--space-2xl\) var\(--space-3xl\)/,
   );
+});
+
+test("public copy contains no em-dash prose splices", () => {
+  const copySources = [
+    readSource("app", "layout.tsx"),
+    readSource("app", "page.tsx"),
+    readSource("components", "AuditLauncher.tsx"),
+    readSource("components", "DemoViewport.tsx"),
+    readSource("components", "workbench", "WorkbenchView.tsx"),
+    readSource("lib", "demo", "included-receipt.ts"),
+    readSource("lib", "launch.ts"),
+    readSource("lib", "webmcp", "register.ts"),
+    readSource("README.md"),
+    readSource("SUBMISSION.md"),
+  ].join("\n");
+
+  assert.doesNotMatch(copySources, /—/);
 });
 
 test("the explanatory signal settles and preserves an intentional reduced-motion state", () => {
@@ -256,8 +273,8 @@ test("the interface uses a focus-ring size token and one numbered-step counter",
 test("the README leads with the shared page and documents both tool surfaces", () => {
   const readme = readSource("README.md");
 
-  assert.match(readme, /screenshot chat[\s\S]*separates the live interface/i);
-  assert.match(readme, /page-hosted WebMCP Site Tools/);
+  assert.match(readme, /puts the live page and ChatGPT beside an evidence board you control/i);
+  assert.match(readme, /page-hosted tools operate the evidence board/);
   assert.match(readme, /published `\/demo` workspace/);
   assert.match(readme, /included `\/demo` registers eleven Sundae workbench tools/);
   assert.match(readme, /15 tools total/);
@@ -273,5 +290,5 @@ test("the README leads with the shared page and documents both tool surfaces", (
   assert.match(readme, /pre-authored improved variant/);
   assert.match(readme, /does not discover tools registered inside iframes/);
   assert.doesNotMatch(readme, /any public page/);
-  assert.match(readme, /a public page/);
+  assert.match(readme, /A public workspace adds four bounded capture commands/);
 });

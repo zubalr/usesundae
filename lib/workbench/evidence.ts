@@ -163,7 +163,7 @@ function agentText(value: string, maximumBytes: number) {
  * An identifier has to round-trip. A checkpoint id is 47 characters, so cutting
  * it to 40 handed the agent a reference the board could never match, and
  * record_audit_brief rejected its own evidence. Prose gets truncated for budget;
- * identifiers never do. The cap here is a safety valve no real id approaches.
+ * identifiers never do. The cap is a safety valve no production id approaches.
  */
 const MAX_IDENTIFIER_BYTES = 200;
 
