@@ -364,6 +364,7 @@ export function Workbench({
   const [gapDraft, setGapDraft] = useState({ label: "", detail: "" });
   const [auditBrief, setAuditBrief] = useState<AuditBrief | null>(null);
   const [reviewResults, setReviewResults] = useState<ReviewResult[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activePreviewFindingId, setActivePreviewFindingId] = useState<string | null>(null);
   cssDraftRef.current = cssDraft;
 
@@ -1630,14 +1631,19 @@ export function Workbench({
         setViewport(finding.viewport);
       }
       selectedRef.current = finding.id;
+      setSidebarOpen(true);
       setSelectedId(finding.id);
       setDecisionReason(decisionsRef.current[finding.id]?.reason ?? "");
       pushActivity(actor, "Focused finding", `${finding.id} · ${finding.title}`, toolName);
       window.setTimeout(() => {
-        document
-          .getElementById(`finding-${finding.id}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        inspectorRef.current?.focus({ preventScroll: true });
+        const inspector = inspectorRef.current;
+        inspector?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
+          block: "start",
+        });
+        inspector?.focus({ preventScroll: true });
       }, 0);
       return {
         ok: true,
@@ -2399,6 +2405,8 @@ export function Workbench({
       iframeRef={iframeRef}
       inspectorRef={inspectorRef}
       commands={commands}
+      sidebarOpen={sidebarOpen}
+      onSidebarOpenChange={setSidebarOpen}
       onAudit={() => runVisibleCommand(auditCurrentScope("human", undefined, waitForSelectorDraft))}
       onResetPreview={resetPreview}
       onInspectAgentSurface={() => runVisibleCommand(inspectAgentSurface("human"))}

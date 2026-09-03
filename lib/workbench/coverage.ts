@@ -41,6 +41,7 @@ export type CoverageSurface = {
   viewport: AuditSnapshot["viewport"];
   state: string;
   captureExtent: "viewport" | "full-page";
+  findingCount: number;
   evidenceTypes: Array<"dom" | "screenshot" | "text" | "accessibility">;
   motion: "observed" | "not_seen" | "not_applicable";
   interaction: "observed" | "not_seen" | "not_applicable";
@@ -110,6 +111,7 @@ function sampleSurface(snapshot: AuditSnapshot): CoverageSurface {
     viewport: snapshot.viewport,
     state: snapshot.demoState,
     captureExtent: "viewport",
+    findingCount: snapshot.findings.length,
     evidenceTypes: ["dom", "screenshot"],
     motion: "not_seen",
     interaction: "not_seen",
@@ -130,6 +132,7 @@ function remoteSurface(entry: CoverageTrailEntry): CoverageSurface {
     viewport: entry.viewport,
     state: entry.state ?? "settled render",
     captureExtent: entry.captureExtent ?? "viewport",
+    findingCount: entry.findingCount,
     evidenceTypes: ["screenshot", "text", "accessibility"],
     motion: entry.motion ?? "not_seen",
     interaction: entry.interaction ?? "not_seen",

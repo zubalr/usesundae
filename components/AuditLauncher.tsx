@@ -173,11 +173,11 @@ export function ChatGptNextStep({ includedDemoUrl }: { includedDemoUrl: string }
   return (
     <div className={styles.nextStep}>
       <button className={styles.desktopAction} type="button" onClick={openChatGptAudit}>
-        <Icon name="agent" /> Audit with ChatGPT
+        <Icon name="agent" /> Audit in ChatGPT Work
       </button>
       <p>
-        Continue in ChatGPT Desktop&rsquo;s built-in browser or ChatGPT Work Cloud after the
-        capture. Site Tools appear on the open workspace.
+        Opens ChatGPT Work and requests GPT-5.6 Sol. If model or Power controls appear, choose
+        GPT-5.6 Sol and Medium. Site Tools appear when you open the Sundae workspace.
       </p>
       {error ? (
         <p className={styles.error} role="alert" tabIndex={-1} ref={errorRef}>
@@ -188,21 +188,22 @@ export function ChatGptNextStep({ includedDemoUrl }: { includedDemoUrl: string }
         <section
           className={styles.receipt}
           aria-live="polite"
-          aria-label="ChatGPT handoff ready"
+          aria-label="ChatGPT Work handoff ready"
           tabIndex={-1}
           ref={handoffRef}
         >
           <div className={styles.receiptStatus}>
             <span>
-              <i data-copied={handoff.copied} /> ChatGPT handoff
+              <i data-copied={handoff.copied} /> ChatGPT Work handoff
             </span>
             <strong>
-              {handoff.copied ? "Workspace link copied" : "Opened ChatGPT with this audit"}
+              {handoff.copied ? "Workspace link copied" : "ChatGPT Work handoff opened"}
             </strong>
           </div>
           <p>
-            ChatGPT should already have the audit instruction typed. Keep a copy of the exact
-            workspace URL if you want to paste it into Desktop’s built-in browser yourself.
+            The audit instruction is already typed. If model or Power controls appear, choose
+            GPT-5.6 Sol and Medium before sending. You can also copy the workspace URL and open it
+            in the desktop browser.
           </p>
           <div className={styles.receiptLinks}>
             <button type="button" onClick={() => copyWorkspaceLink(handoff)}>

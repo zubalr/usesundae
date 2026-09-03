@@ -116,13 +116,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
             <section className={styles.liveSet} aria-label="Sundae shared audit loop">
               <section className={styles.programStage} aria-label="Included controlled demo">
-                <div className={styles.programHeader}>
-                  <span>
-                    <i /> Live product on this page
-                  </span>
-                  <span>Your agent measures what you can see</span>
-                </div>
-
                 <div className={styles.fixtureWindow}>
                   <iframe
                     className={styles.fixturePreview}
@@ -146,7 +139,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <aside className={styles.rundown} aria-labelledby="rundown-title">
                 <header>
                   <h2 id="rundown-title">How a review runs</h2>
-                  <span>One visible session</span>
                 </header>
                 <ol>
                   {RUNDOWN_STEPS.map((step, index) => (

@@ -111,7 +111,11 @@ export function resolveInitialTargetMode(targetUrl: string, appOrigin?: string) 
 }
 
 export function buildChatGptComposerUrl(prompt: string) {
-  return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+  const composer = new URL("https://chatgpt.com/");
+  composer.searchParams.set("prompt", prompt);
+  composer.searchParams.set("surface", "work");
+  composer.searchParams.set("model", "gpt-5.6-sol-wm");
+  return composer.toString();
 }
 
 export function buildChatGptHandoffPrompt(

@@ -49,10 +49,13 @@ test("builds an exact recoverable workspace and truthful ChatGPT request", () =>
   assert.doesNotMatch(prompt, /Allow agent to capture/);
   assert.doesNotMatch(prompt, /Capture myself/);
   assert.doesNotMatch(prompt, /start.audit|workspace.ready/i);
-  assert.equal(
-    buildChatGptComposerUrl(prompt),
-    `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
-  );
+  const chatGptHandoff = new URL(buildChatGptComposerUrl(prompt));
+  assert.equal(chatGptHandoff.origin, "https://chatgpt.com");
+  assert.equal(chatGptHandoff.pathname, "/");
+  assert.equal(chatGptHandoff.searchParams.get("prompt"), prompt);
+  assert.equal(chatGptHandoff.searchParams.get("surface"), "work");
+  assert.equal(chatGptHandoff.searchParams.get("model"), "gpt-5.6-sol-wm");
+  assert.equal(chatGptHandoff.searchParams.has("q"), false);
   assert.match(prompt, /get_board_context/);
   assert.match(prompt, /`uncaptured_nav`.*`capture_visible_nav`/is);
   assert.match(prompt, /`capture_visible_nav`.*accepts no URL/is);

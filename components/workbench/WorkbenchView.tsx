@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  type CSSProperties,
   type Dispatch,
   type FormEventHandler,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
   type SetStateAction,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -75,6 +78,11 @@ const webMcpLabels: Omit<Record<WebMcpStatus, string>, "ready"> = {
   error: "Tool registration failed",
 };
 
+const productPaneTitles: Record<TargetMode, string> = {
+  remote: "Product",
+  sample: "Sample review",
+};
+
 function shortTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
@@ -126,11 +134,8 @@ function WebMcpIndicator({
       role="status"
       aria-label={label}
     >
-      <span />
-      <div>
-        <b>WebMCP</b>
-        <small>{label}</small>
-      </div>
+      <span aria-hidden="true" />
+      <b>{status === "ready" ? "Site Tools ready" : webMcpLabels[status]}</b>
     </div>
   );
 }
@@ -141,6 +146,7 @@ function AgentAuthority({
   current,
   urlDraft,
   draftApproved,
+  activity,
   hostToolCount,
 }: WorkbenchViewProps & { hostToolCount: number | null }) {
   const authority = describeAgentAuthority(mode, checkpoint, current?.scopeKey);
@@ -157,6 +163,9 @@ function AgentAuthority({
       <summary>
         {authority.label} · {target} · {tools} · {authority.scope}
       </summary>
+      <p className={styles.agentCallCount} aria-live="polite">
+        Agent tool calls: {countAgentToolCalls(activity)}
+      </p>
       <dl>
         <div>
           <dt>Target</dt>
@@ -223,6 +232,8 @@ export type WorkbenchViewProps = {
   iframeRef: RefObject<HTMLIFrameElement | null>;
   inspectorRef: RefObject<HTMLElement | null>;
   commands: WorkbenchCommands;
+  sidebarOpen: boolean;
+  onSidebarOpenChange: (open: boolean) => void;
   onAudit: () => void;
   onResetPreview: () => void;
   onInspectAgentSurface: () => void;
@@ -257,18 +268,26 @@ function AuditTopbar({
   captureProgress,
   mode,
   checkpoint,
-  activity,
   onAudit,
   onCancelCapture,
   toolStatus,
   hostToolCount,
   onToolStatusChange,
+  measuredCount,
+  judgedCount,
+  sidebarOpen,
+  onToggleSidebar,
+  sidebarToggleRef,
 }: WorkbenchViewProps & {
   toolStatus: WebMcpStatus;
   hostToolCount: number | null;
   onToolStatusChange: Dispatch<SetStateAction<ToolRegistrationState>>;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+  sidebarToggleRef: RefObject<HTMLButtonElement | null>;
 }) {
   const awaitingCapture = mode === "remote" && !checkpoint;
+  const findingCount = measuredCount + judgedCount;
   const auditLabel = captureProgress
     ? captureProgressLabel(captureProgress)
     : awaitingCapture
@@ -276,19 +295,13 @@ function AuditTopbar({
       : auditing
         ? "Capturing…"
         : "Refresh evidence";
-  const agentToolCalls = countAgentToolCalls(activity);
 
   return (
     <header className={styles.topbar}>
       <a className={styles.brand} href="#workbench" aria-label="Sundae workbench home">
         <span className={styles.wordmark}>sundae</span>
-        <span className={styles.brandRule} />
-        <span className={styles.brandCopy}>A live review with your AI</span>
       </a>
       <div className={styles.topbarActions}>
-        <p className={styles.agentCallCount} aria-live="polite">
-          Agent tool calls: {agentToolCalls}
-        </p>
         <WebMcpIndicator
           commands={commands}
           mode={mode}
@@ -296,6 +309,17 @@ function AuditTopbar({
           hostToolCount={hostToolCount}
           onStatusChange={onToolStatusChange}
         />
+        <button
+          ref={sidebarToggleRef}
+          className={styles.sidebarToggle}
+          type="button"
+          aria-expanded={sidebarOpen}
+          aria-controls="evidence-pane"
+          aria-label={`${sidebarOpen ? "Hide" : "Show"} findings panel, ${findingCount} findings`}
+          onClick={onToggleSidebar}
+        >
+          {sidebarOpen ? "Findings" : "Show findings"} <span>{findingCount}</span>
+        </button>
         {captureProgress ? (
           <button className={styles.auditButton} type="button" onClick={onCancelCapture}>
             Cancel
@@ -316,73 +340,12 @@ function AuditTopbar({
   );
 }
 
-function ScopeBar({
-  mode,
-  checkpoint,
-  demoState,
-  current,
-  auditing,
-  onResetPreview,
-  onInspectAgentSurface,
-  onShowSample,
-  onCaptureBelowFold,
-  onCaptureVisibleNav,
-  uncapturedNav,
-}: WorkbenchViewProps) {
-  return (
-    <section className={styles.contextBar} aria-label="Audit scope">
-      <div>
-        <span className={styles.liveDot} />{" "}
-        <b>{mode === "remote" ? "Managed browser checkpoint" : "Included live target"}</b>
-      </div>
-      <span className={styles.contextDivider} />
-      <code>
-        {mode === "remote"
-          ? (checkpoint?.target.displayUrl ?? "Preparing checkpoint…")
-          : "/demo · Sundae Lab"}
-      </code>
-      <span className={styles.contextDivider} />
-      <span>{demoState === "baseline" ? "Baseline" : "Reversible preview"}</span>
-      {current ? (
-        <span className={styles.measuredAt}>Captured {shortTime(current.capturedAt)}</span>
-      ) : null}
-      {demoState === "improved" ? (
-        <button type="button" onClick={onResetPreview}>
-          <Icon name="undo" /> Reset preview
-        </button>
-      ) : null}
-      {mode === "sample" ? (
-        <button type="button" onClick={onInspectAgentSurface}>
-          <Icon name="agent" /> Inspect Site Tools
-        </button>
-      ) : null}
-      {mode === "remote" && checkpoint && demoState === "baseline" && uncapturedNav.length > 0 ? (
-        <button type="button" disabled={auditing} onClick={onCaptureVisibleNav}>
-          <Icon name="spark" /> Add visible nav
-        </button>
-      ) : null}
-      {mode === "remote" && checkpoint && demoState === "baseline" ? (
-        <button type="button" disabled={auditing} onClick={onCaptureBelowFold}>
-          <Icon name="focus" /> Add below-fold
-        </button>
-      ) : null}
-      {mode === "remote" ? (
-        <button type="button" onClick={onShowSample}>
-          Use sample
-        </button>
-      ) : null}
-    </section>
-  );
-}
-
-function CaptureBar({
+function TargetForm({
   mode,
   includedDemoUrl,
   checkpoint,
-  auditGoal,
   urlDraft,
   waitForSelectorDraft,
-  draftApproved,
   auditing,
   captureProgress,
   journey,
@@ -391,25 +354,18 @@ function CaptureBar({
   onChangeWaitForSelectorDraft,
   onCancelCapture,
   onCaptureJourneyStep,
-}: WorkbenchViewProps) {
+  onShowSample,
+  onDismiss,
+}: WorkbenchViewProps & { onDismiss: () => void }) {
   const hasUrl = Boolean(urlDraft.trim());
-  const approval = describeCaptureApproval({
-    mode,
-    hasCheckpoint: Boolean(checkpoint),
-    currentUrlApproved: draftApproved,
-  });
+  const dismissable = mode === "sample" || Boolean(checkpoint);
   return (
     <form
+      id="capture-target-form"
       className={styles.captureBar}
       onSubmit={onSubmitCapture}
       aria-label="Capture a public website"
     >
-      <div className={styles.capturePrompt}>
-        <span>Public URL</span>
-        <p>
-          {`${auditGoal ? `Goal · ${auditGoal} · ` : ""}${approval}. Full page when it fits; no passwords or silent crawling.`}
-        </p>
-      </div>
       <div className={styles.urlCluster}>
         <label className={styles.urlField}>
           <span className={styles.srOnly}>Public page URL</span>
@@ -424,7 +380,7 @@ function CaptureBar({
             autoComplete="url"
           />
         </label>
-        <label className={styles.urlField}>
+        <label className={styles.urlField} data-role="wait">
           <span className={styles.srOnly}>Wait for CSS selector (optional)</span>
           <input
             type="text"
@@ -437,14 +393,6 @@ function CaptureBar({
             autoComplete="off"
           />
         </label>
-        <button
-          type="button"
-          className={styles.presetUrl}
-          onClick={() => onChangeUrlDraft(includedDemoUrl)}
-          aria-label="Fill the included Sundae demo target without capturing"
-        >
-          included /demo
-        </button>
       </div>
       <div className={styles.captureActions}>
         {captureProgress ? (
@@ -456,13 +404,31 @@ function CaptureBar({
             <Icon name="focus" /> Capture
           </button>
         )}
-        {mode === "remote" ? (
+        {mode === "remote" && checkpoint ? (
           <button
             type="button"
-            disabled={auditing || !hasUrl || !checkpoint}
+            disabled={auditing || !hasUrl}
             onClick={() => onCaptureJourneyStep(urlDraft, `Step ${journey.length + 1}`)}
           >
             <Icon name="spark" /> Add step
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={styles.presetUrl}
+          onClick={() => onChangeUrlDraft(includedDemoUrl)}
+          aria-label="Fill the included Sundae demo target without capturing"
+        >
+          included /demo
+        </button>
+        {mode === "remote" ? (
+          <button type="button" className={styles.presetUrl} onClick={onShowSample}>
+            Use sample
+          </button>
+        ) : null}
+        {dismissable ? (
+          <button type="button" className={styles.presetUrl} onClick={onDismiss}>
+            Close
           </button>
         ) : null}
       </div>
@@ -470,97 +436,105 @@ function CaptureBar({
   );
 }
 
-function JourneyBar({ mode, journey, checkpoint, onOpenJourneyCheckpoint }: WorkbenchViewProps) {
-  if (mode !== "remote") return null;
-  return (
-    <section className={styles.journeyBar} aria-label="Captured scope trail">
-      <span>
-        Scope trail · {journey.length} {journey.length === 1 ? "checkpoint" : "checkpoints"}
-      </span>
-      <ol>
-        {journey.map((entry, index) => (
-          <li key={entry.checkpointId}>
-            <button
-              type="button"
-              title={entry.displayUrl}
-              data-current={entry.checkpointId === checkpoint?.id}
-              aria-pressed={entry.checkpointId === checkpoint?.id}
-              onClick={() => onOpenJourneyCheckpoint(entry)}
-            >
-              <b>{index + 1}</b>
-              <span>{entry.label}</span>
-              <small>
-                {entry.findingCount} facts · {entry.viewport}
-              </small>
-            </button>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function ProductPane({
-  mode,
-  viewport,
-  demoState,
-  checkpoint,
-  visibleFindings,
-  selected,
-  auditing,
-  captureProgress,
-  error,
-  iframeRef,
-  onChangeViewport,
-  onScheduleAudit,
-  onFocusFinding,
-}: WorkbenchViewProps) {
+function ProductPane(
+  props: WorkbenchViewProps & {
+    captureFormOpen: boolean;
+    onToggleCaptureForm: () => void;
+  },
+) {
+  const {
+    mode,
+    viewport,
+    demoState,
+    checkpoint,
+    current,
+    visibleFindings,
+    selected,
+    auditing,
+    captureProgress,
+    error,
+    iframeRef,
+    onChangeViewport,
+    onResetPreview,
+    onScheduleAudit,
+    onFocusFinding,
+    captureFormOpen,
+    onToggleCaptureForm,
+  } = props;
   const awaitingCapture = mode === "remote" && !checkpoint;
   const progressLabel = captureProgress ? captureProgressLabel(captureProgress) : null;
+  const target =
+    mode === "remote"
+      ? (checkpoint?.target.displayUrl ?? "Preparing checkpoint…")
+      : "/demo · Sundae Lab";
+  const title = progressLabel ?? (awaitingCapture ? "Capture a page" : productPaneTitles[mode]);
+  const stateLabel = demoState === "baseline" ? "Baseline" : "Preview";
+  const targetLabel = `${target}, ${stateLabel}${current ? `, captured ${shortTime(current.capturedAt)}` : ""}`;
+  const targetChipContent = (
+    <>
+      <span className={styles.liveDot} aria-hidden="true" />
+      <span className={styles.targetUrl}>{target}</span>
+      <span>{stateLabel}</span>
+    </>
+  );
   return (
     <section className={styles.productPane} aria-labelledby="live-product-title">
       <div className={styles.paneHead}>
-        <div>
-          <h1 id="live-product-title">
-            {progressLabel
-              ? progressLabel
-              : awaitingCapture
-                ? "Public capture ready"
-                : mode === "remote"
-                  ? "Rendered product"
-                  : "Included audit specimen"}
-          </h1>
-          <p>
-            {progressLabel
-              ? "The human-supplied target is approved for this session."
-              : awaitingCapture
-                ? "The exact target is prefilled above. Capture it before Sundae creates evidence."
-                : mode === "remote"
-                  ? "Screenshot, text, and accessibility evidence from one bounded checkpoint."
-                  : "This sample contains known flaws so you can inspect, preview, and verify the complete Sundae workflow."}
-          </p>
+        <div className={styles.paneIdentity}>
+          <h1 id="live-product-title">{title}</h1>
+          {awaitingCapture ? (
+            <div className={styles.targetChip} data-static="true" title={targetLabel}>
+              {targetChipContent}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={styles.targetChip}
+              aria-expanded={captureFormOpen}
+              aria-controls="capture-target-form"
+              aria-label={`${captureFormOpen ? "Hide" : "Show"} target controls for ${targetLabel}`}
+              title={targetLabel}
+              onClick={onToggleCaptureForm}
+            >
+              {targetChipContent}
+            </button>
+          )}
         </div>
-        <div className={styles.viewportSwitch} role="group" aria-label="Audit viewport">
-          <button
-            type="button"
-            data-active={viewport === "mobile"}
-            aria-pressed={viewport === "mobile"}
-            disabled={auditing || awaitingCapture}
-            onClick={() => onChangeViewport("mobile")}
-          >
-            <Icon name="mobile" /> Mobile
-          </button>
-          <button
-            type="button"
-            data-active={viewport === "desktop"}
-            aria-pressed={viewport === "desktop"}
-            disabled={auditing || awaitingCapture}
-            onClick={() => onChangeViewport("desktop")}
-          >
-            <Icon name="desktop" /> Desktop
-          </button>
+        <div className={styles.paneActions}>
+          {demoState === "improved" ? (
+            <button type="button" className={styles.chipAction} onClick={onResetPreview}>
+              <Icon name="undo" /> Reset preview
+            </button>
+          ) : null}
+          <div className={styles.viewportSwitch} role="group" aria-label="Audit viewport">
+            <button
+              type="button"
+              data-active={viewport === "mobile"}
+              aria-pressed={viewport === "mobile"}
+              disabled={auditing || awaitingCapture}
+              onClick={() => onChangeViewport("mobile")}
+            >
+              <Icon name="mobile" /> Mobile
+            </button>
+            <button
+              type="button"
+              data-active={viewport === "desktop"}
+              aria-pressed={viewport === "desktop"}
+              disabled={auditing || awaitingCapture}
+              onClick={() => onChangeViewport("desktop")}
+            >
+              <Icon name="desktop" /> Desktop
+            </button>
+          </div>
         </div>
+        {awaitingCapture ? (
+          <p>The public URL below is approved for this session. Capture it to start.</p>
+        ) : progressLabel ? (
+          <p aria-live="polite">{progressLabel}</p>
+        ) : null}
       </div>
+
+      {captureFormOpen ? <TargetForm {...props} onDismiss={onToggleCaptureForm} /> : null}
 
       <DemoViewport
         iframeRef={iframeRef}
@@ -576,25 +550,6 @@ function ProductPane({
         onSelect={onFocusFinding}
       />
 
-      <div className={styles.frameFoot}>
-        <span>
-          <i />{" "}
-          {awaitingCapture
-            ? "No checkpoint yet"
-            : mode === "remote"
-              ? "Cloudflare Browser Run checkpoint"
-              : "Same-origin WebMCP contract fixture"}
-        </span>
-        <span>
-          {progressLabel
-            ? progressLabel
-            : awaitingCapture
-              ? "Human-supplied target approved for this session"
-              : mode === "remote"
-                ? "Public render · query and fragment hidden on board"
-                : "No cloud credentials needed for sample"}
-        </span>
-      </div>
       {error ? (
         <p className={styles.error} role="alert">
           {error}
@@ -1000,17 +955,13 @@ function DesignEmptyState({ includedDemoUrl }: { includedDemoUrl: string }) {
     }
   }
   return (
-    <div className={styles.laneEmpty}>
-      <div>
-        <h3>Measurements are ready</h3>
-        <p className={styles.emptyCopy}>
-          Continue this workspace in ChatGPT for a product-aware design review. Then choose one
-          finding to preview and verify.
-        </p>
-        <p className={styles.emptyCopy}>No design judgment yet.</p>
-      </div>
+    <div className={styles.reviewPrompt}>
+      <p>
+        <strong>Ready for design review.</strong> Ask ChatGPT to assess the product, then choose
+        what to change.
+      </p>
       <button className={styles.chatGptLaneAction} type="button" onClick={openChatGpt}>
-        <Icon name="agent" /> Continue the review in ChatGPT
+        <Icon name="agent" /> Review in ChatGPT Work
       </button>
     </div>
   );
@@ -1022,6 +973,8 @@ function FindingList({
   selected,
   baseline,
   includedDemoUrl,
+  mode,
+  onInspectAgentSurface,
   onFocusFinding,
 }: WorkbenchViewProps) {
   const designSignalFindings = visibleFindings.filter(({ rule }) => rule === "design-signal");
@@ -1031,6 +984,7 @@ function FindingList({
     ({ truth, rule }) =>
       truth === "measured" && rule !== "agent-surface" && rule !== "design-signal",
   );
+  const secondaryCount = designSignalFindings.length + agentFindings.length;
   return (
     <section className={styles.findingList} aria-label={evidenceBoard.listLabel}>
       {!baseline ? (
@@ -1042,70 +996,62 @@ function FindingList({
       ) : null}
       {baseline ? (
         <>
-          <div className={styles.findingLane} data-lane="design">
-            <div className={styles.laneHead}>
-              <h3>Design</h3>
-              <span>
-                {designFindings.length} {designFindings.length === 1 ? "judgment" : "judgments"}
-              </span>
-            </div>
-            {designSignalFindings.length > 0 ? (
-              <details className={styles.signalGroup} aria-label="Design signal">
-                <summary className={styles.signalHead}>
-                  <h4>Design signal</h4>
-                  <span>descriptive counts · no threshold</span>
-                </summary>
-                <SignalRows
-                  findings={designSignalFindings}
-                  selected={selected}
-                  onFocusFinding={onFocusFinding}
-                />
-              </details>
-            ) : null}
-            {designFindings.length > 0 ? (
+          {designFindings.length > 0 ? (
+            <div className={styles.findingLane} data-lane="design">
+              <div className={styles.laneHead}>
+                <h3>Design findings</h3>
+                <span>{designFindings.length}</span>
+              </div>
               <FindingRows
                 findings={designFindings}
                 selected={selected}
                 startIndex={0}
                 onFocusFinding={onFocusFinding}
               />
-            ) : (
-              <DesignEmptyState includedDemoUrl={includedDemoUrl} />
-            )}
-          </div>
-          <div className={styles.findingLane} data-lane="agent">
+            </div>
+          ) : (
+            <DesignEmptyState includedDemoUrl={includedDemoUrl} />
+          )}
+          <div className={styles.findingLane} data-lane="measured">
             <div className={styles.laneHead}>
-              <h3>Agent readiness</h3>
-              <span>
-                {agentFindings.length} {agentFindings.length === 1 ? "observation" : "observations"}
-              </span>
+              <h3>Measured findings</h3>
+              <span>{technicalFindings.length}</span>
             </div>
             <FindingRows
-              findings={agentFindings}
+              findings={technicalFindings}
               selected={selected}
               startIndex={designFindings.length}
               onFocusFinding={onFocusFinding}
             />
+            {technicalFindings.length === 0 ? (
+              <p className={styles.emptyCopy}>No measured issue was reproduced in this view.</p>
+            ) : null}
           </div>
-          <details className={styles.findingLane} data-lane="technical">
+          <details className={styles.secondaryReview}>
             <summary className={styles.laneHead}>
-              <h3>Technical facts</h3>
+              <h3>Signals and Site Tools</h3>
               <span>
-                {technicalFindings.length}{" "}
-                {technicalFindings.length === 1 ? "measurement" : "measurements"}
+                {secondaryCount} {secondaryCount === 1 ? "item" : "items"}
               </span>
             </summary>
+            <div className={styles.secondaryTools}>
+              {mode === "sample" ? (
+                <button type="button" className={styles.laneAction} onClick={onInspectAgentSurface}>
+                  <Icon name="agent" /> Inspect Site Tools
+                </button>
+              ) : null}
+            </div>
             <FindingRows
-              findings={technicalFindings}
+              findings={agentFindings}
               selected={selected}
-              startIndex={designFindings.length + agentFindings.length}
+              startIndex={designFindings.length + technicalFindings.length}
               onFocusFinding={onFocusFinding}
             />
-            {technicalFindings.length === 0 ? (
-              <p className={styles.emptyCopy}>
-                No deterministic fault was reproduced in this scope.
-              </p>
-            ) : null}
+            <SignalRows
+              findings={designSignalFindings}
+              selected={selected}
+              onFocusFinding={onFocusFinding}
+            />
           </details>
         </>
       ) : null}
@@ -1517,8 +1463,16 @@ function CoveragePanel({
   coverage,
   activeGaps,
   gapDraft,
+  mode,
+  checkpoint,
+  demoState,
+  auditing,
+  uncapturedNav,
   onChangeGapDraft,
   onSubmitCoverageGap,
+  onCaptureVisibleNav,
+  onCaptureBelowFold,
+  onOpenJourneyCheckpoint,
 }: WorkbenchViewProps) {
   return (
     <section className={styles.gaps} aria-labelledby="coverage-title">
@@ -1530,54 +1484,99 @@ function CoveragePanel({
           </span>
         </summary>
         <div className={styles.coverageMatrix} role="list" aria-label="Audit coverage matrix">
-          {coverage.surfaces.map((surface) => (
-            <article key={surface.checkpointId} role="listitem">
-              <div>
+          {coverage.surfaces.map((surface) => {
+            const summary = (
+              <>
                 <span>{surface.surfaceType}</span>
                 <b title={surface.finalUrl}>{surface.route}</b>
+                <small>
+                  {surface.findingCount} facts · {shortTime(surface.capturedAt)}
+                </small>
+              </>
+            );
+            return (
+              <div key={surface.checkpointId} role="listitem">
+                {mode === "remote" ? (
+                  <button
+                    type="button"
+                    className={styles.surfaceJump}
+                    data-current={surface.checkpointId === checkpoint?.id}
+                    aria-pressed={surface.checkpointId === checkpoint?.id}
+                    title={surface.finalUrl}
+                    onClick={() =>
+                      onOpenJourneyCheckpoint({
+                        checkpointId: surface.checkpointId,
+                        scopeId: surface.scopeId,
+                        label: surface.label,
+                        displayUrl: surface.finalUrl,
+                        capturedAt: surface.capturedAt,
+                        findingCount: surface.findingCount,
+                        viewport: surface.viewport,
+                      })
+                    }
+                  >
+                    {summary}
+                  </button>
+                ) : (
+                  <div className={styles.surfaceJump} data-static="true" title={surface.finalUrl}>
+                    {summary}
+                  </div>
+                )}
+                <dl>
+                  <div>
+                    <dt>Viewport</dt>
+                    <dd>{surface.viewport}</dd>
+                  </div>
+                  <div>
+                    <dt>State</dt>
+                    <dd>{surface.state}</dd>
+                  </div>
+                  <div>
+                    <dt>Extent</dt>
+                    <dd>{surface.captureExtent}</dd>
+                  </div>
+                  <div>
+                    <dt>Evidence</dt>
+                    <dd>{surface.evidenceTypes.join(" · ")}</dd>
+                  </div>
+                  <div>
+                    <dt>Motion</dt>
+                    <dd>{surface.motion.replace("_", " ")}</dd>
+                  </div>
+                  <div>
+                    <dt>Interaction</dt>
+                    <dd>{surface.interaction.replace("_", " ")}</dd>
+                  </div>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>{surface.status.replace("_", " ")}</dd>
+                  </div>
+                </dl>
+                <small>
+                  {surface.reason ? `${surface.reason} · ` : ""}
+                  <code>{surface.checkpointId}</code>
+                </small>
               </div>
-              <dl>
-                <div>
-                  <dt>Viewport</dt>
-                  <dd>{surface.viewport}</dd>
-                </div>
-                <div>
-                  <dt>State</dt>
-                  <dd>{surface.state}</dd>
-                </div>
-                <div>
-                  <dt>Extent</dt>
-                  <dd>{surface.captureExtent}</dd>
-                </div>
-                <div>
-                  <dt>Evidence</dt>
-                  <dd>{surface.evidenceTypes.join(" · ")}</dd>
-                </div>
-                <div>
-                  <dt>Motion</dt>
-                  <dd>{surface.motion.replace("_", " ")}</dd>
-                </div>
-                <div>
-                  <dt>Interaction</dt>
-                  <dd>{surface.interaction.replace("_", " ")}</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>{surface.status.replace("_", " ")}</dd>
-                </div>
-              </dl>
-              <small>
-                {surface.reason ? `${surface.reason} · ` : ""}
-                {shortTime(surface.capturedAt)} · <code>{surface.checkpointId}</code>
-              </small>
-            </article>
-          ))}
+            );
+          })}
           {coverage.surfaces.length === 0 ? (
             <p className={styles.emptyCopy}>
               Capture or measure a surface before claiming coverage.
             </p>
           ) : null}
         </div>
+        {mode === "remote" && checkpoint && demoState === "baseline" ? (
+          <div className={styles.extendRow}>
+            {uncapturedNav.length > 0 ? (
+              <button type="button" disabled={auditing} onClick={onCaptureVisibleNav}>
+                <Icon name="spark" /> Add visible nav
+              </button>
+            ) : null}
+            <button type="button" disabled={auditing} onClick={onCaptureBelowFold}>
+              <Icon name="focus" /> Add below-fold
+            </button>
+          </div>
+        ) : null}
         <div className={styles.subhead}>
           <h3 id="gaps-title">Not seen</h3>
           <span>{activeGaps.length} coverage gaps</span>
@@ -1682,31 +1681,31 @@ function ActivityReceipts({ activity, activityLimit }: WorkbenchViewProps) {
   );
 }
 
-function EvidencePane(props: WorkbenchViewProps) {
-  const { evidenceBoard, measuredCount, judgedCount, reviewResults, activeGaps } = props;
-  const strengthCount = reviewResults.filter(({ kind }) => kind === "strength").length;
-  const noIssueCount = reviewResults.filter(({ kind }) => kind === "no_material_issue").length;
+function EvidencePane(
+  props: WorkbenchViewProps & { hostToolCount: number | null; onClose: () => void },
+) {
+  const { evidenceBoard, measuredCount, judgedCount, onClose } = props;
   return (
-    <section className={styles.evidencePane} aria-labelledby="evidence-title">
+    <aside className={styles.evidencePane} id="evidence-pane" aria-label="Evidence board">
       <div className={styles.evidenceHead}>
         <div>
-          <h2 id="evidence-title">What the review found</h2>
-          <p aria-live="polite">{evidenceBoard.summary}</p>
-        </div>
-        <div className={styles.truthSummary}>
-          <span className={styles.truthContext}>{evidenceBoard.truthLabel}</span>
-          <span>
-            <i data-truth="measured" />
-            {measuredCount} measured
+          <h2 id="evidence-title">Findings</h2>
+          <p>
+            {measuredCount} measured ·{" "}
+            {judgedCount > 0 ? `${judgedCount} judged` : "design review ready"}
+          </p>
+          <span className={styles.srOnly} aria-live="polite">
+            {evidenceBoard.summary}
           </span>
-          <span>
-            <i data-truth="judged" />
-            {judgedCount} judged
-          </span>
-          <span>{strengthCount} strengths</span>
-          <span>{noIssueCount} no-issue</span>
-          <span>{activeGaps.length} gaps</span>
         </div>
+        <button
+          className={styles.closePane}
+          type="button"
+          aria-label="Close findings panel"
+          onClick={onClose}
+        >
+          Close
+        </button>
       </div>
       <FindingList {...props} />
       <FindingInspector {...props} />
@@ -1714,8 +1713,17 @@ function EvidencePane(props: WorkbenchViewProps) {
       <CoveragePanel {...props} />
       <AuditBriefPanel {...props} />
       <ActivityReceipts {...props} />
-    </section>
+      <AgentAuthority {...props} />
+    </aside>
   );
+}
+
+const SIDEBAR_MIN_WIDTH = 288;
+const SIDEBAR_MAX_WIDTH = 560;
+const SIDEBAR_RESIZE_STEP = 32;
+
+function clampSidebarWidth(width: number) {
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
 }
 
 export function WorkbenchView(props: WorkbenchViewProps) {
@@ -1724,7 +1732,12 @@ export function WorkbenchView(props: WorkbenchViewProps) {
     status: "checking",
   });
   const [hostToolCount, setHostToolCount] = useState<number | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(360);
+  const [captureFormOpen, setCaptureFormOpen] = useState(false);
+  const dragRef = useRef<{ x: number; width: number } | null>(null);
+  const sidebarToggleRef = useRef<HTMLButtonElement | null>(null);
   const toolStatus = toolRegistration.mode === props.mode ? toolRegistration.status : "checking";
+  const { sidebarOpen, onSidebarOpenChange } = props;
 
   useEffect(() => {
     if (toolStatus !== "ready") {
@@ -1740,27 +1753,90 @@ export function WorkbenchView(props: WorkbenchViewProps) {
     };
   }, [toolStatus]);
 
+  useEffect(() => {
+    if (props.checkpoint) setCaptureFormOpen(false);
+  }, [props.checkpoint?.id]);
+
+  const showCaptureForm = captureFormOpen || (props.mode === "remote" && !props.checkpoint);
+
+  const endHandleDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  const closeSidebar = () => {
+    onSidebarOpenChange(false);
+    window.requestAnimationFrame(() => sidebarToggleRef.current?.focus());
+  };
+
   return (
-    <section className={styles.app} data-mode={props.mode} aria-label="Sundae audit workbench">
+    <main
+      className={styles.app}
+      id="workbench"
+      data-mode={props.mode}
+      aria-label="Sundae audit workbench"
+    >
       <AuditTopbar
         {...props}
         toolStatus={toolStatus}
         hostToolCount={hostToolCount}
         onToolStatusChange={setToolRegistration}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => onSidebarOpenChange(!sidebarOpen)}
+        sidebarToggleRef={sidebarToggleRef}
       />
-      <ScopeBar {...props} />
-      <AgentAuthority {...props} hostToolCount={hostToolCount} />
-      {props.mode === "remote" ? <CaptureBar {...props} /> : null}
-      <JourneyBar {...props} />
-      <ol className={styles.boardLegend} aria-label="Where to look">
-        <li>Ask ChatGPT to audit</li>
-        <li>Approve one finding</li>
-        <li>Preview and verify</li>
-      </ol>
-      <div className={styles.workbench} id="workbench">
-        <ProductPane {...props} />
-        <EvidencePane {...props} />
+      <div
+        className={styles.workbench}
+        data-sidebar={sidebarOpen ? "open" : "closed"}
+        style={{ "--evidence-width": `${sidebarWidth}px` } as CSSProperties}
+      >
+        <ProductPane
+          {...props}
+          captureFormOpen={showCaptureForm}
+          onToggleCaptureForm={() => setCaptureFormOpen((open) => !open)}
+        />
+        {sidebarOpen ? (
+          <div
+            className={styles.sidebarHandle}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize the findings sidebar"
+            aria-valuemin={SIDEBAR_MIN_WIDTH}
+            aria-valuemax={SIDEBAR_MAX_WIDTH}
+            aria-valuenow={sidebarWidth}
+            aria-valuetext={`${sidebarWidth} pixels wide`}
+            tabIndex={0}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              dragRef.current = { x: event.clientX, width: sidebarWidth };
+            }}
+            onPointerMove={(event) => {
+              const drag = dragRef.current;
+              if (!drag || (event.buttons & 1) === 0) return;
+              setSidebarWidth(clampSidebarWidth(drag.width + (drag.x - event.clientX)));
+            }}
+            onPointerUp={endHandleDrag}
+            onPointerCancel={endHandleDrag}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                setSidebarWidth((width) => clampSidebarWidth(width + SIDEBAR_RESIZE_STEP));
+              } else if (event.key === "ArrowRight") {
+                event.preventDefault();
+                setSidebarWidth((width) => clampSidebarWidth(width - SIDEBAR_RESIZE_STEP));
+              } else if (event.key === "Home") {
+                event.preventDefault();
+                setSidebarWidth(SIDEBAR_MIN_WIDTH);
+              } else if (event.key === "End") {
+                event.preventDefault();
+                setSidebarWidth(SIDEBAR_MAX_WIDTH);
+              }
+            }}
+          />
+        ) : null}
+        <EvidencePane {...props} hostToolCount={hostToolCount} onClose={closeSidebar} />
       </div>
-    </section>
+    </main>
   );
 }

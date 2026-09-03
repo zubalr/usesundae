@@ -229,39 +229,12 @@
   background: var(--stage-panel);
 }
 
-.programHeader,
 .rundown > header,
 .stepOwner {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   text-transform: uppercase;
-}
-
-.programHeader {
-  min-block-size: var(--space-xl);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-m);
-  padding-inline: var(--space-m);
-  border-bottom: thin solid var(--stage-line);
-  background: var(--stage-ground);
-  color: var(--stage-muted);
-}
-
-.programHeader span:first-child {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-weight: var(--weight-bold);
-}
-
-.programHeader i {
-  inline-size: var(--space-xs);
-  block-size: var(--space-xs);
-  border-radius: var(--radius-full);
-  background: var(--stage-verification);
 }
 
 .fixtureWindow {
@@ -858,19 +831,24 @@
   .masthead {
     min-block-size: var(--space-xl);
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: var(--space-2xs);
   }
 
   .masthead .wordmark,
   .masthead nav a {
     min-block-size: var(--space-xl);
-    padding-inline: var(--space-xs);
+    padding-inline: var(--space-2xs);
   }
 
   .masthead nav {
-    width: 100%;
-    justify-content: flex-start;
+    min-width: var(--space-none);
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+
+  .masthead nav a[href="#method"] {
+    display: none;
   }
 
   .hero {
@@ -895,7 +873,6 @@
     font-size: var(--text-m);
   }
 
-  .programHeader,
   .fixtureLabel {
     align-items: flex-start;
     flex-direction: column;

@@ -33,12 +33,13 @@ test("the launcher opens ChatGPT with the audit instruction already typed", () =
   const combined = `${launcher}\n${launch}`;
 
   assert.match(combined, /ChatGPT Desktop/);
-  assert.match(combined, /Work Cloud/);
+  assert.match(combined, /ChatGPT Work/);
   assert.match(combined, /built-in browser/);
   assert.match(combined, /Site Tools/);
-  assert.match(combined, /Audit with ChatGPT/);
+  assert.match(combined, /Audit in ChatGPT Work/);
   assert.match(combined, /window\.open/);
-  assert.match(combined, /chatgpt\.com\/\?q=/);
+  assert.match(combined, /searchParams\.set\("surface", "work"\)/);
+  assert.match(combined, /searchParams\.set\("model", "gpt-5\.6-sol-wm"\)/);
   assert.match(combined, /Copy workspace URL/);
   assert.doesNotMatch(combined, /Prepare Desktop handoff/);
   assert.doesNotMatch(combined, /Human controls ready/);
@@ -111,7 +112,7 @@ test("a human-supplied query URL is approved and auto-starts capture", () => {
   assert.doesNotMatch(viewport, /Approve the prefilled target or use Capture page/);
 });
 
-test("the evidence pane leads with findings, then strengths, gaps, brief, and receipts", () => {
+test("the evidence pane leads with actionable findings and collapses secondary inputs", () => {
   const workbench = readFileSync(
     pathFromRoot("components", "workbench", "WorkbenchView.tsx"),
     "utf8",
@@ -140,38 +141,83 @@ test("the evidence pane leads with findings, then strengths, gaps, brief, and re
   assert.match(workbench, /<details[\s\S]*id="audit-brief-title"/);
   assert.doesNotMatch(workbench, /briefEditor\} open=\{!auditBrief\}/);
   assert.match(workbench, /<details[\s\S]*id="coverage-title"/);
-  assert.match(workbench, /Ask ChatGPT to audit/);
-  assert.match(workbench, /Approve one finding/);
-  assert.match(workbench, /Preview and verify/);
+  assert.doesNotMatch(workbench, /Ask ChatGPT to audit/);
+  assert.doesNotMatch(workbench, /Approve one finding/);
+  assert.doesNotMatch(workbench, /Preview and verify/);
   assert.match(workbench, /"Refresh evidence"/);
   assert.doesNotMatch(workbench, /"Re-measure"/);
   assert.doesNotMatch(workbench, /Audit live target/);
   assert.doesNotMatch(workbench, /Recapture page/);
-  assert.match(workbench, />Design</);
-  assert.match(workbench, /Design signal/);
-  assert.match(workbench, /descriptive counts · no threshold/);
+  assert.match(workbench, /Design findings/);
+  assert.match(workbench, /Measured findings/);
+  assert.match(workbench, /Signals and Site Tools/);
   assert.match(workbench, /hasDefensibleThreshold/);
-  assert.match(workbench, /Agent readiness/);
-  assert.match(workbench, /Technical facts/);
-  assert.doesNotMatch(workbench, /Product findings/);
-  assert.doesNotMatch(workbench, /Accessibility &(?:amp;)? technical facts/);
-  assert.match(workbench, /Measurements are ready/);
-  assert.match(workbench, /Continue the review in ChatGPT/);
-  assert.match(workbench, /No design judgment yet/);
-  assert.match(workbench, /A live review with your AI/);
+  assert.match(workbench, /Ready for design review/);
+  assert.match(workbench, /Review in ChatGPT Work/);
   assert.match(workbench, /Inspect Site Tools/);
-  assert.match(workbench, /What the review found/);
+  assert.match(workbench, /<h2 id="evidence-title">Findings<\/h2>/);
   assert.match(workbench, /What already works/);
   assert.match(workbench, /What was reviewed/);
   assert.match(workbench, /Review context/);
-  assert.match(workbench, /Included audit specimen/);
-  assert.match(workbench, /<details[\s\S]*Technical facts/);
-  assert.doesNotMatch(workbench, /<details[^>]*\sopen[\s\S]{0,200}Technical facts/);
+  assert.match(workbench, /Sample review/);
+  assert.match(workbench, /<details className=\{styles\.secondaryReview\}>/);
+  assert.doesNotMatch(workbench, /<details className=\{styles\.secondaryReview\}\s+open/);
   assert.match(workbench, /aria-label=\{evidenceBoard\.listLabel\}/);
-  const designLane = workbench.indexOf(">Design<");
-  const agentLane = workbench.indexOf("Agent readiness");
-  const technicalLane = workbench.indexOf("Technical facts");
-  assert.ok(designLane >= 0 && agentLane > designLane && technicalLane > agentLane);
+  const designLane = workbench.indexOf("Design findings");
+  const measuredLane = workbench.indexOf("Measured findings");
+  const secondaryInputs = workbench.indexOf("Signals and Site Tools");
+  assert.ok(designLane >= 0 && measuredLane > designLane && secondaryInputs > measuredLane);
+});
+
+test("the evidence dock closes, reopens, and resizes with pointer or keyboard", () => {
+  const workbench = readFileSync(
+    pathFromRoot("components", "workbench", "WorkbenchView.tsx"),
+    "utf8",
+  );
+
+  assert.match(workbench, /aria-controls="evidence-pane"/);
+  assert.match(workbench, /aria-label=\{`\$\{sidebarOpen \? "Hide" : "Show"\} findings panel/);
+  assert.match(workbench, /className=\{styles\.closePane\}[\s\S]{0,100}onClick=\{onClose\}/);
+  assert.match(workbench, /role="separator"/);
+  assert.match(workbench, /aria-valuetext=\{`\$\{sidebarWidth\} pixels wide`\}/);
+  assert.match(workbench, /const SIDEBAR_MIN_WIDTH = 288/);
+  assert.match(workbench, /const SIDEBAR_MAX_WIDTH = 560/);
+  assert.match(workbench, /useState\(360\)/);
+  assert.match(workbench, /event\.key === "ArrowLeft"/);
+  assert.match(workbench, /event\.key === "ArrowRight"/);
+  assert.match(workbench, /event\.key === "Home"/);
+  assert.match(workbench, /event\.key === "End"/);
+  assert.match(workbench, /sidebarToggleRef\.current\?\.focus\(\)/);
+
+  const closeSidebar = workbench.slice(
+    workbench.indexOf("const closeSidebar"),
+    workbench.indexOf("return (", workbench.indexOf("const closeSidebar")),
+  );
+  assert.doesNotMatch(closeSidebar, /onFocusFinding|setSelected/);
+});
+
+test("choosing a finding reveals its inspector without forcing motion", () => {
+  const controller = readFileSync(pathFromRoot("components", "Workbench.tsx"), "utf8");
+  const focusFinding = controller.slice(
+    controller.indexOf("const focusFinding"),
+    controller.indexOf("const setFindingDecision", controller.indexOf("const focusFinding")),
+  );
+
+  assert.match(controller, /inspector\?\.scrollIntoView/);
+  assert.match(controller, /prefers-reduced-motion: reduce/);
+  assert.match(controller, /\?\s+"auto"\s*:\s+"smooth"/);
+  assert.match(controller, /inspector\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(focusFinding, /setSidebarOpen\(true\)/);
+});
+
+test("pre-capture target status and sample coverage do not expose unavailable actions", () => {
+  const workbench = readFileSync(
+    pathFromRoot("components", "workbench", "WorkbenchView.tsx"),
+    "utf8",
+  );
+
+  assert.match(workbench, /awaitingCapture \? \([\s\S]*?data-static="true"/);
+  assert.match(workbench, /mode === "remote" \? \([\s\S]*?onOpenJourneyCheckpoint/);
 });
 
 test("the workbench accepts bare domains and contains desktop pane scrolling", () => {
@@ -181,6 +227,7 @@ test("the workbench accepts bare domains and contains desktop pane scrolling", (
   );
   const styles = readFileSync(pathFromRoot("components", "Workbench.module.css"), "utf8");
 
+  assert.match(workbench, /<main[\s\S]*?aria-label="Sundae audit workbench"/);
   assert.match(workbench, /type="text"[\s\S]{0,80}inputMode="url"[\s\S]{0,120}value=\{urlDraft\}/);
   assert.match(styles, /\.app\s*\{[\s\S]*?height:\s*100dvh;[\s\S]*?overflow:\s*hidden;/);
   assert.match(styles, /\.workbench\s*\{[\s\S]*?flex:\s*1 1 auto;/);
@@ -189,6 +236,10 @@ test("the workbench accepts bare domains and contains desktop pane scrolling", (
   assert.match(
     styles,
     /@media \(max-width: 900px\)[\s\S]*?\.app\s*\{[\s\S]*?height:\s*auto;[\s\S]*?overflow-x:\s*clip;/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\)[\s\S]*?\.workbench\s*\{[\s\S]*?display:\s*block;[\s\S]*?\.sidebarHandle\s*\{[\s\S]*?display:\s*none;/,
   );
 });
 

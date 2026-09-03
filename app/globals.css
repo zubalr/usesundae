@@ -103,6 +103,8 @@
   --space-2xl: 4rem;
   --space-3xl: 6rem;
 
+  --workbench-topbar-height: 3.25rem;
+
   /* -- semantic: type ----------------------------------------------------- */
   --font-sans: "Avenir Next", Avenir, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-serif: "Iowan Old Style", Baskerville, "Times New Roman", serif;

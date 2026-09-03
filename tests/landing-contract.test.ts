@@ -22,7 +22,7 @@ test("the entrance makes public capture primary and the included demo secondary"
   const launcher = readSource("components", "AuditLauncher.tsx");
   const publicAction = launcher.indexOf("Start the review");
   const demoAction = launcher.indexOf("Try the live demo");
-  const chatAction = launcher.indexOf("Audit with ChatGPT");
+  const chatAction = launcher.indexOf("Audit in ChatGPT Work");
 
   assert.ok(publicAction >= 0 && publicAction < demoAction);
   assert.ok(demoAction > publicAction && chatAction > demoAction);
@@ -218,7 +218,7 @@ test("compact layouts present the launch controls before the fixture and keep th
   );
 });
 
-test("public hostnames use a forgiving text field and Desktop guidance stays honest", () => {
+test("public hostnames use a forgiving text field and the Work handoff stays honest", () => {
   const page = readSource("app", "page.tsx");
   const launcher = readSource("components", "AuditLauncher.tsx");
   const launch = readSource("lib", "launch.ts");
@@ -227,11 +227,13 @@ test("public hostnames use a forgiving text field and Desktop guidance stays hon
   assert.doesNotMatch(launcher, /type="url"/);
   assert.match(launcher, /Type a public URL and press Enter/);
   assert.doesNotMatch(launcher, /Human controls ready/);
-  assert.match(launcher, /ChatGPT Desktop/);
-  assert.match(launcher, /Work Cloud/);
-  assert.match(launcher, /Audit with ChatGPT/);
+  assert.match(launcher, /ChatGPT Work/);
+  assert.match(launcher, /5\.6 Sol/);
+  assert.match(launcher, /GPT-5\.6 Sol and Medium/);
+  assert.match(launcher, /Audit in ChatGPT Work/);
   assert.match(launcher, /window\.open/);
-  assert.match(launch, /chatgpt\.com\/\?q=/);
+  assert.match(launch, /searchParams\.set\("surface", "work"\)/);
+  assert.match(launch, /searchParams\.set\("model", "gpt-5\.6-sol-wm"\)/);
   assert.doesNotMatch(launcher, /Prepare Desktop handoff/);
   assert.match(page, /ChatGPT Work Cloud/);
   assert.match(page, /built-in browser or ChatGPT Work Cloud/);
